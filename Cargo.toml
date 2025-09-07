@@ -1,0 +1,26 @@
+[package]
+name = "tcrm-monitor"
+version = "0.1.0"
+edition = "2024"
+description = "Task monitor and dependency control unit for TCRM project"
+
+[dependencies]
+tcrm-task = { git = "https://github.com/xpcn2015/tcrm-task", features = [] }
+serde = { version = "1.0", features = ["derive"] }
+flatbuffers = { version = "25.2", optional = true }
+tokio = { version = "1.47", features = [
+    "rt-multi-thread",
+    "time",
+    "macros",
+    "io-util",
+    "process",
+    "sync",
+    "signal",
+] }
+tracing = "0.1"
+thiserror = "2.0"
+
+
+[features]
+default = []
+flatbuffers = ["dep:flatbuffers", "tcrm-task/flatbuffers"]
