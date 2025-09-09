@@ -1,0 +1,121 @@
+
+namespace TCRM.Task;
+
+// Config
+
+enum StreamSource: byte {
+  Stdout = 0,
+  Stderr = 1
+}
+
+table TaskConfig {
+  command: string (required);
+  args: [string];
+  working_dir: string;
+  env: [EnvEntry];
+  timeout_ms: ulong;
+  enable_stdin: bool = false;
+  ready_indicator: string;
+  ready_indicator_source: StreamSource = Stdout;
+
+}
+
+table EnvEntry {
+  key: string (required);
+  value: string (required);
+}
+
+// State
+
+enum TaskState: byte {
+  Pending = 0,
+  Initiating = 1,
+  Running = 2,
+  Ready = 3,
+  Finished = 4
+}
+
+union TaskTerminateReason {
+  Timeout: TimeoutReason,
+  Cleanup: CleanupReason,
+  DependenciesFinished: DependenciesFinishedReason,
+  Custom: CustomReason
+}
+
+table TimeoutReason {}
+table CleanupReason {}
+table DependenciesFinishedReason {}
+table CustomReason {
+  message: string (required);
+}
+
+// Error
+
+enum TaskErrorType: byte {
+  IO = 0,
+  Handle = 1,
+  Channel = 2,
+  InvalidConfiguration = 3,
+  Custom = 4
+}
+
+table TaskError {
+  kind: TaskErrorType;
+  message: string;
+}
+
+// Event
+
+union TaskEvent {
+  Started: StartedEvent,
+  Output: OutputEvent,
+  Ready: ReadyEvent,
+  Stopped: StoppedEvent,
+  Error: ErrorEvent
+}
+
+union TaskEventStopReason {
+  Finished: FinishedReason,
+  TerminatedTimeout: TimeoutReason,
+  TerminatedCleanup: CleanupReason,
+  TerminatedDependenciesFinished: DependenciesFinishedReason,
+  TerminatedCustom: CustomReason,
+  Error: ErrorStopReason
+}
+
+table StartedEvent {
+  task_name: string (required);
+}
+
+table OutputEvent {
+  task_name: string (required);
+  line: string (required);
+  src: StreamSource = Stdout;
+}
+
+table ReadyEvent {
+  task_name: string (required);
+}
+
+table StoppedEvent {
+  task_name: string (required);
+  exit_code: int;
+  reason: TaskEventStopReason (required);
+}
+
+table ErrorEvent {
+  task_name: string (required);
+  error: TaskError (required);
+}
+
+table FinishedReason {}
+
+table ErrorStopReason {
+  message: string (required);
+}
+
+table TaskEventWrapper {
+  event: TaskEvent;
+}
+
+root_type TaskEventWrapper;

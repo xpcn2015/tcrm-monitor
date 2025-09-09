@@ -1,0 +1,64 @@
+// Import the Task namespace types
+include "tcrm_task.fbs";
+
+namespace TCRM.Monitor;
+
+// Error types
+
+table ConfigParseError {
+  message: string (required);
+}
+
+table CircularDependencyError {
+  task_name: string (required);
+}
+
+table DependencyNotFoundError {
+  dependency: string (required);
+  task: string (required);
+}
+table TaskErrorWrapper {
+  // This would wrap the TaskError from the Task namespace
+  // The actual error details would be in the Task namespace
+  error_message: string (required);
+}
+
+union TaskMonitorError {
+  ConfigParse: ConfigParseError,
+  CircularDependency: CircularDependencyError,
+  DependencyNotFound: DependencyNotFoundError,
+  TaskError: TaskErrorWrapper
+}
+
+// Configuration Types
+
+enum TaskShell: byte {
+  None = 0,
+  Auto = 1,
+  Cmd = 2,      // Windows only
+  Powershell = 3, // Windows only
+  Bash = 4      // Unix only
+}
+
+table TaskSpec {
+  config: TCRM.Task.TaskConfig (required);
+  shell: TaskShell = None;
+  pty: bool = false;
+  dependencies: [string];
+  ready_indicator: string;
+  ready_indicator_source: TCRM.Task.StreamSource = Stdout;
+  terminate_after_dependents_finished: bool = false;
+  ignore_dependencies_error: bool = false;
+}
+
+table TaskEntry {
+  name: string (required);
+  spec: TaskSpec (required);
+}
+
+table TcrmTasks {
+  tasks: [TaskEntry];
+}
+
+
+root_type TcrmTasks;
