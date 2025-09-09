@@ -9,6 +9,7 @@ use tokio::sync::mpsc::{self, Sender};
 use crate::monitor::tasks::TaskMonitor;
 
 impl TaskMonitor {
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub async fn execute_all_direct(&mut self, event_tx: Option<Sender<TaskEvent>>) {
         let (task_event_tx, mut task_event_rx) = mpsc::channel::<TaskEvent>(1024);
         self.start_independent_tasks_direct(&task_event_tx).await;
@@ -24,18 +25,9 @@ impl TaskMonitor {
                 }
             }
             match event {
-                TaskEvent::Started { task_name } => {
-                    #[cfg(feature = "tracing")]
-                    tracing::debug!(task_name, "Task started");
-                }
+                TaskEvent::Started { .. } => {}
                 TaskEvent::Output { .. } => {}
                 TaskEvent::Ready { task_name } => {
-                    #[cfg(feature = "tracing")]
-                    tracing::debug!(task_name, "Task ready");
-
-                    #[cfg(feature = "tracing")]
-                    tracing::debug!(task_name, "Task stopped");
-
                     self.start_ready_dependents_direct(
                         &mut active_tasks,
                         &task_name,
@@ -49,8 +41,6 @@ impl TaskMonitor {
                     exit_code: _,
                     reason,
                 } => {
-                    #[cfg(feature = "tracing")]
-                    tracing::debug!(task_name, "Task stopped");
                     active_tasks.remove(&task_name);
 
                     self.terminate_dependencies_if_all_dependent_finished(&task_name)
@@ -65,8 +55,6 @@ impl TaskMonitor {
                     .await;
                 }
                 TaskEvent::Error { task_name, error } => {
-                    #[cfg(feature = "tracing")]
-                    tracing::debug!(task_name, error = %error, "Task error");
                     active_tasks.remove(&task_name);
 
                     self.terminate_dependencies_if_all_dependent_finished(&task_name)
