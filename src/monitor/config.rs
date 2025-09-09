@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use tcrm_task::tasks::config::{StreamSource, TaskConfig};
+use tcrm_task::tasks::config::TaskConfig;
 
 pub type TcrmTasks = HashMap<String, TaskSpec>;
 
@@ -19,12 +19,6 @@ pub struct TaskSpec {
     /// List of task names that this task depends on
     pub dependencies: Option<Vec<String>>,
 
-    /// Optional string to indicate the task is ready (for long-running processes like servers)
-    pub ready_indicator: Option<String>,
-
-    /// Source of the ready indicator string (stdout/stderr)
-    pub ready_indicator_source: Option<StreamSource>,
-
     /// Automatically terminate this task after all dependent tasks finish
     pub terminate_after_dependents_finished: Option<bool>,
 
@@ -38,8 +32,6 @@ impl Default for TaskSpec {
             shell: Some(TaskShell::None),
             pty: Some(false),
             dependencies: None,
-            ready_indicator: None,
-            ready_indicator_source: None,
             terminate_after_dependents_finished: Some(false),
             ignore_dependencies_error: Some(false),
         }
@@ -70,17 +62,13 @@ impl TaskSpec {
         self
     }
 
-    pub fn ready_indicator(mut self, signal: impl Into<String>) -> Self {
-        self.ready_indicator = Some(signal.into());
-        self
-    }
-    pub fn ready_indicator_source(mut self, source: StreamSource) -> Self {
-        self.ready_indicator_source = Some(source);
+    pub fn terminate_after_dependents(mut self, terminate: bool) -> Self {
+        self.terminate_after_dependents_finished = Some(terminate);
         self
     }
 
-    pub fn terminate_after_dependents(mut self, terminate: bool) -> Self {
-        self.terminate_after_dependents_finished = Some(terminate);
+    pub fn ignore_dependencies_error(mut self, ignore: bool) -> Self {
+        self.ignore_dependencies_error = Some(ignore);
         self
     }
 }
