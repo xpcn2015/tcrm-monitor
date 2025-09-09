@@ -14,7 +14,7 @@ pub struct TaskSpec {
     pub shell: Option<TaskShell>,
 
     /// Using pseudo-terminal to run this task
-    pub pty: Option<bool>,
+    // pub pty: Option<bool>,
 
     /// List of task names that this task depends on
     pub dependencies: Option<Vec<String>>,
@@ -30,7 +30,7 @@ impl Default for TaskSpec {
         Self {
             config: TaskConfig::default(),
             shell: Some(TaskShell::None),
-            pty: Some(false),
+            // pty: Some(false),
             dependencies: None,
             terminate_after_dependents_finished: Some(false),
             ignore_dependencies_error: Some(false),
@@ -49,10 +49,10 @@ impl TaskSpec {
         self.shell = Some(shell);
         self
     }
-    pub fn pty(mut self, pty: bool) -> Self {
-        self.pty = Some(pty);
-        self
-    }
+    // pub fn pty(mut self, pty: bool) -> Self {
+    //     self.pty = Some(pty);
+    //     self
+    // }
     pub fn dependencies<I, S>(mut self, dependencies: I) -> Self
     where
         I: IntoIterator<Item = S>,

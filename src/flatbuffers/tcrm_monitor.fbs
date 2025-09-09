@@ -43,7 +43,7 @@ enum TaskShell: byte {
 table TaskSpec {
   config: TCRM.Task.TaskConfig (required);
   shell: TaskShell = None;
-  pty: bool = false;
+  // pty: bool = false;
   dependencies: [string];
   terminate_after_dependents_finished: bool = false;
   ignore_dependencies_error: bool = false;

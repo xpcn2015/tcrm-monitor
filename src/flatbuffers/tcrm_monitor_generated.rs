@@ -23,10 +23,7 @@ pub mod tcrm {
 
         use core::cmp::Ordering;
         use core::mem;
-        use tcrm_task::flatbuffers::tcrm_task_generated::{
-            tcrm::task::{self, TaskConfig},
-            *,
-        };
+        use tcrm_task::flatbuffers::tcrm_task_generated::{tcrm::task::TaskConfig, *};
 
         extern crate flatbuffers;
         use self::flatbuffers::{EndianScalar, Follow};
@@ -794,10 +791,9 @@ pub mod tcrm {
         impl<'a> TaskSpec<'a> {
             pub const VT_CONFIG: flatbuffers::VOffsetT = 4;
             pub const VT_SHELL: flatbuffers::VOffsetT = 6;
-            pub const VT_PTY: flatbuffers::VOffsetT = 8;
-            pub const VT_DEPENDENCIES: flatbuffers::VOffsetT = 10;
-            pub const VT_TERMINATE_AFTER_DEPENDENTS_FINISHED: flatbuffers::VOffsetT = 12;
-            pub const VT_IGNORE_DEPENDENCIES_ERROR: flatbuffers::VOffsetT = 14;
+            pub const VT_DEPENDENCIES: flatbuffers::VOffsetT = 8;
+            pub const VT_TERMINATE_AFTER_DEPENDENTS_FINISHED: flatbuffers::VOffsetT = 10;
+            pub const VT_IGNORE_DEPENDENCIES_ERROR: flatbuffers::VOffsetT = 12;
 
             #[inline]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
@@ -824,7 +820,6 @@ pub mod tcrm {
                 builder.add_terminate_after_dependents_finished(
                     args.terminate_after_dependents_finished,
                 );
-                builder.add_pty(args.pty);
                 builder.add_shell(args.shell);
                 builder.finish()
             }
@@ -848,17 +843,6 @@ pub mod tcrm {
                 unsafe {
                     self._tab
                         .get::<TaskShell>(TaskSpec::VT_SHELL, Some(TaskShell::None))
-                        .unwrap()
-                }
-            }
-            #[inline]
-            pub fn pty(&self) -> bool {
-                // Safety:
-                // Created from valid Table for this object
-                // which contains a valid value in this slot
-                unsafe {
-                    self._tab
-                        .get::<bool>(TaskSpec::VT_PTY, Some(false))
                         .unwrap()
                 }
             }
@@ -917,7 +901,6 @@ pub mod tcrm {
                         true,
                     )?
                     .visit_field::<TaskShell>("shell", Self::VT_SHELL, false)?
-                    .visit_field::<bool>("pty", Self::VT_PTY, false)?
                     .visit_field::<flatbuffers::ForwardsUOffset<
                         flatbuffers::Vector<'_, flatbuffers::ForwardsUOffset<&'_ str>>,
                     >>("dependencies", Self::VT_DEPENDENCIES, false)?
@@ -938,7 +921,6 @@ pub mod tcrm {
         pub struct TaskSpecArgs<'a> {
             pub config: Option<flatbuffers::WIPOffset<TaskConfig<'a>>>,
             pub shell: TaskShell,
-            pub pty: bool,
             pub dependencies: Option<
                 flatbuffers::WIPOffset<
                     flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>,
@@ -953,7 +935,6 @@ pub mod tcrm {
                 TaskSpecArgs {
                     config: None, // required field
                     shell: TaskShell::None,
-                    pty: false,
                     dependencies: None,
                     terminate_after_dependents_finished: false,
                     ignore_dependencies_error: false,
@@ -978,10 +959,6 @@ pub mod tcrm {
             pub fn add_shell(&mut self, shell: TaskShell) {
                 self.fbb_
                     .push_slot::<TaskShell>(TaskSpec::VT_SHELL, shell, TaskShell::None);
-            }
-            #[inline]
-            pub fn add_pty(&mut self, pty: bool) {
-                self.fbb_.push_slot::<bool>(TaskSpec::VT_PTY, pty, false);
             }
             #[inline]
             pub fn add_dependencies(
@@ -1037,7 +1014,6 @@ pub mod tcrm {
                 let mut ds = f.debug_struct("TaskSpec");
                 ds.field("config", &self.config());
                 ds.field("shell", &self.shell());
-                ds.field("pty", &self.pty());
                 ds.field("dependencies", &self.dependencies());
                 ds.field(
                     "terminate_after_dependents_finished",
