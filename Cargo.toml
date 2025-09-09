@@ -5,6 +5,7 @@ edition = "2024"
 description = "Task monitor and dependency control unit for TCRM project"
 
 [dependencies]
+# tcrm-task = { version = "0.3", features = [] }
 tcrm-task = { git = "https://github.com/xpcn2015/tcrm-task", features = [] }
 serde = { version = "1.0", features = ["derive"] }
 flatbuffers = { version = "25.2", optional = true }
@@ -17,10 +18,60 @@ tokio = { version = "1.47", features = [
     "sync",
     "signal",
 ] }
-tracing = "0.1"
+tracing = { version = "0.1", optional = true }
 thiserror = "2.0"
+tracing-subscriber = "0.3.20"
 
 
 [features]
 default = []
 flatbuffers = ["dep:flatbuffers", "tcrm-task/flatbuffers"]
+tracing = ["dep:tracing", "tcrm-task/tracing"]
+tracing-release_max_level_off = [
+    "tracing/release_max_level_off",
+    "tcrm-task/tracing-release_max_level_off",
+]
+tracing-release_max_level_error = [
+    "tracing/release_max_level_error",
+    "tcrm-task/tracing-release_max_level_error",
+]
+tracing-release_max_level_warn = [
+    "tracing/release_max_level_warn",
+    "tcrm-task/tracing-release_max_level_warn",
+]
+tracing-release_max_level_info = [
+    "tracing/release_max_level_info",
+    "tcrm-task/tracing-release_max_level_info",
+]
+tracing-release_max_level_debug = [
+    "tracing/release_max_level_debug",
+    "tcrm-task/tracing-release_max_level_debug",
+]
+tracing-release_max_level_trace = [
+    "tracing/release_max_level_trace",
+    "tcrm-task/tracing-release_max_level_trace",
+]
+tracing-max_level_off = [
+    "tracing/max_level_off",
+    "tcrm-task/tracing-max_level_off",
+]
+tracing-max_level_error = [
+    "tracing/max_level_error",
+    "tcrm-task/tracing-max_level_error",
+]
+tracing-max_level_warn = [
+    "tracing/max_level_warn",
+    "tcrm-task/tracing-max_level_warn",
+]
+tracing-max_level_info = [
+    "tracing/max_level_info",
+    "tcrm-task/tracing-max_level_info",
+]
+tracing-max_level_debug = [
+    "tracing/max_level_debug",
+    "tcrm-task/tracing-max_level_debug",
+]
+tracing-max_level_trace = [
+    "tracing/max_level_trace",
+    "tcrm-task/tracing-max_level_trace",
+]
