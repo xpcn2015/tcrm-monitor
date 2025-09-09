@@ -24,7 +24,7 @@ pub mod tcrm {
         use core::cmp::Ordering;
         use core::mem;
         use tcrm_task::flatbuffers::tcrm_task_generated::{
-            tcrm::task::{StreamSource, TaskConfig},
+            tcrm::task::{self, TaskConfig},
             *,
         };
 
@@ -796,10 +796,8 @@ pub mod tcrm {
             pub const VT_SHELL: flatbuffers::VOffsetT = 6;
             pub const VT_PTY: flatbuffers::VOffsetT = 8;
             pub const VT_DEPENDENCIES: flatbuffers::VOffsetT = 10;
-            pub const VT_READY_INDICATOR: flatbuffers::VOffsetT = 12;
-            pub const VT_READY_INDICATOR_SOURCE: flatbuffers::VOffsetT = 14;
-            pub const VT_TERMINATE_AFTER_DEPENDENTS_FINISHED: flatbuffers::VOffsetT = 16;
-            pub const VT_IGNORE_DEPENDENCIES_ERROR: flatbuffers::VOffsetT = 18;
+            pub const VT_TERMINATE_AFTER_DEPENDENTS_FINISHED: flatbuffers::VOffsetT = 12;
+            pub const VT_IGNORE_DEPENDENCIES_ERROR: flatbuffers::VOffsetT = 14;
 
             #[inline]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
@@ -816,9 +814,6 @@ pub mod tcrm {
                 args: &'args TaskSpecArgs<'args>,
             ) -> flatbuffers::WIPOffset<TaskSpec<'bldr>> {
                 let mut builder = TaskSpecBuilder::new(_fbb);
-                if let Some(x) = args.ready_indicator {
-                    builder.add_ready_indicator(x);
-                }
                 if let Some(x) = args.dependencies {
                     builder.add_dependencies(x);
                 }
@@ -829,7 +824,6 @@ pub mod tcrm {
                 builder.add_terminate_after_dependents_finished(
                     args.terminate_after_dependents_finished,
                 );
-                builder.add_ready_indicator_source(args.ready_indicator_source);
                 builder.add_pty(args.pty);
                 builder.add_shell(args.shell);
                 builder.finish()
@@ -883,32 +877,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            pub fn ready_indicator(&self) -> Option<&'a str> {
-                // Safety:
-                // Created from valid Table for this object
-                // which contains a valid value in this slot
-                unsafe {
-                    self._tab.get::<flatbuffers::ForwardsUOffset<&str>>(
-                        TaskSpec::VT_READY_INDICATOR,
-                        None,
-                    )
-                }
-            }
-            #[inline]
-            pub fn ready_indicator_source(&self) -> StreamSource {
-                // Safety:
-                // Created from valid Table for this object
-                // which contains a valid value in this slot
-                unsafe {
-                    self._tab
-                        .get::<StreamSource>(
-                            TaskSpec::VT_READY_INDICATOR_SOURCE,
-                            Some(StreamSource::Stdout),
-                        )
-                        .unwrap()
-                }
-            }
-            #[inline]
             pub fn terminate_after_dependents_finished(&self) -> bool {
                 // Safety:
                 // Created from valid Table for this object
@@ -953,16 +921,6 @@ pub mod tcrm {
                     .visit_field::<flatbuffers::ForwardsUOffset<
                         flatbuffers::Vector<'_, flatbuffers::ForwardsUOffset<&'_ str>>,
                     >>("dependencies", Self::VT_DEPENDENCIES, false)?
-                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
-                        "ready_indicator",
-                        Self::VT_READY_INDICATOR,
-                        false,
-                    )?
-                    .visit_field::<StreamSource>(
-                        "ready_indicator_source",
-                        Self::VT_READY_INDICATOR_SOURCE,
-                        false,
-                    )?
                     .visit_field::<bool>(
                         "terminate_after_dependents_finished",
                         Self::VT_TERMINATE_AFTER_DEPENDENTS_FINISHED,
@@ -986,8 +944,6 @@ pub mod tcrm {
                     flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>,
                 >,
             >,
-            pub ready_indicator: Option<flatbuffers::WIPOffset<&'a str>>,
-            pub ready_indicator_source: StreamSource,
             pub terminate_after_dependents_finished: bool,
             pub ignore_dependencies_error: bool,
         }
@@ -999,8 +955,6 @@ pub mod tcrm {
                     shell: TaskShell::None,
                     pty: false,
                     dependencies: None,
-                    ready_indicator: None,
-                    ready_indicator_source: StreamSource::Stdout,
                     terminate_after_dependents_finished: false,
                     ignore_dependencies_error: false,
                 }
@@ -1039,24 +993,6 @@ pub mod tcrm {
                 self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
                     TaskSpec::VT_DEPENDENCIES,
                     dependencies,
-                );
-            }
-            #[inline]
-            pub fn add_ready_indicator(
-                &mut self,
-                ready_indicator: flatbuffers::WIPOffset<&'b str>,
-            ) {
-                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                    TaskSpec::VT_READY_INDICATOR,
-                    ready_indicator,
-                );
-            }
-            #[inline]
-            pub fn add_ready_indicator_source(&mut self, ready_indicator_source: StreamSource) {
-                self.fbb_.push_slot::<StreamSource>(
-                    TaskSpec::VT_READY_INDICATOR_SOURCE,
-                    ready_indicator_source,
-                    StreamSource::Stdout,
                 );
             }
             #[inline]
@@ -1103,8 +1039,6 @@ pub mod tcrm {
                 ds.field("shell", &self.shell());
                 ds.field("pty", &self.pty());
                 ds.field("dependencies", &self.dependencies());
-                ds.field("ready_indicator", &self.ready_indicator());
-                ds.field("ready_indicator_source", &self.ready_indicator_source());
                 ds.field(
                     "terminate_after_dependents_finished",
                     &self.terminate_after_dependents_finished(),

@@ -45,8 +45,6 @@ table TaskSpec {
   shell: TaskShell = None;
   pty: bool = false;
   dependencies: [string];
-  ready_indicator: string;
-  ready_indicator_source: TCRM.Task.StreamSource = Stdout;
   terminate_after_dependents_finished: bool = false;
   ignore_dependencies_error: bool = false;
 }
