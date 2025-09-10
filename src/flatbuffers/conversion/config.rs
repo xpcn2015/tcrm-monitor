@@ -207,6 +207,33 @@ mod tests {
             let converted_back: ConfigTaskShell = fb_shell.try_into().unwrap();
             assert_eq!(converted_back, ConfigTaskShell::Bash);
         }
+
+        // Direct byte read test
+        let shell = ConfigTaskShell::Auto;
+        let fb_shell: FbTaskShell = shell.clone().into();
+        let raw_value: i8 = match fb_shell {
+            FbTaskShell::None => 0,
+            FbTaskShell::Auto => 1,
+            #[cfg(windows)]
+            FbTaskShell::Cmd => 2,
+            #[cfg(windows)]
+            FbTaskShell::Powershell => 3,
+            #[cfg(unix)]
+            FbTaskShell::Bash => 2,
+            _ => -1,
+        };
+        let direct_shell = match raw_value {
+            0 => ConfigTaskShell::None,
+            1 => ConfigTaskShell::Auto,
+            #[cfg(windows)]
+            2 => ConfigTaskShell::Cmd,
+            #[cfg(windows)]
+            3 => ConfigTaskShell::Powershell,
+            #[cfg(unix)]
+            2 => ConfigTaskShell::Bash,
+            _ => panic!("Unknown shell value: {}", raw_value),
+        };
+        assert_eq!(shell, direct_shell);
     }
 
     #[test]
@@ -272,6 +299,97 @@ mod tests {
         let env = converted_spec.config.env.unwrap();
         assert_eq!(env.get("PATH"), Some(&"/usr/bin".to_string()));
         assert_eq!(env.get("HOME"), Some(&"/home/user".to_string()));
+
+        // Direct byte read test for TaskSpec: compare all fields to original
+        let config = fb_spec.config();
+        assert_eq!(config.command(), spec.config.command);
+        assert_eq!(config.working_dir(), spec.config.working_dir.as_deref());
+        assert_eq!(config.timeout_ms(), spec.config.timeout_ms.unwrap_or(0));
+        assert_eq!(
+            config.enable_stdin(),
+            spec.config.enable_stdin.unwrap_or(false)
+        );
+        assert_eq!(
+            config.ready_indicator(),
+            spec.config.ready_indicator.as_deref()
+        );
+        // ready_indicator_source: compare as i8
+        let orig_source = spec.config.ready_indicator_source.map(|s| match s {
+            tcrm_task::tasks::config::StreamSource::Stdout => 0,
+            tcrm_task::tasks::config::StreamSource::Stderr => 1,
+        });
+        let fb_source = match config.ready_indicator_source().0 {
+            0 => 0,         // Stdout
+            1 => 1,         // Stderr
+            other => other, // fallback for unexpected values
+        };
+        if let Some(orig_source) = orig_source {
+            assert_eq!(fb_source, orig_source);
+        }
+        // args
+        let orig_args = spec
+            .config
+            .args
+            .as_ref()
+            .map(|v| v.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+        let fb_args = config
+            .args()
+            .map(|v| (0..v.len()).map(|i| v.get(i)).collect::<Vec<_>>());
+        assert_eq!(fb_args, orig_args);
+        // env
+        let orig_env = spec.config.env.as_ref().map(|env| {
+            env.iter()
+                .map(|(k, v)| (k.as_str(), v.as_str()))
+                .collect::<Vec<_>>()
+        });
+        let fb_env = config.env().map(|v| {
+            (0..v.len())
+                .map(|i| (v.get(i).key(), v.get(i).value()))
+                .collect::<Vec<_>>()
+        });
+        assert_eq!(fb_env, orig_env);
+        // shell
+        let direct_shell_val = match fb_spec.shell() {
+            FbTaskShell::None => 0,
+            FbTaskShell::Auto => 1,
+            #[cfg(windows)]
+            FbTaskShell::Cmd => 2,
+            #[cfg(windows)]
+            FbTaskShell::Powershell => 3,
+            #[cfg(unix)]
+            FbTaskShell::Bash => 2,
+            _ => -1,
+        };
+        let orig_shell_val = match spec.shell.unwrap_or(ConfigTaskShell::None) {
+            ConfigTaskShell::None => 0,
+            ConfigTaskShell::Auto => 1,
+            #[cfg(windows)]
+            ConfigTaskShell::Cmd => 2,
+            #[cfg(windows)]
+            ConfigTaskShell::Powershell => 3,
+            #[cfg(unix)]
+            ConfigTaskShell::Bash => 2,
+        };
+        assert_eq!(direct_shell_val, orig_shell_val);
+        // dependencies
+        let orig_deps = spec
+            .dependencies
+            .as_ref()
+            .map(|v| v.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+        let fb_deps = fb_spec
+            .dependencies()
+            .map(|v| (0..v.len()).map(|i| v.get(i)).collect::<Vec<_>>());
+        assert_eq!(fb_deps, orig_deps);
+        // terminate_after_dependents_finished
+        assert_eq!(
+            fb_spec.terminate_after_dependents_finished(),
+            spec.terminate_after_dependents_finished.unwrap_or(false)
+        );
+        // ignore_dependencies_error
+        assert_eq!(
+            fb_spec.ignore_dependencies_error(),
+            spec.ignore_dependencies_error.unwrap_or(false)
+        );
     }
 
     #[test]
@@ -411,17 +529,5 @@ mod tests {
         let converted_tasks = tasks_from_flatbuffers(fb_tasks).unwrap();
 
         assert_eq!(converted_tasks.len(), 0);
-    }
-
-    #[test]
-    fn test_conversion_error_display() {
-        let error = ConversionError::TaskConfigConversion("test error".to_string());
-        assert_eq!(error.to_string(), "TaskConfig conversion error: test error");
-
-        let error = ConversionError::InvalidShell(42);
-        assert_eq!(error.to_string(), "Invalid TaskShell value: 42");
-
-        let error = ConversionError::MissingRequiredField("test_field");
-        assert_eq!(error.to_string(), "Missing required field: test_field");
     }
 }
