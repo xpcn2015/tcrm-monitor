@@ -185,8 +185,8 @@ fn test_tasks_conversions() {
             >(fb_data)
             {
                 Ok(fb_tasks) => {
-                    // Old version: use tasks_from_flatbuffers
-                    match tasks_from_flatbuffers(fb_tasks) {
+                    let converted_tasks: Result<TcrmTasks, _> = fb_tasks.try_into();
+                    match converted_tasks {
                         Ok(converted_tasks) => {
                             println!("✓ TcrmTasks roundtrip conversion successful");
                             assert_eq!(converted_tasks.len(), 1);

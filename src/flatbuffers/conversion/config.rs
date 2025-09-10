@@ -137,19 +137,21 @@ pub fn tasks_to_flatbuffers<'a>(
     Ok(FbTcrmTasks::create(fbb, &args))
 }
 
-pub fn tasks_from_flatbuffers(fb_tasks: FbTcrmTasks) -> Result<ConfigTcrmTasks, ConversionError> {
-    let mut tasks = HashMap::new();
+impl TryFrom<FbTcrmTasks<'_>> for ConfigTcrmTasks {
+    type Error = ConversionError;
 
-    if let Some(entries) = fb_tasks.tasks() {
-        for i in 0..entries.len() {
-            let entry = entries.get(i);
-            let name = entry.name().to_string();
-            let spec = ConfigTaskSpec::from_flatbuffers(entry.spec())?;
-            tasks.insert(name, spec);
+    fn try_from(fb_tasks: FbTcrmTasks) -> Result<Self, Self::Error> {
+        let mut tasks = HashMap::new();
+        if let Some(entries) = fb_tasks.tasks() {
+            for i in 0..entries.len() {
+                let entry = entries.get(i);
+                let name = entry.name().to_string();
+                let spec = ConfigTaskSpec::from_flatbuffers(entry.spec())?;
+                tasks.insert(name, spec);
+            }
         }
+        Ok(tasks)
     }
-
-    Ok(tasks)
 }
 
 #[cfg(test)]
@@ -487,7 +489,7 @@ mod tests {
         let buf = fbb.finished_data();
         let fb_tasks = flatbuffers::root::<FbTcrmTasks>(buf).unwrap();
 
-        let converted_tasks = tasks_from_flatbuffers(fb_tasks).unwrap();
+        let converted_tasks: ConfigTcrmTasks = fb_tasks.try_into().unwrap();
 
         // Verify task count
         assert_eq!(converted_tasks.len(), 2);
@@ -526,7 +528,7 @@ mod tests {
         let buf = fbb.finished_data();
         let fb_tasks = flatbuffers::root::<FbTcrmTasks>(buf).unwrap();
 
-        let converted_tasks = tasks_from_flatbuffers(fb_tasks).unwrap();
+        let converted_tasks: ConfigTcrmTasks = fb_tasks.try_into().unwrap();
 
         assert_eq!(converted_tasks.len(), 0);
     }
