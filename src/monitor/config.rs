@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
 use tcrm_task::tasks::config::TaskConfig;
 
 pub type TcrmTasks = HashMap<String, TaskSpec>;
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct TaskSpec {
     /// Task configuration
     pub config: TaskConfig,
@@ -73,8 +73,9 @@ impl TaskSpec {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum TaskShell {
     None,
     Auto,

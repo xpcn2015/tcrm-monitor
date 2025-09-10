@@ -7,8 +7,7 @@ description = "Task monitor and dependency control unit for TCRM project"
 [dependencies]
 # tcrm-task = { version = "0.3", features = [] }
 tcrm-task = { git = "https://github.com/xpcn2015/tcrm-task", features = [] }
-serde = { version = "1.0", features = ["derive"] }
-flatbuffers = { version = "25.2", optional = true }
+thiserror = "2.0"
 tokio = { version = "1.47", features = [
     "rt-multi-thread",
     "time",
@@ -18,14 +17,17 @@ tokio = { version = "1.47", features = [
     "sync",
     "signal",
 ] }
+serde = { version = "1.0", features = ["derive"], optional = true }
+flatbuffers = { version = "25.2", optional = true }
 tracing = { version = "0.1", optional = true }
-thiserror = "2.0"
-tracing-subscriber = "0.3.20"
 
+[dev-dependencies]
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
 [features]
 default = []
 flatbuffers = ["dep:flatbuffers", "tcrm-task/flatbuffers"]
+serde = ["dep:serde", "tcrm-task/serde"]
 tracing = ["dep:tracing", "tcrm-task/tracing"]
 tracing-release_max_level_off = [
     "tracing/release_max_level_off",
@@ -75,3 +77,7 @@ tracing-max_level_trace = [
     "tracing/max_level_trace",
     "tcrm-task/tracing-max_level_trace",
 ]
+
+[[example]]
+name = "flatbuffers_conversion"
+required-features = ["flatbuffers"]

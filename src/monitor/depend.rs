@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::monitor::{config::TcrmTasks, error::TaskMonitorError};
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
 pub struct TaskMonitorDependMap {
     pub dependencies: HashMap<String, Vec<String>>,

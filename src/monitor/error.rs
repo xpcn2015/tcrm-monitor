@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Error, Debug)]
 pub enum TaskMonitorError {
     #[error("Config parse error: {0}")]
