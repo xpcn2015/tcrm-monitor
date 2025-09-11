@@ -7,7 +7,7 @@ A task dependency management and execution library for Rust applications.
 - **Task Dependency Management**
 - **Parallel Execution**: Execute independent tasks concurrently while respecting dependencies
 - **Termination Control**: Automatically terminate dependencies tasks when dependents finish
-- **Event-Driven**: Real-time task execution events for monitoring and logging
+- **Event-Driven**: task execution events for monitoring and logging
 
 ## Installation
 
