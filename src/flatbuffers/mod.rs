@@ -4,3 +4,6 @@ pub mod conversion;
 pub mod tcrm_monitor_generated;
 
 pub use tcrm_task::flatbuffers::tcrm_task_generated;
+
+#[cfg(test)]
+pub mod tests;
