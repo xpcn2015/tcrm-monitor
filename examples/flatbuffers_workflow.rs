@@ -16,29 +16,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n📝 Created {} tasks", tasks.len());
 
-    // Demonstrate serialization
+    // Demonstrate serialization and deserialization from bytes
     println!("\n🔄 Converting to FlatBuffers format...");
     let serialized_data = serialize_tasks(&tasks)?;
     println!("✅ Serialized to {} bytes", serialized_data.len());
 
-    // Save to file for demonstration
+    println!("\n🔄 Loading from FlatBuffers format...");
+    let loaded_tasks = deserialize_tasks(&serialized_data)?;
+    println!("✅ Loaded {} tasks", loaded_tasks.len());
+    verify_data_integrity(&tasks, &loaded_tasks)?;
+
+    // Demonstrate saving and loading from file
     let file_path = "example_tasks.fb";
     fs::write(file_path, &serialized_data)?;
     println!("💾 Saved to {}", file_path);
 
-    // Demonstrate deserialization from bytes
-    println!("\n🔄 Loading from FlatBuffers format...");
-    let loaded_tasks = deserialize_tasks(&serialized_data)?;
-    println!("✅ Loaded {} tasks", loaded_tasks.len());
-
-    // Demonstrate loading from file
     println!("\n📂 Loading from file...");
     let file_data = fs::read(file_path)?;
     let file_loaded_tasks = deserialize_tasks(&file_data)?;
     println!("✅ Loaded {} tasks from file", file_loaded_tasks.len());
-
-    // Verify data integrity
-    verify_data_integrity(&tasks, &loaded_tasks)?;
     verify_data_integrity(&tasks, &file_loaded_tasks)?;
 
     // Performance comparison
