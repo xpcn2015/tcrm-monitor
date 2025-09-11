@@ -5,8 +5,7 @@ edition = "2024"
 description = "Task monitor and dependency control unit for TCRM project"
 
 [dependencies]
-# tcrm-task = { version = "0.3", features = [] }
-tcrm-task = { git = "https://github.com/xpcn2015/tcrm-task", features = [] }
+tcrm-task = { version = "0.3", features = [] }
 thiserror = "2.0"
 tokio = { version = "1.47", features = [
     "rt-multi-thread",
@@ -23,6 +22,12 @@ tracing = { version = "0.1", optional = true }
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
+criterion = { version = "0.7", features = ["html_reports"] }
+proptest = "1.4"
+pretty_assertions = "1.4"
+temp-dir = "0.1"
+rstest = "0.26"
+futures = "0.3"
 
 [features]
 default = []
@@ -81,3 +86,20 @@ tracing-max_level_trace = [
 [[example]]
 name = "flatbuffers_conversion"
 required-features = ["flatbuffers"]
+
+[[example]]
+name = "flatbuffers_workflow"
+required-features = ["flatbuffers"]
+
+[[bench]]
+name = "flatbuffers_conversion_benchmarks"
+harness = false
+required-features = ["flatbuffers"]
+
+[[bench]]
+name = "simple_dependency_benchmarks"
+harness = false
+
+[[bench]]
+name = "task_execution_benchmarks"
+harness = false
