@@ -86,10 +86,10 @@ impl TaskMonitor {
                     .await
                 {
                     Ok(_) => {}
-                    Err(e) => {
+                    Err(_e) => {
                         #[cfg(feature = "tracing")]
                         tracing::warn!(
-                            error=%e,
+                            error=%_e,
                             "Terminating dependencies failed",
                         );
                     }
