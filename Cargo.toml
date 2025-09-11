@@ -3,6 +3,14 @@ name = "tcrm-monitor"
 version = "0.1.0"
 edition = "2024"
 description = "Task monitor and dependency control unit for TCRM project"
+repository = "https://github.com/xpcn2015/tcrm-monitor"
+homepage = "https://github.com/xpcn2015/tcrm-monitor"
+documentation = "https://docs.rs/tcrm-monitor"
+keywords = ["task", "dependency", "execution", "workflow", "tcrm", "async"]
+categories = ["asynchronous", "development-tools"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+exclude = [".vscode/*"]
 
 [dependencies]
 tcrm-task = { version = "0.3", features = [] }
