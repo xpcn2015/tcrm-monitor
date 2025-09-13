@@ -1,3 +1,8 @@
+//! Core task monitoring and execution functionality.
+//!
+//! This module contains the [`TaskMonitor`] struct, which is the main entry point
+//! for managing and executing collections of tasks with dependency relationships.
+
 use std::collections::HashMap;
 
 use tcrm_task::tasks::{
@@ -12,16 +17,171 @@ use crate::monitor::{
     error::TaskMonitorError,
 };
 
+/// Main task monitor for managing and executing task graphs.
+///
+/// The `TaskMonitor` is responsible for:
+/// - Validating task dependencies and detecting circular dependencies
+/// - Managing task spawners and their lifecycle
+/// - Handling stdin communication for interactive tasks
+/// - Tracking dependency relationships for proper execution order
+///
+/// ## Examples
+///
+/// ### Basic Usage
+///
+/// ```rust
+/// use std::collections::HashMap;
+/// use tcrm_monitor::monitor::{TaskMonitor, config::{TaskSpec, TaskShell}};
+/// use tcrm_task::tasks::config::TaskConfig;
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut tasks = HashMap::new();
+///
+/// tasks.insert(
+///     "compile".to_string(),
+///     TaskSpec::new(TaskConfig::new("cargo").args(["build"]))
+///         .shell(TaskShell::Auto)
+/// );
+///
+/// let monitor = TaskMonitor::new(tasks)?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ### With Dependencies
+///
+/// ```rust
+/// use std::collections::HashMap;
+/// use tcrm_monitor::monitor::{TaskMonitor, config::{TaskSpec, TaskShell}};
+/// use tcrm_task::tasks::config::TaskConfig;
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut tasks = HashMap::new();
+///
+/// tasks.insert(
+///     "test".to_string(),
+///     TaskSpec::new(TaskConfig::new("cargo").args(["test"]))
+///         .shell(TaskShell::Auto)
+/// );
+///
+/// tasks.insert(
+///     "build".to_string(),
+///     TaskSpec::new(TaskConfig::new("cargo").args(["build", "--release"]))
+///         .dependencies(["test"])
+///         .shell(TaskShell::Auto)
+/// );
+///
+/// let monitor = TaskMonitor::new(tasks)?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ### Interactive Tasks with Stdin
+///
+/// ```rust
+/// use std::collections::HashMap;
+/// use tcrm_monitor::monitor::{TaskMonitor, config::{TaskSpec, TaskShell}};
+/// use tcrm_task::tasks::config::TaskConfig;
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut tasks = HashMap::new();
+///
+/// tasks.insert(
+///     "interactive".to_string(),
+///     TaskSpec::new(
+///         TaskConfig::new("python")
+///             .args(["-c", "input('Enter something: ')"])
+///             .enable_stdin(true)
+///     )
+///     .shell(TaskShell::Auto)
+/// );
+///
+/// let monitor = TaskMonitor::new(tasks)?;
+/// // The monitor automatically sets up stdin channels for tasks that need them
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct TaskMonitor {
+    /// Collection of task specifications indexed by task name
     pub tasks: TcrmTasks,
+    /// Task spawners for managing individual task execution
     pub tasks_spawner: HashMap<String, TaskSpawner>,
+    /// Mapping of tasks to their direct dependencies (tasks they depend on)
     pub dependencies: HashMap<String, Vec<String>>,
+    /// Mapping of tasks to their dependents (tasks that depend on them)
     pub dependents: HashMap<String, Vec<String>>,
     /// Stdin senders for tasks that have stdin enabled
     pub stdin_senders: HashMap<String, mpsc::Sender<String>>,
 }
 impl TaskMonitor {
+    /// Creates a new task monitor from a collection of task specifications.
+    ///
+    /// This method performs several important initialization steps:
+    /// 1. Builds dependency maps for both dependencies and dependents
+    /// 2. Validates for circular dependencies
+    /// 3. Applies shell configuration to tasks
+    /// 4. Creates task spawners for each task
+    /// 5. Sets up stdin channels for interactive tasks
+    ///
+    /// # Arguments
+    ///
+    /// * `tasks` - A HashMap of task names to task specifications
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(TaskMonitor)` - Successfully created task monitor with all spawners initialized
+    /// * `Err(TaskMonitorError)` - If dependency validation fails or circular dependencies detected
+    ///
+    /// # Errors
+    ///
+    /// * [`TaskMonitorError::CircularDependency`] - If circular dependencies are detected
+    /// * [`TaskMonitorError::DependencyNotFound`] - If a task depends on a non-existent task
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::collections::HashMap;
+    /// use tcrm_monitor::monitor::{TaskMonitor, config::TaskSpec};
+    /// use tcrm_task::tasks::config::TaskConfig;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut tasks = HashMap::new();
+    /// tasks.insert(
+    ///     "test".to_string(),
+    ///     TaskSpec::new(TaskConfig::new("cargo").args(["test"]))
+    /// );
+    ///
+    /// let monitor = TaskMonitor::new(tasks)?;
+    /// // Task spawners and stdin channels are automatically set up
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Interactive Tasks
+    ///
+    /// Tasks with stdin enabled automatically get stdin channels:
+    ///
+    /// ```rust
+    /// use std::collections::HashMap;
+    /// use tcrm_monitor::monitor::{TaskMonitor, config::TaskSpec};
+    /// use tcrm_task::tasks::config::TaskConfig;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut tasks = HashMap::new();
+    /// tasks.insert(
+    ///     "interactive".to_string(),
+    ///     TaskSpec::new(
+    ///         TaskConfig::new("read").args(["input"])
+    ///             .enable_stdin(true)
+    ///     )
+    /// );
+    ///
+    /// let monitor = TaskMonitor::new(tasks)?;
+    /// // monitor.stdin_senders now contains a channel for "interactive"
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn new(mut tasks: TcrmTasks) -> Result<Self, TaskMonitorError> {
         let depen = build_depend_map(&tasks)?;
         let dependencies = depen.dependencies;
@@ -59,6 +219,24 @@ impl TaskMonitor {
             stdin_senders,
         })
     }
+
+    /// Terminates dependency tasks that are configured to terminate after dependents finish.
+    ///
+    /// This method checks if any dependencies of the specified task should be terminated
+    /// because all their dependents have finished. This is useful for long-running services
+    /// (like databases or servers) that should stop when all tasks that depend on them complete.
+    ///
+    /// # Arguments
+    ///
+    /// * `task_name` - Name of the task whose dependencies should be checked for termination
+    ///
+    /// # Behavior
+    ///
+    /// For each dependency of the specified task:
+    /// 1. Check if it has `terminate_after_dependents_finished` set to true
+    /// 2. Check if all of its dependents have finished
+    /// 3. If so, terminate the dependency task
+    ///
     pub(crate) async fn terminate_dependencies_if_all_dependent_finished(
         &mut self,
         task_name: &str,
@@ -119,6 +297,12 @@ impl TaskMonitor {
         }
     }
 }
+
+/// Apply shell transformation to task configurations.
+///
+/// Modifies task specifications to wrap commands with appropriate shell invocations
+/// based on the shell configuration. This transformation happens in-place and only
+/// affects tasks that have a shell setting other than `TaskShell::None`.
 fn shell_tasks(tasks: &mut TcrmTasks) {
     for (_, task_spec) in tasks.iter_mut() {
         // Get shell setting, use default if None

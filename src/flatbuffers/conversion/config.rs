@@ -11,10 +11,53 @@ use crate::monitor::config::{
     TaskShell as ConfigTaskShell, TaskSpec as ConfigTaskSpec, TcrmTasks as ConfigTcrmTasks,
 };
 
-/// Trait for converting types to flatbuffers format
+/// Trait for converting Rust types to FlatBuffers format.
+///
+/// This trait provides a standardized interface for converting task monitor
+/// configuration types into their FlatBuffers representation. It handles
+/// serialization into a compact, cross-platform binary format.
+///
+/// # Type Parameters
+///
+/// * `'a` - Lifetime parameter for the FlatBufferBuilder reference
+///
+/// # Associated Types
+///
+/// * `Output` - The FlatBuffers type that this conversion produces
+///
+/// # Examples
+///
+/// ```rust
+/// use tcrm_monitor::flatbuffers::conversion::config::ToFlatbuffers;
+/// use tcrm_monitor::monitor::config::{TaskSpec, TaskShell};
+/// use tcrm_task::tasks::config::TaskConfig;
+/// use flatbuffers::FlatBufferBuilder;
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let task_spec = TaskSpec::new(TaskConfig::new("cargo").args(["test"]))
+///     .shell(TaskShell::Auto);
+///
+/// let mut fbb = FlatBufferBuilder::new();
+/// let fb_task_spec = task_spec.to_flatbuffers(&mut fbb)?;
+///
+/// // The resulting fb_task_spec can now be used to build the final FlatBuffer
+/// # Ok(())
+/// # }
+/// ```
 pub trait ToFlatbuffers<'a> {
+    /// The FlatBuffers type produced by this conversion
     type Output;
 
+    /// Convert this type to its FlatBuffers representation.
+    ///
+    /// # Parameters
+    ///
+    /// * `fbb` - Mutable reference to the FlatBufferBuilder for serialization
+    ///
+    /// # Returns
+    ///
+    /// Returns the FlatBuffers offset for the serialized data, or a
+    /// [`ConversionError`] if serialization fails.
     fn to_flatbuffers(
         &self,
         fbb: &mut FlatBufferBuilder<'a>,

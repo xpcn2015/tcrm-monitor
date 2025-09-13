@@ -1,16 +1,25 @@
 use thiserror::Error;
 
-/// Conversion error for flatbuffers operations
+/// Error types for FlatBuffers conversion operations.
+///
+/// These errors occur during the conversion between Rust types and FlatBuffers
+/// binary format. They indicate various failure modes such as missing fields,
+/// invalid enum values, or corruption in the serialized data.
 #[derive(Debug, Error)]
 pub enum ConversionError {
+    /// TaskConfig conversion failed with the specified reason
     #[error("TaskConfig conversion error: {0}")]
     TaskConfigConversion(String),
+    /// Invalid shell type value encountered during conversion
     #[error("Invalid TaskShell value: {0}")]
     InvalidShell(i8),
+    /// Required field is missing from the FlatBuffers data
     #[error("Missing required field: {0}")]
     MissingRequiredField(&'static str),
+    /// Named field is missing from the conversion input
     #[error("Missing field: {0}")]
     MissingField(String),
+    /// Enum value is not recognized or valid
     #[error("Invalid enum value: {0}")]
     InvalidEnumValue(String),
     #[error("Unsupported event type: {0}")]

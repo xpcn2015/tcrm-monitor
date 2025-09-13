@@ -2,12 +2,115 @@ use std::collections::{HashMap, HashSet};
 
 use crate::monitor::{config::TcrmTasks, error::TaskMonitorError};
 
+/// Dependency mapping structure for task execution ordering.
+///
+/// This structure contains bidirectional dependency mappings that enable
+/// efficient task scheduling and dependency resolution. It maps both
+/// dependencies (what a task depends on) and dependents (what depends on a task).
+///
+/// # Fields
+///
+/// * `dependencies` - Maps task names to lists of tasks they depend on
+/// * `dependents` - Maps task names to lists of tasks that depend on them
+///
+/// # Examples
+///
+/// ```rust
+/// use std::collections::HashMap;
+/// use tcrm_monitor::monitor::{
+///     depend::{build_depend_map, TaskMonitorDependMap},
+///     config::{TaskSpec, TcrmTasks}
+/// };
+/// use tcrm_task::tasks::config::TaskConfig;
+///
+/// let mut tasks = HashMap::new();
+/// tasks.insert(
+///     "compile".to_string(),
+///     TaskSpec::new(TaskConfig::new("cargo").args(["build"]))
+/// );
+/// tasks.insert(
+///     "test".to_string(),
+///     TaskSpec::new(TaskConfig::new("cargo").args(["test"]))
+///         .dependencies(["compile"])
+/// );
+///
+/// let depend_map = build_depend_map(&tasks)?;
+///
+/// // Check dependencies: test depends on compile
+/// assert_eq!(depend_map.dependencies["test"], vec!["compile"]);
+///
+/// // Check dependents: compile has test as dependent
+/// assert_eq!(depend_map.dependents["compile"], vec!["test"]);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
 pub struct TaskMonitorDependMap {
+    /// Maps each task name to the list of tasks it depends on
     pub dependencies: HashMap<String, Vec<String>>,
+    /// Maps each task name to the list of tasks that depend on it
     pub dependents: HashMap<String, Vec<String>>,
 }
+
+/// Build a bidirectional dependency map from task specifications.
+///
+/// This function analyzes all tasks and their dependencies to create a comprehensive
+/// dependency mapping that includes both direct and transitive dependencies. It also
+/// validates that all referenced dependencies exist and detects circular dependencies.
+///
+/// # Parameters
+///
+/// * `tasks` - Collection of task specifications to analyze
+///
+/// # Returns
+///
+/// Returns a [`TaskMonitorDependMap`] containing bidirectional dependency mappings,
+/// or a [`TaskMonitorError`] if validation fails.
+///
+/// # Errors
+///
+/// * [`TaskMonitorError::DependencyNotFound`] - If a task references a non-existent dependency
+/// * [`TaskMonitorError::CircularDependency`] - If circular dependencies are detected
+///
+/// # Examples
+///
+/// ```rust
+/// use std::collections::HashMap;
+/// use tcrm_monitor::monitor::{
+///     depend::build_depend_map,
+///     config::{TaskSpec, TcrmTasks}
+/// };
+/// use tcrm_task::tasks::config::TaskConfig;
+///
+/// let mut tasks = HashMap::new();
+///
+/// // Create a dependency chain: build -> test -> deploy
+/// tasks.insert(
+///     "build".to_string(),
+///     TaskSpec::new(TaskConfig::new("cargo").args(["build"]))
+/// );
+/// tasks.insert(
+///     "test".to_string(),
+///     TaskSpec::new(TaskConfig::new("cargo").args(["test"]))
+///         .dependencies(["build"])
+/// );
+/// tasks.insert(
+///     "deploy".to_string(),
+///     TaskSpec::new(TaskConfig::new("deploy_script"))
+///         .dependencies(["test"])
+/// );
+///
+/// let depend_map = build_depend_map(&tasks)?;
+///
+/// // Check transitive dependencies - deploy depends on both test and build
+/// assert!(depend_map.dependencies["deploy"].contains(&"test".to_string()));
+/// assert!(depend_map.dependencies["deploy"].contains(&"build".to_string()));
+///
+/// // Check dependents - build has both test and deploy as dependents
+/// assert!(depend_map.dependents["build"].contains(&"test".to_string()));
+/// assert!(depend_map.dependents["build"].contains(&"deploy".to_string()));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 pub fn build_depend_map(tasks: &TcrmTasks) -> Result<TaskMonitorDependMap, TaskMonitorError> {
     let mut dependencies = HashMap::new();
     let mut dependents = HashMap::new();
@@ -62,7 +165,54 @@ pub fn build_depend_map(tasks: &TcrmTasks) -> Result<TaskMonitorDependMap, TaskM
     })
 }
 
-/// Check circular dependencies in tasks, tasks with no dependencies will not check
+/// Check for circular dependencies in a task dependency graph.
+///
+/// This function performs a depth-first search to detect circular dependencies
+/// in the task graph. It uses a recursive stack to track the current path and
+/// detect back edges that would indicate a cycle.
+///
+/// # Parameters
+///
+/// * `dependencies` - Map of task names to their dependency lists
+///
+/// # Returns
+///
+/// Returns `Ok(())` if no circular dependencies are found, or a
+/// [`TaskMonitorError::CircularDependency`] containing the name of a task
+/// involved in a circular dependency.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::collections::HashMap;
+/// use tcrm_monitor::monitor::{
+///     depend::check_circular_dependencies,
+///     error::TaskMonitorError
+/// };
+///
+/// // Valid dependency graph: A -> B -> C
+/// let mut valid_deps = HashMap::new();
+/// valid_deps.insert("A".to_string(), vec!["B".to_string()]);
+/// valid_deps.insert("B".to_string(), vec!["C".to_string()]);
+/// valid_deps.insert("C".to_string(), vec![]);
+///
+/// assert!(check_circular_dependencies(&valid_deps).is_ok());
+///
+/// // Invalid dependency graph: A -> B -> A (circular)
+/// let mut circular_deps = HashMap::new();
+/// circular_deps.insert("A".to_string(), vec!["B".to_string()]);
+/// circular_deps.insert("B".to_string(), vec!["A".to_string()]);
+///
+/// let result = check_circular_dependencies(&circular_deps);
+/// assert!(matches!(result, Err(TaskMonitorError::CircularDependency(_))));
+/// ```
+///
+/// # Algorithm
+///
+/// Uses depth-first search with a recursion stack to detect back edges:
+/// 1. Maintains a `visited` set to track processed nodes
+/// 2. Maintains a `rec_stack` to track the current path
+/// 3. A back edge (pointing to a node in the current path) indicates a cycle
 pub fn check_circular_dependencies(
     dependencies: &HashMap<String, Vec<String>>,
 ) -> Result<(), TaskMonitorError> {
@@ -78,6 +228,12 @@ pub fn check_circular_dependencies(
     }
     Ok(())
 }
+
+/// Recursive helper function to detect cycles in dependency graph.
+///
+/// Performs depth-first search to detect back edges that indicate circular dependencies.
+/// Uses a visited set to track processed nodes and a recursion stack to identify
+/// cycles during traversal.
 fn has_cycle<'a>(
     dependencies: &'a HashMap<String, Vec<String>>,
     task_name: &'a str,

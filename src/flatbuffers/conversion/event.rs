@@ -70,7 +70,11 @@ impl TryFrom<fb::SendStdinErrorReason> for SendStdinErrorReason {
     }
 }
 
-// Function to convert TaskMonitorEvent to FlatBuffers
+/// Convert a TaskMonitorEvent to FlatBuffers format.
+///
+/// Serializes task monitor events into FlatBuffers binary representation
+/// for efficient storage and transmission. Handles all event types including
+/// execution events, task events, and control events.
 pub fn task_monitor_event_to_flatbuffers<'fbb>(
     event: &TaskMonitorEvent,
     fbb: &mut FlatBufferBuilder<'fbb>,
@@ -291,7 +295,11 @@ pub fn task_monitor_event_to_flatbuffers<'fbb>(
     }
 }
 
-// Function to convert from FlatBuffers to TaskMonitorEvent
+/// Convert from FlatBuffers format to TaskMonitorEvent.
+///
+/// Deserializes FlatBuffers binary data back into TaskMonitorEvent instances.
+/// Handles all event types and validates the data during conversion.
+/// Returns conversion errors for invalid or corrupted data.
 pub fn task_monitor_event_from_flatbuffers(
     fb_event_message: fb::TaskMonitorEventMessage,
 ) -> Result<TaskMonitorEvent, ConversionError> {

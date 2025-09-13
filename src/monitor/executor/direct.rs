@@ -1,3 +1,9 @@
+//! Direct task execution strategy.
+//!
+//! This module implements a direct execution strategy for tasks, where tasks are executed
+//! in dependency order with parallel execution of independent tasks. It supports runtime
+//! control for stopping tasks, sending stdin input, and terminating specific tasks.
+
 use std::collections::HashSet;
 
 use tcrm_task::tasks::{
@@ -12,18 +18,155 @@ use crate::monitor::{
     tasks::TaskMonitor,
 };
 
-/// Control message for TaskMonitor execution
+/// Control message for TaskMonitor execution.
+///
+/// These control messages allow runtime interaction with task execution,
+/// providing the ability to stop tasks, send input, or terminate specific tasks.
+///
+/// # Examples
+///
+/// ## Stopping All Tasks
+///
+/// ```rust
+/// use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
+///
+/// let control = TaskMonitorControl::Stop;
+/// ```
+///
+/// ## Sending Stdin to a Task
+///
+/// ```rust
+/// use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
+///
+/// let control = TaskMonitorControl::SendStdin {
+///     task_name: "interactive_task".to_string(),
+///     input: "y\n".to_string()
+/// };
+/// ```
+///
+/// ## Terminating a Specific Task
+///
+/// ```rust
+/// use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
+///
+/// let control = TaskMonitorControl::TerminateTask {
+///     task_name: "runaway_task".to_string()
+/// };
+/// ```
 #[derive(Debug, Clone)]
 pub enum TaskMonitorControl {
-    /// Stop all tasks and terminate execution
+    /// Stop all tasks gracefully and terminate execution.
+    ///
+    /// This will attempt to stop all running tasks in an orderly fashion,
+    /// waiting for them to complete their current operations before terminating.
     Stop,
-    /// Terminate a specific task by name
-    TerminateTask { task_name: String },
-    /// Send stdin input to a specific task (only works if task has enable_stdin: true)
-    SendStdin { task_name: String, input: String },
+
+    /// Terminate a specific task by name.
+    ///
+    /// This forcefully terminates the specified task without waiting for
+    /// it to complete naturally.
+    ///
+    /// # Fields
+    ///
+    /// * `task_name` - Name of the task to terminate
+    TerminateTask {
+        /// Name of the task to terminate
+        task_name: String,
+    },
+
+    /// Send stdin input to a specific task.
+    ///
+    /// Only works if the target task was configured with `enable_stdin(true)`.
+    /// The input will be delivered to the task's stdin stream.
+    ///
+    /// # Fields
+    ///
+    /// * `task_name` - Name of the target task
+    /// * `input` - String input to send to the task's stdin
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
+    ///
+    /// // Send "yes" followed by newline to a task
+    /// let control = TaskMonitorControl::SendStdin {
+    ///     task_name: "confirmation_task".to_string(),
+    ///     input: "yes\n".to_string()
+    /// };
+    /// ```
+    SendStdin {
+        /// Name of the target task
+        task_name: String,
+        /// Input string to send to stdin
+        input: String,
+    },
 }
 
 impl TaskMonitor {
+    /// Execute all tasks using the direct execution strategy.
+    ///
+    /// This method executes tasks in dependency order, running independent tasks in parallel.
+    /// It processes task events and manages the execution flow until all tasks complete.
+    ///
+    /// # Arguments
+    ///
+    /// * `event_tx` - Optional sender to forward task events to external listeners
+    ///
+    /// # Behavior
+    ///
+    /// 1. Starts all tasks that have no dependencies
+    /// 2. Listens for task events (started, output, ready, stopped, error)
+    /// 3. When a task becomes ready, starts its dependents if their dependencies are satisfied
+    /// 4. Continues until all tasks have completed or failed
+    /// 5. Handles task termination based on `terminate_after_dependents_finished` flag
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use std::collections::HashMap;
+    /// use tokio::sync::mpsc;
+    /// use tcrm_monitor::monitor::{TaskMonitor, config::TaskSpec};
+    /// use tcrm_task::tasks::{config::TaskConfig, event::TaskEvent};
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut tasks = HashMap::new();
+    /// tasks.insert(
+    ///     "test".to_string(),
+    ///     TaskSpec::new(TaskConfig::new("echo").args(["Running tests"]))
+    /// );
+    ///
+    /// let mut monitor = TaskMonitor::new(tasks)?;
+    ///
+    /// // Execute without event monitoring
+    /// monitor.execute_all_direct(None).await;
+    ///
+    /// // Create a new monitor for the second example
+    /// let mut tasks2 = HashMap::new();
+    /// tasks2.insert(
+    ///     "test2".to_string(),
+    ///     TaskSpec::new(TaskConfig::new("echo").args(["Running tests 2"]))
+    /// );
+    /// let mut monitor2 = TaskMonitor::new(tasks2)?;
+    ///
+    /// // Or with event monitoring
+    /// let (event_tx, mut event_rx) = mpsc::channel(100);
+    /// let event_handler = tokio::spawn(async move {
+    ///     while let Some(event) = event_rx.recv().await {
+    ///         println!("Task event: {:?}", event);
+    ///         // Break on certain events to avoid hanging
+    ///         if matches!(event, TaskEvent::Stopped { .. }) {
+    ///             break;
+    ///         }
+    ///     }
+    /// });
+    ///
+    /// monitor2.execute_all_direct(Some(event_tx)).await;
+    /// let _ = event_handler.await;
+    /// # Ok(())
+    /// # }
+    /// ```
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub async fn execute_all_direct(&mut self, event_tx: Option<Sender<TaskEvent>>) {
         let (task_event_tx, mut task_event_rx) = mpsc::channel::<TaskEvent>(1024);
@@ -94,7 +237,82 @@ impl TaskMonitor {
         }
     }
 
-    /// Execute all tasks with control channel for stopping and sending stdin
+    /// Execute all tasks with real-time control capabilities.
+    ///
+    /// This method provides advanced task execution with real-time control capabilities
+    /// including the ability to send stdin to running tasks, request task termination,
+    /// and gracefully stop all execution.
+    ///
+    /// # Parameters
+    ///
+    /// * `event_tx` - Optional channel to receive task execution events
+    /// * `control_rx` - Channel to receive control commands during execution
+    ///
+    /// # Control Commands
+    ///
+    /// The control channel accepts [`TaskMonitorControl`] commands:
+    /// - `SendStdin { task_name, data }` - Send input to a specific task's stdin
+    /// - `TerminateTask { task_name }` - Request termination of a specific task
+    /// - `TerminateAll` - Request termination of all running tasks
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::collections::HashMap;
+    /// use tokio::sync::mpsc;
+    /// use tcrm_monitor::monitor::{
+    ///     tasks::TaskMonitor,
+    ///     config::{TaskSpec, TaskShell},
+    ///     executor::direct::TaskMonitorControl,
+    ///     event::TaskMonitorEvent
+    /// };
+    /// use tcrm_task::tasks::config::TaskConfig;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut tasks = HashMap::new();
+    /// tasks.insert(
+    ///     "interactive_task".to_string(),
+    ///     TaskSpec::new(TaskConfig::new("cat"))  // cat reads from stdin
+    ///         .shell(TaskShell::Auto)
+    /// );
+    ///
+    /// let mut monitor = TaskMonitor::new(tasks)?;
+    /// let (event_tx, mut event_rx) = mpsc::channel(100);
+    /// let (control_tx, control_rx) = mpsc::channel(10);
+    ///
+    /// // Spawn control task
+    /// let control_handle = tokio::spawn(async move {
+    ///     // Send some input to the task
+    ///     control_tx.send(TaskMonitorControl::SendStdin {
+    ///         task_name: "interactive_task".to_string(),
+    ///         input: "Hello, World!\n".to_string(),
+    ///     }).await.unwrap();
+    ///
+    ///     // Wait a bit then stop
+    ///     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    ///     control_tx.send(TaskMonitorControl::Stop).await.unwrap();
+    /// });
+    ///
+    /// // Spawn event listener
+    /// let event_handle = tokio::spawn(async move {
+    ///     while let Some(event) = event_rx.recv().await {
+    ///         match event {
+    ///             TaskMonitorEvent::ExecutionCompleted { .. } => break,
+    ///             _ => {}
+    ///         }
+    ///     }
+    /// });
+    ///
+    /// // Execute with control
+    /// monitor.execute_all_direct_with_control(Some(event_tx), control_rx).await;
+    ///
+    /// // Wait for background tasks
+    /// control_handle.await?;
+    /// event_handle.await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub async fn execute_all_direct_with_control(
         &mut self,
@@ -360,7 +578,10 @@ impl TaskMonitor {
         }
     }
 
-    /// Terminate all running tasks
+    /// Terminate all running tasks with the specified reason.
+    ///
+    /// Sends termination signals to all tasks that are currently in Running or Ready state.
+    /// Logs warnings for tasks that fail to receive the termination signal.
     async fn terminate_all_tasks(&mut self, reason: TaskTerminateReason) {
         for (task_name, spawner) in &mut self.tasks_spawner {
             let state = spawner.get_state().await;
@@ -381,7 +602,10 @@ impl TaskMonitor {
         }
     }
 
-    /// Terminate a specific task
+    /// Terminate a specific task by name with the specified reason.
+    ///
+    /// Sends a termination signal to the named task if it exists and is in Running or Ready state.
+    /// Logs a warning if the task fails to receive the termination signal.
     async fn terminate_task(&mut self, task_name: &str, reason: TaskTerminateReason) {
         if let Some(spawner) = self.tasks_spawner.get_mut(task_name) {
             let state = spawner.get_state().await;
@@ -408,7 +632,11 @@ impl TaskMonitor {
         }
     }
 
-    /// Send stdin input to a specific task
+    /// Send stdin input to a specific task.
+    ///
+    /// Delivers the input string to the named task's stdin stream if the task exists,
+    /// is in the correct state, and has stdin enabled. Returns appropriate errors
+    /// for various failure conditions.
     async fn send_stdin_to_task(
         &mut self,
         task_name: &str,
@@ -489,6 +717,10 @@ impl TaskMonitor {
         }
     }
 
+    /// Start execution of a specific task by name.
+    ///
+    /// Initiates the task execution using the direct strategy and sends task events
+    /// through the provided channel. The task must exist in the task spawner collection.
     async fn start_task_direct(&mut self, name: &str, tx: &mpsc::Sender<TaskEvent>) {
         let spawner = match self.tasks_spawner.get_mut(name) {
             Some(spawner) => spawner,
@@ -507,6 +739,10 @@ impl TaskMonitor {
         let _id = spawner.start_direct(tx.clone()).await;
     }
 
+    /// Start all tasks that have no dependencies.
+    ///
+    /// Identifies and starts tasks that can run immediately because they do not
+    /// depend on any other tasks. These tasks can run in parallel.
     async fn start_independent_tasks_direct(&mut self, tx: &mpsc::Sender<TaskEvent>) {
         // Collect tasks that have no dependencies
         let independent_tasks: Vec<String> = self
@@ -521,6 +757,11 @@ impl TaskMonitor {
         }
     }
 
+    /// Start dependent tasks that are now ready to run.
+    ///
+    /// When a task completes, this function checks which dependent tasks can now be started.
+    /// A dependent task is ready if all its dependencies have completed successfully.
+    /// Tasks with failed dependencies are skipped unless configured to ignore dependency errors.
     async fn start_ready_dependents_direct(
         &mut self,
         active_tasks: &mut HashSet<String>,
@@ -611,6 +852,10 @@ mod tests {
         tasks::TaskMonitor,
     };
 
+    /// Collect events from a channel for testing purposes.
+    ///
+    /// Receives up to `max_events` events from the channel with a timeout for each event.
+    /// Used in test scenarios to gather and verify task execution events.
     async fn collect_events(
         event_rx: &mut mpsc::Receiver<TaskEvent>,
         max_events: usize,
