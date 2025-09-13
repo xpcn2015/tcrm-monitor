@@ -12,10 +12,10 @@
 //!
 //! - **Dependency Management**: Define task graphs with automatic dependency validation and circular dependency detection
 //! - **Parallel Execution**: Execute independent tasks concurrently while respecting dependency order
-//! - **Shell Integration**: Support for multiple shells (Bash, Zsh, Fish, PowerShell, CMD) with auto-detection
+//! - **Shell Integration**: Support running from shell (Bash, Zsh, Fish, Sh, PowerShell, CMD) based on OS
 //! - **Real-time Events**: Monitor task execution with detailed event streams
 //! - **Runtime Control**: Stop tasks, send stdin input, and terminate specific tasks during execution
-//! - **Serialization**: Optional flatbuffers and serde support for task configuration persistence
+//! - **Serialization**: Optional flatbuffers and serde support for task configuration
 //!
 //! ## Quick Start
 //!
@@ -96,7 +96,7 @@
 //!
 //! // Execute with control
 //! monitor.execute_all_direct_with_control(Some(event_tx), control_rx).await;
-//! 
+//!
 //! // Wait for event handler to finish
 //! let _ = event_handler.await;
 //! # Ok(())
