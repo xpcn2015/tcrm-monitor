@@ -4,10 +4,12 @@ Task monitor unit for the TCRM project
 A task dependency management and execution library for Rust applications.
 
 ## Features
-- **Task Dependency Management**
+- **Task Dependency Management**: Define task dependency graphs with validation
 - **Parallel Execution**: Execute independent tasks concurrently while respecting dependencies
 - **Termination Control**: Automatically terminate dependencies tasks when dependents finish
-- **Event-Driven**: task execution events for monitoring and logging
+- **Event-Driven**: Real-time task execution events for monitoring and logging
+- **Task Control**: Stop, terminate specific tasks, and send stdin input during execution
+- **Stdin Support**: Send input to tasks with stdin enabled
 
 ## Installation
 
