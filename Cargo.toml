@@ -2,12 +2,12 @@
 name = "tcrm-monitor"
 version = "0.1.0"
 edition = "2024"
-description = "Task monitor and dependency control unit for TCRM project"
+description = "Task dependency management and execution library with parallel processing, real-time monitoring, and runtime control"
 repository = "https://github.com/xpcn2015/tcrm-monitor"
 homepage = "https://github.com/xpcn2015/tcrm-monitor"
 documentation = "https://docs.rs/tcrm-monitor"
-keywords = ["task", "dependency", "execution", "tcrm", "async"]
-categories = ["asynchronous", "development-tools"]
+keywords = ["task", "execution", "parallel", "async"]
+categories = ["asynchronous", "development-tools", "concurrency"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 exclude = [".vscode/*"]
