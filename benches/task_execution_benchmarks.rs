@@ -145,13 +145,13 @@ fn bench_task_monitor_creation(c: &mut Criterion) {
 
 fn bench_execute_all_direct_with_tx(c: &mut Criterion) {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let mut group = c.benchmark_group("Executor Creation With Tx");
+    let mut group = c.benchmark_group("Task Execution With Event Channel");
     let task_counts = vec![1, 5, 10, 25, 50];
     for count in task_counts {
         group.throughput(Throughput::Elements(count as u64));
         let tasks = create_echo_tasks(count);
         group.bench_with_input(
-            BenchmarkId::new("execute_all_direct_with_tx", count),
+            BenchmarkId::new("execute_with_events", count),
             &tasks,
             |b, tasks| {
                 b.iter(|| {
@@ -173,13 +173,13 @@ fn bench_execute_all_direct_with_tx(c: &mut Criterion) {
 
 fn bench_execute_all_direct_without_tx(c: &mut Criterion) {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let mut group = c.benchmark_group("Executor Creation Without Tx");
+    let mut group = c.benchmark_group("Task Execution Without Event Channel");
     let task_counts = vec![1, 5, 10, 25, 50];
     for count in task_counts {
         group.throughput(Throughput::Elements(count as u64));
         let tasks = create_echo_tasks(count);
         group.bench_with_input(
-            BenchmarkId::new("execute_all_direct_without_tx", count),
+            BenchmarkId::new("execute_without_events", count),
             &tasks,
             |b, tasks| {
                 b.iter(|| match TaskMonitor::new(black_box(tasks.clone())) {
@@ -195,6 +195,109 @@ fn bench_execute_all_direct_without_tx(c: &mut Criterion) {
     }
     group.finish();
 }
+
+fn bench_task_setup_overhead(c: &mut Criterion) {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let mut group = c.benchmark_group("Task Setup Overhead");
+
+    let task_counts = vec![1, 5, 10, 25, 50, 100];
+
+    for count in task_counts {
+        group.throughput(Throughput::Elements(count as u64));
+
+        // Benchmark just the setup phase without execution
+        group.bench_with_input(
+            BenchmarkId::new("setup_only", count),
+            &count,
+            |b, &count| {
+                b.iter(|| {
+                    let tasks = create_echo_tasks(black_box(count));
+                    let monitor = TaskMonitor::new(black_box(tasks));
+                    black_box(monitor)
+                });
+            },
+        );
+
+        // Benchmark setup + initialization but stop before command execution
+        let tasks = create_echo_tasks(count);
+        group.bench_with_input(
+            BenchmarkId::new("setup_and_init", count),
+            &tasks,
+            |b, tasks| {
+                b.iter(|| {
+                    rt.block_on(async {
+                        match TaskMonitor::new(black_box(tasks.clone())) {
+                            Ok(monitor) => {
+                                // Just measure the initialization overhead,
+                                // not actual task execution
+                                let task_count = monitor.tasks.len();
+                                let dependency_count = monitor.dependencies.len();
+                                black_box((task_count, dependency_count))
+                            }
+                            Err(e) => {
+                                panic!("TaskMonitor setup failed: {}", e);
+                            }
+                        }
+                    })
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_dependency_resolution_performance(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Dependency Resolution Performance");
+
+    let chain_lengths = vec![2, 5, 10, 25, 50, 100];
+
+    for length in chain_lengths {
+        group.throughput(Throughput::Elements(length as u64));
+
+        group.bench_with_input(
+            BenchmarkId::new("linear_chain", length),
+            &length,
+            |b, &length| {
+                b.iter(|| {
+                    let tasks = create_chained_echo_tasks(black_box(length));
+                    let monitor = TaskMonitor::new(black_box(tasks));
+                    black_box(monitor)
+                });
+            },
+        );
+
+        // Benchmark wide dependency graphs (many tasks depending on one)
+        group.bench_with_input(
+            BenchmarkId::new("wide_dependencies", length),
+            &length,
+            |b, &length| {
+                b.iter(|| {
+                    let mut tasks = TcrmTasks::new();
+
+                    // Root task
+                    let root_spec = create_task_spec("echo 'root'", None);
+                    tasks.insert("root".to_string(), root_spec);
+
+                    // Many tasks depending on root
+                    for i in 0..length {
+                        let spec = create_task_spec(
+                            &format!("echo 'dependent_{}'", i),
+                            Some(vec!["root".to_string()]),
+                        );
+                        tasks.insert(format!("dependent_{}", i), spec);
+                    }
+
+                    let monitor = TaskMonitor::new(black_box(tasks));
+                    black_box(monitor)
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
 fn bench_cpu_intensive_task_execution(c: &mut Criterion) {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let mut group = c.benchmark_group("CPU Intensive Task Execution");
@@ -424,6 +527,8 @@ fn bench_task_configuration_parsing(c: &mut Criterion) {
 criterion_group!(
     benches,
     bench_task_monitor_creation,
+    bench_task_setup_overhead,
+    bench_dependency_resolution_performance,
     bench_execute_all_direct_without_tx,
     bench_execute_all_direct_with_tx,
     bench_simple_task_execution,
