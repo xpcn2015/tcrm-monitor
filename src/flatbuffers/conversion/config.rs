@@ -11,6 +11,16 @@ use crate::monitor::config::{
     TaskShell as ConfigTaskShell, TaskSpec as ConfigTaskSpec, TcrmTasks as ConfigTcrmTasks,
 };
 
+/// Trait for converting types to flatbuffers format
+pub trait ToFlatbuffers<'a> {
+    type Output;
+
+    fn to_flatbuffers(
+        &self,
+        fbb: &mut FlatBufferBuilder<'a>,
+    ) -> Result<Self::Output, ConversionError>;
+}
+
 // TaskShell conversions
 impl From<ConfigTaskShell> for FbTaskShell {
     fn from(shell: ConfigTaskShell) -> Self {
@@ -23,6 +33,12 @@ impl From<ConfigTaskShell> for FbTaskShell {
             ConfigTaskShell::Powershell => FbTaskShell::Powershell,
             #[cfg(unix)]
             ConfigTaskShell::Bash => FbTaskShell::Bash,
+            #[cfg(unix)]
+            ConfigTaskShell::Sh => FbTaskShell::Sh,
+            #[cfg(unix)]
+            ConfigTaskShell::Zsh => FbTaskShell::Zsh,
+            #[cfg(unix)]
+            ConfigTaskShell::Fish => FbTaskShell::Fish,
         }
     }
 }
@@ -40,23 +56,32 @@ impl TryFrom<FbTaskShell> for ConfigTaskShell {
             FbTaskShell::Powershell => Ok(ConfigTaskShell::Powershell),
             #[cfg(unix)]
             FbTaskShell::Bash => Ok(ConfigTaskShell::Bash),
+            #[cfg(unix)]
+            FbTaskShell::Sh => Ok(ConfigTaskShell::Sh),
+            #[cfg(unix)]
+            FbTaskShell::Zsh => Ok(ConfigTaskShell::Zsh),
+            #[cfg(unix)]
+            FbTaskShell::Fish => Ok(ConfigTaskShell::Fish),
             // Handle cross-platform compatibility
             #[cfg(not(windows))]
             FbTaskShell::Cmd | FbTaskShell::Powershell => Ok(ConfigTaskShell::Auto),
             #[cfg(not(unix))]
-            FbTaskShell::Bash => Ok(ConfigTaskShell::Auto),
+            FbTaskShell::Bash | FbTaskShell::Sh | FbTaskShell::Zsh | FbTaskShell::Fish => {
+                Ok(ConfigTaskShell::Auto)
+            }
             _ => Err(ConversionError::InvalidShell(shell.0)),
         }
     }
 }
 
 // TaskSpec conversions
-impl ConfigTaskSpec {
-    /// Convert to flatbuffers TaskSpec
-    pub fn to_flatbuffers<'a>(
+impl<'a> ToFlatbuffers<'a> for ConfigTaskSpec {
+    type Output = WIPOffset<FbTaskSpec<'a>>;
+
+    fn to_flatbuffers(
         &self,
         fbb: &mut FlatBufferBuilder<'a>,
-    ) -> Result<WIPOffset<FbTaskSpec<'a>>, ConversionError> {
+    ) -> Result<Self::Output, ConversionError> {
         // Convert TaskConfig to flatbuffers
         let config_offset = self.config.to_flatbuffers(fbb);
 
@@ -79,9 +104,12 @@ impl ConfigTaskSpec {
 
         Ok(FbTaskSpec::create(fbb, &args))
     }
+}
 
-    /// Convert from flatbuffers TaskSpec
-    pub fn from_flatbuffers(fb_spec: FbTaskSpec) -> Result<Self, ConversionError> {
+impl TryFrom<FbTaskSpec<'_>> for ConfigTaskSpec {
+    type Error = ConversionError;
+
+    fn try_from(fb_spec: FbTaskSpec) -> Result<Self, Self::Error> {
         // Convert TaskConfig
         let config = TaskConfig::try_from(fb_spec.config())
             .map_err(|e| ConversionError::TaskConfigConversion(format!("{:?}", e)))?;
@@ -108,35 +136,6 @@ impl ConfigTaskSpec {
     }
 }
 
-pub fn tasks_to_flatbuffers<'a>(
-    tasks: &ConfigTcrmTasks,
-    fbb: &mut FlatBufferBuilder<'a>,
-) -> Result<WIPOffset<FbTcrmTasks<'a>>, ConversionError> {
-    // Convert each task entry
-    let entries: Result<Vec<_>, ConversionError> = tasks
-        .iter()
-        .map(|(name, spec)| {
-            let name_str = fbb.create_string(name);
-            let spec_offset = spec.to_flatbuffers(fbb)?;
-
-            let entry_args = TaskEntryArgs {
-                name: Some(name_str),
-                spec: Some(spec_offset),
-            };
-            Ok(FbTaskEntry::create(fbb, &entry_args))
-        })
-        .collect();
-
-    let entries = entries?;
-    let tasks_vector = fbb.create_vector(&entries);
-
-    let args = TcrmTasksArgs {
-        tasks: Some(tasks_vector),
-    };
-
-    Ok(FbTcrmTasks::create(fbb, &args))
-}
-
 impl TryFrom<FbTcrmTasks<'_>> for ConfigTcrmTasks {
     type Error = ConversionError;
 
@@ -146,11 +145,44 @@ impl TryFrom<FbTcrmTasks<'_>> for ConfigTcrmTasks {
             for i in 0..entries.len() {
                 let entry = entries.get(i);
                 let name = entry.name().to_string();
-                let spec = ConfigTaskSpec::from_flatbuffers(entry.spec())?;
+                let spec = ConfigTaskSpec::try_from(entry.spec())?;
                 tasks.insert(name, spec);
             }
         }
         Ok(tasks)
+    }
+}
+
+impl<'a> ToFlatbuffers<'a> for ConfigTcrmTasks {
+    type Output = WIPOffset<FbTcrmTasks<'a>>;
+
+    fn to_flatbuffers(
+        &self,
+        fbb: &mut FlatBufferBuilder<'a>,
+    ) -> Result<Self::Output, ConversionError> {
+        // Convert each task entry
+        let entries: Result<Vec<_>, ConversionError> = self
+            .iter()
+            .map(|(name, spec)| {
+                let name_str = fbb.create_string(name);
+                let spec_offset = spec.to_flatbuffers(fbb)?;
+
+                let entry_args = TaskEntryArgs {
+                    name: Some(name_str),
+                    spec: Some(spec_offset),
+                };
+                Ok(FbTaskEntry::create(fbb, &entry_args))
+            })
+            .collect();
+
+        let entries = entries?;
+        let tasks_vector = fbb.create_vector(&entries);
+
+        let args = TcrmTasksArgs {
+            tasks: Some(tasks_vector),
+        };
+
+        Ok(FbTcrmTasks::create(fbb, &args))
     }
 }
 
@@ -271,7 +303,7 @@ mod tests {
         let buf = fbb.finished_data();
         let fb_spec = flatbuffers::root::<FbTaskSpec>(buf).unwrap();
 
-        let converted_spec = ConfigTaskSpec::from_flatbuffers(fb_spec).unwrap();
+        let converted_spec = ConfigTaskSpec::try_from(fb_spec).unwrap();
 
         // Verify all fields are preserved
         assert_eq!(converted_spec.config.command, "echo");
@@ -424,7 +456,7 @@ mod tests {
         let buf = fbb.finished_data();
         let fb_spec = flatbuffers::root::<FbTaskSpec>(buf).unwrap();
 
-        let converted_spec = ConfigTaskSpec::from_flatbuffers(fb_spec).unwrap();
+        let converted_spec = ConfigTaskSpec::try_from(fb_spec).unwrap();
 
         assert_eq!(converted_spec.config.command, "ls");
         assert_eq!(converted_spec.config.args, None);
@@ -483,7 +515,7 @@ mod tests {
 
         // Test conversion to flatbuffers and back
         let mut fbb = FlatBufferBuilder::new();
-        let fb_tasks_offset = tasks_to_flatbuffers(&tasks, &mut fbb).unwrap();
+        let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
         fbb.finish(fb_tasks_offset, None);
 
         let buf = fbb.finished_data();
@@ -522,7 +554,7 @@ mod tests {
 
         // Test conversion of empty tasks
         let mut fbb = FlatBufferBuilder::new();
-        let fb_tasks_offset = tasks_to_flatbuffers(&tasks, &mut fbb).unwrap();
+        let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
         fbb.finish(fb_tasks_offset, None);
 
         let buf = fbb.finished_data();

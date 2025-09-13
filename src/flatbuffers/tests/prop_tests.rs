@@ -5,7 +5,7 @@ use tcrm_task::tasks::config::{StreamSource, TaskConfig};
 
 use crate::{
     flatbuffers::{
-        conversion::{config::tasks_to_flatbuffers, error::ConversionError},
+        conversion::{config::ToFlatbuffers, error::ConversionError},
         tcrm_monitor_generated::tcrm::monitor,
     },
     monitor::config::{TaskShell, TaskSpec, TcrmTasks},
@@ -136,8 +136,8 @@ proptest! {
         prop_assert!(fb_spec.is_ok(), "FlatBuffer parsing should succeed");
 
         let fb_spec = fb_spec.unwrap();
-        let converted_spec = TaskSpec::from_flatbuffers(fb_spec);
-        prop_assert!(converted_spec.is_ok(), "TaskSpec from_flatbuffers should succeed");
+        let converted_spec = TaskSpec::try_from(fb_spec);
+        prop_assert!(converted_spec.is_ok(), "TaskSpec try_from should succeed");
 
         let converted_spec = converted_spec.unwrap();
 
@@ -180,7 +180,7 @@ proptest! {
         use flatbuffers::FlatBufferBuilder;
 
         let mut fbb = FlatBufferBuilder::new();
-        let fb_tasks_offset = tasks_to_flatbuffers(&tasks, &mut fbb);
+        let fb_tasks_offset = tasks.to_flatbuffers( &mut fbb);
 
         prop_assert!(fb_tasks_offset.is_ok(), "TcrmTasks to_flatbuffers should succeed");
 
@@ -193,7 +193,7 @@ proptest! {
 
         let fb_tasks = fb_tasks.unwrap();
         let converted_tasks = TcrmTasks::try_from(fb_tasks);
-        prop_assert!(converted_tasks.is_ok(), "TcrmTasks from_flatbuffers should succeed");
+        prop_assert!(converted_tasks.is_ok(), "TcrmTasks try_from should succeed");
 
         let converted_tasks = converted_tasks.unwrap();
 
@@ -226,7 +226,7 @@ proptest! {
 
             let buf = fbb.finished_data();
             let fb_spec = flatbuffers::root::<monitor::TaskSpec>(buf).unwrap();
-            current_spec = TaskSpec::from_flatbuffers(fb_spec).unwrap();
+            current_spec = TaskSpec::try_from(fb_spec).unwrap();
         }
 
         // After multiple roundtrips, core data should be preserved
@@ -267,7 +267,7 @@ proptest! {
 
         let buf = fbb.finished_data();
         let fb_spec = flatbuffers::root::<monitor::TaskSpec>(buf).unwrap();
-        let converted_spec = TaskSpec::from_flatbuffers(fb_spec).unwrap();
+        let converted_spec = TaskSpec::try_from(fb_spec).unwrap();
 
         prop_assert_eq!(converted_spec.config.command, command);
         prop_assert_eq!(converted_spec.config.args, None);
@@ -316,7 +316,7 @@ proptest! {
 
         let buf = fbb.finished_data();
         let fb_spec = flatbuffers::root::<monitor::TaskSpec>(buf).unwrap();
-        let converted_spec = TaskSpec::from_flatbuffers(fb_spec).unwrap();
+        let converted_spec = TaskSpec::try_from(fb_spec).unwrap();
 
         prop_assert_eq!(converted_spec.config.command, base_command);
         prop_assert_eq!(converted_spec.config.args.as_ref().unwrap().len(), arg_count);
@@ -394,7 +394,7 @@ mod deterministic_tests {
 
         let buf = fbb.finished_data();
         let fb_spec = flatbuffers::root::<monitor::TaskSpec>(buf).unwrap();
-        let converted_spec = TaskSpec::from_flatbuffers(fb_spec).unwrap();
+        let converted_spec = TaskSpec::try_from(fb_spec).unwrap();
 
         assert_eq!(converted_spec.config.args.as_ref().unwrap()[0], "Hello 🌍");
         assert_eq!(converted_spec.config.args.as_ref().unwrap()[1], "مرحبا");
@@ -438,7 +438,7 @@ mod deterministic_tests {
 
         let buf = fbb.finished_data();
         let fb_spec = flatbuffers::root::<monitor::TaskSpec>(buf).unwrap();
-        let converted_spec = TaskSpec::from_flatbuffers(fb_spec).unwrap();
+        let converted_spec = TaskSpec::try_from(fb_spec).unwrap();
 
         assert_eq!(converted_spec.config.timeout_ms, Some(u64::MAX));
     }

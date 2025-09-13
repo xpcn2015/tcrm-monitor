@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use tcrm_monitor::flatbuffers::conversion::config::*;
+use tcrm_monitor::flatbuffers::conversion::config::ToFlatbuffers;
 use tcrm_monitor::monitor::config::{TaskShell, TaskSpec, TcrmTasks};
 use tcrm_task::tasks::config::{StreamSource, TaskConfig};
 
@@ -234,7 +234,7 @@ fn serialize_tasks(tasks: &TcrmTasks) -> Result<Vec<u8>, Box<dyn std::error::Err
     use flatbuffers::FlatBufferBuilder;
 
     let mut fbb = FlatBufferBuilder::new();
-    let fb_tasks_offset = tasks_to_flatbuffers(tasks, &mut fbb)?;
+    let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb)?;
     fbb.finish(fb_tasks_offset, None);
 
     Ok(fbb.finished_data().to_vec())

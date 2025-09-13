@@ -9,6 +9,12 @@ pub enum ConversionError {
     InvalidShell(i8),
     #[error("Missing required field: {0}")]
     MissingRequiredField(&'static str),
+    #[error("Missing field: {0}")]
+    MissingField(String),
+    #[error("Invalid enum value: {0}")]
+    InvalidEnumValue(String),
+    #[error("Unsupported event type: {0}")]
+    UnsupportedEventType(String),
 }
 
 #[cfg(test)]

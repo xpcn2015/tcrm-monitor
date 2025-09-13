@@ -17,6 +17,19 @@ table DependencyNotFoundError {
   dependency: string (required);
   task: string (required);
 }
+
+enum SendStdinErrorReason: byte {
+  TaskNotFound = 0,
+  StdinNotEnabled = 1,
+  TaskNotReady = 2,
+  ChannelClosed = 3
+}
+
+table SendStdinError {
+  reason: SendStdinErrorReason;
+  task_name: string (required);
+}
+
 table TaskErrorWrapper {
   // This would wrap the TaskError from the Task namespace
   // The actual error details would be in the Task namespace
@@ -27,7 +40,79 @@ union TaskMonitorError {
   ConfigParse: ConfigParseError,
   CircularDependency: CircularDependencyError,
   DependencyNotFound: DependencyNotFoundError,
+  SendStdin: SendStdinError,
   TaskError: TaskErrorWrapper
+}
+
+// Event types
+
+enum TaskMonitorControlType: byte {
+  Stop = 0,
+  TerminateTask = 1,
+  SendStdin = 2
+}
+
+table ExecutionStartedEvent {
+  total_tasks: uint32;
+}
+
+table ExecutionCompletedEvent {
+  completed_tasks: uint32;
+  failed_tasks: uint32;
+}
+
+table ControlReceivedEvent {
+  control_type: TaskMonitorControlType;
+}
+
+table ControlProcessedEvent {
+  control_type: TaskMonitorControlType;
+}
+
+table ControlErrorEvent {
+  control_type: TaskMonitorControlType;
+  error: TaskMonitorError (required);
+}
+
+table TaskTerminationRequestedEvent {
+  task_name: string (required);
+}
+
+table StdinSentEvent {
+  task_name: string (required);
+  input_length: uint32;
+}
+
+table StdinErrorEvent {
+  task_name: string (required);
+  error: SendStdinErrorReason;
+}
+
+table TaskEventWrapper {
+  // This wraps the TaskEvent from the Task namespace
+  // The actual event details would be in the Task namespace
+  event_data: [uint8] (required);
+}
+
+union TaskMonitorEvent {
+  ExecutionStarted: ExecutionStartedEvent,
+  ExecutionCompleted: ExecutionCompletedEvent,
+  ControlReceived: ControlReceivedEvent,
+  ControlProcessed: ControlProcessedEvent,
+  ControlError: ControlErrorEvent,
+  AllTasksTerminationRequested: EmptyEvent,
+  TaskTerminationRequested: TaskTerminationRequestedEvent,
+  StdinSent: StdinSentEvent,
+  StdinError: StdinErrorEvent,
+  Task: TaskEventWrapper
+}
+
+table EmptyEvent {
+  // Used for events that don't need additional data
+}
+
+table TaskMonitorEventMessage {
+  event: TaskMonitorEvent (required);
 }
 
 // Configuration Types
@@ -37,7 +122,10 @@ enum TaskShell: byte {
   Auto = 1,
   Cmd = 2,      // Windows only
   Powershell = 3, // Windows only
-  Bash = 4      // Unix only
+  Bash = 4,     // Unix only
+  Sh = 5,       // Unix only (POSIX shell)
+  Zsh = 6,      // Unix only (Z shell)
+  Fish = 7      // Unix only (Friendly interactive shell)
 }
 
 table TaskSpec {

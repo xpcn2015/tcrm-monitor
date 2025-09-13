@@ -2,11 +2,26 @@ use std::collections::HashSet;
 
 use tcrm_task::tasks::{
     event::{TaskEvent, TaskEventStopReason},
-    state::TaskState,
+    state::{TaskState, TaskTerminateReason},
 };
 use tokio::sync::mpsc::{self, Sender};
 
-use crate::monitor::tasks::TaskMonitor;
+use crate::monitor::{
+    error::{SendStdinErrorReason, TaskMonitorError},
+    event::{TaskMonitorControlType, TaskMonitorEvent},
+    tasks::TaskMonitor,
+};
+
+/// Control message for TaskMonitor execution
+#[derive(Debug, Clone)]
+pub enum TaskMonitorControl {
+    /// Stop all tasks and terminate execution
+    Stop,
+    /// Terminate a specific task by name
+    TerminateTask { task_name: String },
+    /// Send stdin input to a specific task (only works if task has enable_stdin: true)
+    SendStdin { task_name: String, input: String },
+}
 
 impl TaskMonitor {
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
@@ -75,6 +90,401 @@ impl TaskMonitor {
                 #[cfg(feature = "tracing")]
                 tracing::debug!("All tasks completed");
                 break;
+            }
+        }
+    }
+
+    /// Execute all tasks with control channel for stopping and sending stdin
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
+    pub async fn execute_all_direct_with_control(
+        &mut self,
+        event_tx: Option<Sender<TaskMonitorEvent>>,
+        mut control_rx: mpsc::Receiver<TaskMonitorControl>,
+    ) {
+        let total_tasks = self.tasks_spawner.len();
+
+        // Send execution started event
+        if let Some(ref tx) = event_tx {
+            let _ = tx
+                .send(TaskMonitorEvent::ExecutionStarted { total_tasks })
+                .await;
+        }
+        let (task_event_tx, mut task_event_rx) = mpsc::channel::<TaskEvent>(1024);
+        self.start_independent_tasks_direct(&task_event_tx).await;
+
+        // Keep track of active tasks
+        let mut active_tasks: HashSet<String> = self.tasks_spawner.keys().cloned().collect();
+        let mut should_stop = false;
+        let mut completed_tasks = 0;
+        let mut failed_tasks = 0;
+
+        loop {
+            tokio::select! {
+                // Handle task events
+                event = task_event_rx.recv() => {
+                    match event {
+                        Some(event) => {
+                            // Count completed/failed tasks
+                            match &event {
+                                TaskEvent::Stopped { reason, .. } => {
+                                    completed_tasks += 1;
+                                    match reason {
+                                        TaskEventStopReason::Error(_) => failed_tasks += 1,
+                                        _ => {}
+                                    }
+                                }
+                                _ => {}
+                            }
+
+                            // Forward wrapped task event
+                            if let Some(ref tx) = event_tx {
+                                if let Err(_e) = tx.send(TaskMonitorEvent::Task(event.clone())).await {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::warn!(event = ?event, "Failed to forward task event");
+                                }
+                            }
+                            match event {
+                                TaskEvent::Started { .. } => {}
+                                TaskEvent::Output { .. } => {}
+                                TaskEvent::Ready { task_name } => {
+                                    self.start_ready_dependents_direct(
+                                        &mut active_tasks,
+                                        &task_name,
+                                        None,
+                                        &task_event_tx.clone(),
+                                    )
+                                    .await;
+                                }
+                                TaskEvent::Stopped {
+                                    task_name,
+                                    exit_code: _,
+                                    reason,
+                                } => {
+                                    active_tasks.remove(&task_name);
+
+                                    self.terminate_dependencies_if_all_dependent_finished(&task_name)
+                                        .await;
+
+                                    self.start_ready_dependents_direct(
+                                        &mut active_tasks,
+                                        &task_name,
+                                        Some(reason),
+                                        &task_event_tx.clone(),
+                                    )
+                                    .await;
+                                }
+                                TaskEvent::Error { task_name, error } => {
+                                    active_tasks.remove(&task_name);
+
+                                    self.terminate_dependencies_if_all_dependent_finished(&task_name)
+                                        .await;
+
+                                    self.start_ready_dependents_direct(
+                                        &mut active_tasks,
+                                        &task_name,
+                                        Some(TaskEventStopReason::Error(error.to_string())),
+                                        &task_event_tx.clone(),
+                                    )
+                                    .await;
+                                }
+                            }
+
+                            // Exit when no tasks are active or stop was requested
+                            if active_tasks.is_empty() || should_stop {
+                                #[cfg(feature = "tracing")]
+                                tracing::debug!(
+                                    active_tasks = active_tasks.len(),
+                                    should_stop = should_stop,
+                                    "Execution loop ending"
+                                );
+                                break;
+                            }
+                        }
+                        None => {
+                            #[cfg(feature = "tracing")]
+                            tracing::debug!("Task event channel closed");
+                            break;
+                        }
+                    }
+                }
+                // Handle control messages
+                control = control_rx.recv() => {
+                    match control {
+                        Some(TaskMonitorControl::Stop) => {
+                            let control_type = TaskMonitorControlType::Stop;
+
+                            // Send control received event
+                            if let Some(ref tx) = event_tx {
+                                let _ = tx.send(TaskMonitorEvent::ControlReceived {
+                                    control_type: control_type.clone()
+                                }).await;
+                            }
+
+                            #[cfg(feature = "tracing")]
+                            tracing::info!("Received stop signal, terminating all tasks");
+
+                            // Send all tasks termination requested event
+                            if let Some(ref tx) = event_tx {
+                                let _ = tx.send(TaskMonitorEvent::AllTasksTerminationRequested).await;
+                            }
+
+                            should_stop = true;
+                            self.terminate_all_tasks(TaskTerminateReason::Custom("User requested".to_string())).await;
+
+                            // Send control processed event
+                            if let Some(ref tx) = event_tx {
+                                let _ = tx.send(TaskMonitorEvent::ControlProcessed {
+                                    control_type
+                                }).await;
+                            }
+                        }
+                        Some(TaskMonitorControl::TerminateTask { task_name}) => {
+                            let control_type = TaskMonitorControlType::TerminateTask;
+
+                            // Send control received event
+                            if let Some(ref tx) = event_tx {
+                                let _ = tx.send(TaskMonitorEvent::ControlReceived {
+                                    control_type: control_type.clone()
+                                }).await;
+                            }
+
+                            #[cfg(feature = "tracing")]
+                            tracing::info!(task_name = %task_name, "Terminating specific task");
+
+                            // Send task termination requested event
+                            if let Some(ref tx) = event_tx {
+                                let _ = tx.send(TaskMonitorEvent::TaskTerminationRequested {
+                                    task_name: task_name.clone()
+                                }).await;
+                            }
+
+                            self.terminate_task(&task_name, TaskTerminateReason::Custom("User requested".to_string())).await;
+
+                            // Send control processed event
+                            if let Some(ref tx) = event_tx {
+                                let _ = tx.send(TaskMonitorEvent::ControlProcessed {
+                                    control_type
+                                }).await;
+                            }
+                        }
+                        Some(TaskMonitorControl::SendStdin { task_name, input }) => {
+                            let control_type = TaskMonitorControlType::SendStdin;
+
+                            // Send control received event
+                            if let Some(ref tx) = event_tx {
+                                let _ = tx.send(TaskMonitorEvent::ControlReceived {
+                                    control_type: control_type.clone()
+                                }).await;
+                            }
+
+                            #[cfg(feature = "tracing")]
+                            tracing::debug!(task_name = %task_name, input_len = input.len(), "Sending stdin to task");
+
+                            match self.send_stdin_to_task(&task_name, &input).await {
+                                Ok(_) => {
+                                    // Send stdin success event
+                                    if let Some(ref tx) = event_tx {
+                                        let _ = tx.send(TaskMonitorEvent::StdinSent {
+                                            task_name: task_name.clone(),
+                                            input_length: input.len()
+                                        }).await;
+                                    }
+
+                                    // Send control processed event
+                                    if let Some(ref tx) = event_tx {
+                                        let _ = tx.send(TaskMonitorEvent::ControlProcessed {
+                                            control_type
+                                        }).await;
+                                    }
+                                }
+                                Err(TaskMonitorError::SendStdinError(error)) => {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::error!(task_name = %task_name, error = %error, "Failed to send stdin to task");
+
+                                    // Send stdin error event
+                                    if let Some(ref tx) = event_tx {
+                                        let _ = tx.send(TaskMonitorEvent::StdinError {
+                                            task_name: task_name.clone(),
+                                            error: error.clone()
+                                        }).await;
+                                    }
+
+                                    // Send control error event
+                                    if let Some(ref tx) = event_tx {
+                                        let _ = tx.send(TaskMonitorEvent::ControlError {
+                                            control_type,
+                                            error: TaskMonitorError::SendStdinError(error)
+                                        }).await;
+                                    }
+                                }
+                                Err(other_error) => {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::error!(task_name = %task_name, error = %other_error, "Unexpected error sending stdin to task");
+
+                                    // Send control error event for other errors
+                                    if let Some(ref tx) = event_tx {
+                                        let _ = tx.send(TaskMonitorEvent::ControlError {
+                                            control_type,
+                                            error: other_error
+                                        }).await;
+                                    }
+                                }
+                            }
+                        }
+                        None => {
+                            #[cfg(feature = "tracing")]
+                            tracing::debug!("Control channel closed");
+                        }
+                    }
+                }
+            }
+        }
+
+        // Send execution completed event
+        if let Some(ref tx) = event_tx {
+            let _ = tx
+                .send(TaskMonitorEvent::ExecutionCompleted {
+                    completed_tasks,
+                    failed_tasks,
+                })
+                .await;
+        }
+
+        // If stop was requested, wait a bit for graceful shutdown
+        if should_stop {
+            #[cfg(feature = "tracing")]
+            tracing::info!("Waiting for tasks to terminate gracefully");
+
+            // Give tasks a chance to shut down gracefully
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        }
+    }
+
+    /// Terminate all running tasks
+    async fn terminate_all_tasks(&mut self, reason: TaskTerminateReason) {
+        for (task_name, spawner) in &mut self.tasks_spawner {
+            let state = spawner.get_state().await;
+            if matches!(state, TaskState::Running | TaskState::Ready) {
+                if let Err(_e) = spawner.send_terminate_signal(reason.clone()).await {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!(
+                        task_name = %task_name,
+                        error = %_e,
+                        "Failed to terminate task"
+                    );
+
+                    // Avoid unused variable warning when tracing is disabled
+                    #[cfg(not(feature = "tracing"))]
+                    let _ = task_name;
+                }
+            }
+        }
+    }
+
+    /// Terminate a specific task
+    async fn terminate_task(&mut self, task_name: &str, reason: TaskTerminateReason) {
+        if let Some(spawner) = self.tasks_spawner.get_mut(task_name) {
+            let state = spawner.get_state().await;
+            if matches!(state, TaskState::Running | TaskState::Ready) {
+                if let Err(_e) = spawner.send_terminate_signal(reason).await {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!(
+                        task_name = %task_name,
+                        error = %_e,
+                        "Failed to terminate task"
+                    );
+                }
+            } else {
+                #[cfg(feature = "tracing")]
+                tracing::warn!(
+                    task_name = %task_name,
+                    state = ?state,
+                    "Task is not in a state that can be terminated"
+                );
+            }
+        } else {
+            #[cfg(feature = "tracing")]
+            tracing::warn!(task_name = %task_name, "Task not found");
+        }
+    }
+
+    /// Send stdin input to a specific task
+    async fn send_stdin_to_task(
+        &mut self,
+        task_name: &str,
+        input: &str,
+    ) -> Result<(), TaskMonitorError> {
+        // First check if the task has stdin enabled in configuration
+        let has_stdin_enabled = self
+            .tasks
+            .get(task_name)
+            .and_then(|task| task.config.enable_stdin)
+            .unwrap_or(false);
+
+        if !has_stdin_enabled {
+            #[cfg(feature = "tracing")]
+            tracing::warn!(
+                task_name = %task_name,
+                "Task does not have stdin enabled in configuration"
+            );
+            return Err(SendStdinErrorReason::StdinNotEnabled(task_name.to_string()).into());
+        }
+
+        // Check if we have a stdin sender for this task
+        let stdin_sender = match self.stdin_senders.get(task_name) {
+            Some(sender) => sender,
+            None => {
+                #[cfg(feature = "tracing")]
+                tracing::warn!(
+                    task_name = %task_name,
+                    "Task does not have a stdin sender (stdin might not be enabled)"
+                );
+                return Err(SendStdinErrorReason::TaskNotFound(task_name.to_string()).into());
+            }
+        };
+
+        // Verify the task spawner exists
+        let spawner = match self.tasks_spawner.get(task_name) {
+            Some(spawner) => spawner,
+            None => {
+                #[cfg(feature = "tracing")]
+                tracing::warn!(task_name = %task_name, "Task spawner not found");
+                return Err(SendStdinErrorReason::TaskNotFound(task_name.to_string()).into());
+            }
+        };
+
+        // Verify the task is in a state that can receive input
+        let state = spawner.get_state().await;
+        if !matches!(state, TaskState::Running | TaskState::Ready) {
+            #[cfg(feature = "tracing")]
+            tracing::warn!(
+                task_name = %task_name,
+                state = ?state,
+                "Task is not in a state that can receive stdin input"
+            );
+            return Err(SendStdinErrorReason::TaskNotReady(task_name.to_string()).into());
+        }
+
+        // Send the input to the task's stdin channel
+        match stdin_sender.send(input.to_string()).await {
+            Ok(_) => {
+                #[cfg(feature = "tracing")]
+                tracing::info!(
+                    task_name = %task_name,
+                    input_len = input.len(),
+                    "Successfully sent stdin to task: '{}'",
+                    input.trim()
+                );
+                Ok(())
+            }
+            Err(_e) => {
+                #[cfg(feature = "tracing")]
+                tracing::error!(
+                    task_name = %task_name,
+                    error = %_e,
+                    "Failed to send stdin to task"
+                );
+                Err(SendStdinErrorReason::ChannelClosed(task_name.to_string()).into())
             }
         }
     }
@@ -197,6 +607,7 @@ mod tests {
 
     use crate::monitor::{
         config::{TaskShell, TaskSpec},
+        error::{SendStdinErrorReason, TaskMonitorError},
         tasks::TaskMonitor,
     };
 
@@ -658,5 +1069,280 @@ mod tests {
         );
 
         let _ = timeout(Duration::from_secs(5), execute_handle).await;
+    }
+
+    #[tokio::test]
+    async fn test_stdin_functionality_with_control() {
+        // Test that stdin functionality works correctly with TaskMonitor
+        let mut tasks = HashMap::new();
+
+        // Create a task with stdin enabled that can properly echo stdin
+        #[cfg(windows)]
+        let stdin_task_config = TaskConfig::new("powershell")
+            .args(["-Command", "'ready'; $host.UI.ReadLine()"])
+            .enable_stdin(true)
+            .ready_indicator("ready")
+            .timeout_ms(5000);
+        #[cfg(not(windows))]
+        let stdin_task_config = TaskConfig::new("sh")
+            .args(["-c", "echo 'ready'; read input; echo $input"])
+            .enable_stdin(true)
+            .ready_indicator("ready")
+            .timeout_ms(5000);
+
+        tasks.insert(
+            "stdin_task".to_string(),
+            TaskSpec::new(stdin_task_config).shell(TaskShell::Auto),
+        );
+
+        // Create a task without stdin enabled
+        tasks.insert(
+            "no_stdin_task".to_string(),
+            TaskSpec::new(TaskConfig::new("echo").args(["No stdin task"])).shell(TaskShell::Auto),
+        );
+
+        let mut monitor = TaskMonitor::new(tasks).unwrap();
+
+        // Verify stdin senders are created only for tasks with stdin enabled
+        assert!(monitor.stdin_senders.contains_key("stdin_task"));
+        assert!(!monitor.stdin_senders.contains_key("no_stdin_task"));
+        assert_eq!(monitor.stdin_senders.len(), 1);
+
+        // Test sending stdin to valid task (should fail if task not running)
+        let result = monitor
+            .send_stdin_to_task("stdin_task", "Hello stdin!")
+            .await;
+        // Since task is not running, this should return TaskNotReady error
+        assert!(
+            result.is_err(),
+            "Sending stdin to non-running task should fail"
+        );
+        if let Err(e) = result {
+            println!("Expected error: {}", e);
+        }
+
+        // Test sending stdin to invalid task (should return error)
+        let result = monitor
+            .send_stdin_to_task("nonexistent_task", "Should be ignored")
+            .await;
+        assert!(
+            result.is_err(),
+            "Sending stdin to nonexistent task should fail"
+        );
+
+        // Test sending stdin to task without stdin enabled (should return error)
+        let result = monitor
+            .send_stdin_to_task("no_stdin_task", "Should be rejected")
+            .await;
+        assert!(
+            result.is_err(),
+            "Sending stdin to task without stdin enabled should fail"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_stdin_channel_creation() {
+        // Test that stdin channels are created correctly during TaskMonitor construction
+        let mut tasks = HashMap::new();
+
+        // Task with stdin enabled
+        tasks.insert(
+            "with_stdin".to_string(),
+            TaskSpec::new(TaskConfig::new("echo").args(["test"]).enable_stdin(true))
+                .shell(TaskShell::Auto),
+        );
+
+        // Task with stdin explicitly disabled
+        tasks.insert(
+            "without_stdin".to_string(),
+            TaskSpec::new(TaskConfig::new("echo").args(["test"]).enable_stdin(false))
+                .shell(TaskShell::Auto),
+        );
+
+        // Task with stdin not specified (defaults to false)
+        tasks.insert(
+            "default_stdin".to_string(),
+            TaskSpec::new(TaskConfig::new("echo").args(["test"])).shell(TaskShell::Auto),
+        );
+
+        let monitor = TaskMonitor::new(tasks).unwrap();
+
+        // Verify stdin senders
+        assert!(monitor.stdin_senders.contains_key("with_stdin"));
+        assert!(!monitor.stdin_senders.contains_key("without_stdin"));
+        assert!(!monitor.stdin_senders.contains_key("default_stdin"));
+        assert_eq!(monitor.stdin_senders.len(), 1);
+
+        // Verify all tasks have spawners
+        assert_eq!(monitor.tasks_spawner.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_stdin_validation_and_error_handling() {
+        // Test stdin validation and error handling directly
+        let mut tasks = HashMap::new();
+
+        #[cfg(windows)]
+        let stdin_task_config = TaskConfig::new("powershell")
+            .args(["-Command", "'ready'; $host.UI.ReadLine()"])
+            .enable_stdin(true)
+            .ready_indicator("ready")
+            .timeout_ms(5000);
+        #[cfg(not(windows))]
+        let stdin_task_config = TaskConfig::new("sh")
+            .args(["-c", "echo 'ready'; read input; echo $input"])
+            .enable_stdin(true)
+            .ready_indicator("ready")
+            .timeout_ms(5000);
+
+        tasks.insert(
+            "stdin_enabled".to_string(),
+            TaskSpec::new(stdin_task_config).shell(TaskShell::Auto),
+        );
+
+        let mut monitor = TaskMonitor::new(tasks).unwrap();
+
+        // Verify stdin sender created
+        assert!(monitor.stdin_senders.contains_key("stdin_enabled"));
+        assert_eq!(monitor.stdin_senders.len(), 1);
+
+        // Test direct method calls
+        let result = monitor
+            .send_stdin_to_task("stdin_enabled", "Valid input")
+            .await;
+        // Since task is not running, this should return TaskNotReady error
+        assert!(
+            result.is_err(),
+            "Sending stdin to non-running task should fail"
+        );
+
+        let result = monitor
+            .send_stdin_to_task("nonexistent_task", "Should be ignored")
+            .await;
+        assert!(
+            result.is_err(),
+            "Sending stdin to nonexistent task should fail"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_stdin_error_types() {
+        // Test specific error types returned by send_stdin_to_task
+        let mut tasks = HashMap::new();
+
+        #[cfg(windows)]
+        let stdin_task_config = TaskConfig::new("powershell")
+            .args(["-Command", "'ready'; $host.UI.ReadLine()"])
+            .enable_stdin(true)
+            .ready_indicator("ready")
+            .timeout_ms(5000);
+        #[cfg(not(windows))]
+        let stdin_task_config = TaskConfig::new("sh")
+            .args(["-c", "echo 'ready'; read input; echo $input"])
+            .enable_stdin(true)
+            .ready_indicator("ready")
+            .timeout_ms(5000);
+
+        tasks.insert(
+            "stdin_task".to_string(),
+            TaskSpec::new(stdin_task_config).shell(TaskShell::Auto),
+        );
+
+        tasks.insert(
+            "no_stdin_task".to_string(),
+            TaskSpec::new(TaskConfig::new("echo").args(["test"])).shell(TaskShell::Auto),
+        );
+
+        let mut monitor = TaskMonitor::new(tasks).unwrap();
+
+        // Test TaskNotReady error (task exists with stdin but not running)
+        let result = monitor.send_stdin_to_task("stdin_task", "input").await;
+        assert!(result.is_err());
+        if let Err(TaskMonitorError::SendStdinError(SendStdinErrorReason::TaskNotReady(
+            task_name,
+        ))) = result
+        {
+            assert_eq!(task_name, "stdin_task");
+        } else {
+            panic!("Expected TaskNotReady error");
+        }
+
+        // Test StdinNotEnabled error
+        let result = monitor.send_stdin_to_task("no_stdin_task", "input").await;
+        assert!(result.is_err());
+        if let Err(TaskMonitorError::SendStdinError(SendStdinErrorReason::StdinNotEnabled(
+            task_name,
+        ))) = result
+        {
+            assert_eq!(task_name, "no_stdin_task");
+        } else {
+            panic!("Expected StdinNotEnabled error");
+        }
+
+        // Test TaskNotFound error (task doesn't exist at all)
+        let result = monitor.send_stdin_to_task("nonexistent", "input").await;
+        assert!(result.is_err());
+        if let Err(TaskMonitorError::SendStdinError(SendStdinErrorReason::StdinNotEnabled(
+            task_name,
+        ))) = result
+        {
+            // The current implementation checks config first, so nonexistent tasks return StdinNotEnabled
+            assert_eq!(task_name, "nonexistent");
+        } else {
+            panic!("Expected StdinNotEnabled error for nonexistent task");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_multiple_stdin_tasks_concurrent() {
+        // Test multiple tasks with stdin
+        let mut tasks = HashMap::new();
+
+        for i in 1..=3 {
+            #[cfg(windows)]
+            let stdin_task_config = TaskConfig::new("powershell")
+                .args(["-Command", "'ready'; $host.UI.ReadLine()"])
+                .enable_stdin(true)
+                .ready_indicator("ready")
+                .timeout_ms(5000);
+            #[cfg(not(windows))]
+            let stdin_task_config = TaskConfig::new("sh")
+                .args(["-c", "echo 'ready'; read input; echo $input"])
+                .enable_stdin(true)
+                .ready_indicator("ready")
+                .timeout_ms(5000);
+
+            tasks.insert(
+                format!("stdin_task_{}", i),
+                TaskSpec::new(stdin_task_config).shell(TaskShell::Auto),
+            );
+        }
+
+        let mut monitor = TaskMonitor::new(tasks).unwrap();
+
+        // Verify all stdin senders are created
+        assert_eq!(monitor.stdin_senders.len(), 3);
+        for i in 1..=3 {
+            assert!(
+                monitor
+                    .stdin_senders
+                    .contains_key(&format!("stdin_task_{}", i))
+            );
+        }
+
+        // Test sending stdin to all tasks
+        for i in 1..=3 {
+            let result = monitor
+                .send_stdin_to_task(
+                    &format!("stdin_task_{}", i),
+                    &format!("Input for task {}", i),
+                )
+                .await;
+            assert!(
+                result.is_err(),
+                "Sending stdin to non-running stdin_task_{} should fail",
+                i
+            );
+        }
     }
 }

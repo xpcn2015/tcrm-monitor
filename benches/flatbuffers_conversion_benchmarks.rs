@@ -2,7 +2,7 @@ use criterion::{ criterion_group, criterion_main, BenchmarkId, Criterion, Throug
 use flatbuffers::FlatBufferBuilder;
 use std::collections::HashMap;
 use std::hint::black_box;
-use tcrm_monitor::flatbuffers::conversion::config::*;
+use tcrm_monitor::flatbuffers::conversion::config::ToFlatbuffers;
 use tcrm_monitor::monitor::config::{TaskShell, TaskSpec, TcrmTasks};
 use tcrm_task::tasks::config::TaskConfig;
 
@@ -135,7 +135,7 @@ fn bench_taskspec_conversions(c: &mut Criterion) {
             &fb_spec,
             |b, fb_spec| {
                 b.iter(|| {
-                    let result = TaskSpec::from_flatbuffers(black_box(*fb_spec));
+                    let result = TaskSpec::try_from(black_box(*fb_spec));
                     black_box(result)
                 });
             },
@@ -161,7 +161,7 @@ fn bench_tasks_conversions(c: &mut Criterion) {
             |b, tasks| {
                 b.iter(|| {
                     let mut fbb = FlatBufferBuilder::new();
-                    let result = tasks_to_flatbuffers(black_box(tasks), &mut fbb);
+                    let result = black_box(tasks).to_flatbuffers( &mut fbb);
                     black_box(result)
                 });
             },
@@ -169,7 +169,7 @@ fn bench_tasks_conversions(c: &mut Criterion) {
 
         // Pre-convert for from_flatbuffers benchmark
         let mut fbb = FlatBufferBuilder::new();
-        let fb_tasks_offset = tasks_to_flatbuffers(&tasks, &mut fbb).unwrap();
+        let fb_tasks_offset = tasks.to_flatbuffers( &mut fbb).unwrap();
         fbb.finish(fb_tasks_offset, None);
         let buf = fbb.finished_data();
         let fb_tasks = flatbuffers::root::<
@@ -208,7 +208,7 @@ fn bench_roundtrip_conversions(c: &mut Criterion) {
                 b.iter(|| {
                     // To flatbuffers
                     let mut fbb = FlatBufferBuilder::new();
-                    let fb_offset = tasks_to_flatbuffers(black_box(tasks), &mut fbb).unwrap();
+                    let fb_offset = black_box(tasks).to_flatbuffers( &mut fbb).unwrap();
                     fbb.finish(fb_offset, None);
                     
                     // Parse back
@@ -242,7 +242,7 @@ fn bench_memory_usage(c: &mut Criterion) {
             |b, tasks| {
                 b.iter(|| {
                     let mut fbb = FlatBufferBuilder::new();
-                    let fb_offset = tasks_to_flatbuffers(black_box(tasks), &mut fbb).unwrap();
+                    let fb_offset = black_box(tasks).to_flatbuffers( &mut fbb).unwrap();
                     fbb.finish(fb_offset, None);
                     let buf = fbb.finished_data();
                     black_box(buf.len()) // Measure serialized size
@@ -263,3 +263,4 @@ criterion_group!(
     bench_memory_usage
 );
 criterion_main!(benches);
+

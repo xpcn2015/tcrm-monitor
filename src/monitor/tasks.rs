@@ -4,6 +4,7 @@ use tcrm_task::tasks::{
     async_tokio::spawner::TaskSpawner,
     state::{TaskState, TaskTerminateReason},
 };
+use tokio::sync::mpsc;
 
 use crate::monitor::{
     config::{TaskShell, TcrmTasks},
@@ -17,6 +18,8 @@ pub struct TaskMonitor {
     pub tasks_spawner: HashMap<String, TaskSpawner>,
     pub dependencies: HashMap<String, Vec<String>>,
     pub dependents: HashMap<String, Vec<String>>,
+    /// Stdin senders for tasks that have stdin enabled
+    pub stdin_senders: HashMap<String, mpsc::Sender<String>>,
 }
 impl TaskMonitor {
     pub fn new(mut tasks: TcrmTasks) -> Result<Self, TaskMonitorError> {
@@ -25,16 +28,35 @@ impl TaskMonitor {
         let dependents = depen.dependents;
         check_circular_dependencies(&dependencies)?;
         shell_tasks(&mut tasks);
-        let tasks_spawner: HashMap<String, TaskSpawner> = tasks
-            .iter()
-            .map(|(k, v)| (k.clone(), TaskSpawner::new(k.clone(), v.config.clone())))
-            .collect();
+
+        // Create stdin channels and task spawners
+        let mut tasks_spawner: HashMap<String, TaskSpawner> = HashMap::new();
+        let mut stdin_senders: HashMap<String, mpsc::Sender<String>> = HashMap::new();
+
+        for (task_name, task_spec) in &tasks {
+            let mut spawner = TaskSpawner::new(task_name.clone(), task_spec.config.clone());
+
+            // Check if the task has stdin enabled
+            if task_spec.config.enable_stdin.unwrap_or_default() {
+                // Create a channel for stdin input
+                let (stdin_tx, stdin_rx) = mpsc::channel::<String>(32);
+
+                // Set up the spawner with the stdin receiver
+                spawner = spawner.set_stdin(stdin_rx);
+
+                // Store the sender for later use
+                stdin_senders.insert(task_name.clone(), stdin_tx);
+            }
+
+            tasks_spawner.insert(task_name.clone(), spawner);
+        }
 
         Ok(Self {
             tasks,
             tasks_spawner,
             dependencies,
             dependents,
+            stdin_senders,
         })
     }
     pub(crate) async fn terminate_dependencies_if_all_dependent_finished(
@@ -132,6 +154,33 @@ fn shell_tasks(tasks: &mut TcrmTasks) {
                 #[cfg(unix)]
                 TaskShell::Bash => {
                     task_spec.config.command = "bash".to_string();
+                    let mut new_args = vec!["-c".to_string(), original_command];
+                    if let Some(existing_args) = task_spec.config.args.take() {
+                        new_args.extend(existing_args);
+                    }
+                    task_spec.config.args = Some(new_args);
+                }
+                #[cfg(unix)]
+                TaskShell::Sh => {
+                    task_spec.config.command = "sh".to_string();
+                    let mut new_args = vec!["-c".to_string(), original_command];
+                    if let Some(existing_args) = task_spec.config.args.take() {
+                        new_args.extend(existing_args);
+                    }
+                    task_spec.config.args = Some(new_args);
+                }
+                #[cfg(unix)]
+                TaskShell::Zsh => {
+                    task_spec.config.command = "zsh".to_string();
+                    let mut new_args = vec!["-c".to_string(), original_command];
+                    if let Some(existing_args) = task_spec.config.args.take() {
+                        new_args.extend(existing_args);
+                    }
+                    task_spec.config.args = Some(new_args);
+                }
+                #[cfg(unix)]
+                TaskShell::Fish => {
+                    task_spec.config.command = "fish".to_string();
                     let mut new_args = vec!["-c".to_string(), original_command];
                     if let Some(existing_args) = task_spec.config.args.take() {
                         new_args.extend(existing_args);

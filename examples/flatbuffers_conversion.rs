@@ -1,4 +1,4 @@
-use tcrm_monitor::flatbuffers::conversion::config::*;
+use tcrm_monitor::flatbuffers::conversion::config::ToFlatbuffers;
 use tcrm_monitor::flatbuffers::conversion::error::ConversionError;
 use tcrm_monitor::monitor::config::{TaskShell, TaskSpec, TcrmTasks};
 use tcrm_task::tasks::config::TaskConfig;
@@ -120,7 +120,7 @@ fn spec_conversions() {
             >(fb_data)
             {
                 Ok(fb_spec) => {
-                    match TaskSpec::from_flatbuffers(fb_spec) {
+                    match TaskSpec::try_from(fb_spec) {
                         Ok(converted_spec) => {
                             println!(
                                 "Converted TaskSpec roundtrip: original command='{}', shell={:?}, dependencies={:?}",
@@ -199,7 +199,7 @@ fn tasks_conversions() {
     tasks.insert("test_task".to_string(), spec);
 
     let mut fbb2 = flatbuffers::FlatBufferBuilder::new();
-    match tasks_to_flatbuffers(&tasks, &mut fbb2) {
+    match tasks.to_flatbuffers(&mut fbb2) {
         Ok(fb_tasks_offset) => {
             fbb2.finish(fb_tasks_offset, None);
             let fb_data = fbb2.finished_data();

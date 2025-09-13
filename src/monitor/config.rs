@@ -85,6 +85,12 @@ pub enum TaskShell {
     Powershell,
     #[cfg(unix)]
     Bash,
+    #[cfg(unix)]
+    Sh,
+    #[cfg(unix)]
+    Zsh,
+    #[cfg(unix)]
+    Fish,
 }
 impl Default for TaskShell {
     fn default() -> Self {

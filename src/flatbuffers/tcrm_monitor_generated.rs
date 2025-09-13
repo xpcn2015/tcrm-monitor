@@ -32,22 +32,126 @@ pub mod tcrm {
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
-        pub const ENUM_MIN_TASK_MONITOR_ERROR: u8 = 0;
+        pub const ENUM_MIN_SEND_STDIN_ERROR_REASON: i8 = 0;
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
-        pub const ENUM_MAX_TASK_MONITOR_ERROR: u8 = 4;
+        pub const ENUM_MAX_SEND_STDIN_ERROR_REASON: i8 = 3;
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
         #[allow(non_camel_case_types)]
-        pub const ENUM_VALUES_TASK_MONITOR_ERROR: [TaskMonitorError; 5] = [
+        pub const ENUM_VALUES_SEND_STDIN_ERROR_REASON: [SendStdinErrorReason; 4] = [
+            SendStdinErrorReason::TaskNotFound,
+            SendStdinErrorReason::StdinNotEnabled,
+            SendStdinErrorReason::TaskNotReady,
+            SendStdinErrorReason::ChannelClosed,
+        ];
+
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+        #[repr(transparent)]
+        pub struct SendStdinErrorReason(pub i8);
+        #[allow(non_upper_case_globals)]
+        impl SendStdinErrorReason {
+            pub const TaskNotFound: Self = Self(0);
+            pub const StdinNotEnabled: Self = Self(1);
+            pub const TaskNotReady: Self = Self(2);
+            pub const ChannelClosed: Self = Self(3);
+
+            pub const ENUM_MIN: i8 = 0;
+            pub const ENUM_MAX: i8 = 3;
+            pub const ENUM_VALUES: &'static [Self] = &[
+                Self::TaskNotFound,
+                Self::StdinNotEnabled,
+                Self::TaskNotReady,
+                Self::ChannelClosed,
+            ];
+            /// Returns the variant's name or "" if unknown.
+            pub fn variant_name(self) -> Option<&'static str> {
+                match self {
+                    Self::TaskNotFound => Some("TaskNotFound"),
+                    Self::StdinNotEnabled => Some("StdinNotEnabled"),
+                    Self::TaskNotReady => Some("TaskNotReady"),
+                    Self::ChannelClosed => Some("ChannelClosed"),
+                    _ => None,
+                }
+            }
+        }
+        impl core::fmt::Debug for SendStdinErrorReason {
+            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                if let Some(name) = self.variant_name() {
+                    f.write_str(name)
+                } else {
+                    f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+                }
+            }
+        }
+        impl<'a> flatbuffers::Follow<'a> for SendStdinErrorReason {
+            type Inner = Self;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                let b = unsafe { flatbuffers::read_scalar_at::<i8>(buf, loc) };
+                Self(b)
+            }
+        }
+
+        impl flatbuffers::Push for SendStdinErrorReason {
+            type Output = SendStdinErrorReason;
+            #[inline]
+            unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+                unsafe { flatbuffers::emplace_scalar::<i8>(dst, self.0) };
+            }
+        }
+
+        impl flatbuffers::EndianScalar for SendStdinErrorReason {
+            type Scalar = i8;
+            #[inline]
+            fn to_little_endian(self) -> i8 {
+                self.0.to_le()
+            }
+            #[inline]
+            #[allow(clippy::wrong_self_convention)]
+            fn from_little_endian(v: i8) -> Self {
+                let b = i8::from_le(v);
+                Self(b)
+            }
+        }
+
+        impl<'a> flatbuffers::Verifiable for SendStdinErrorReason {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                i8::run_verifier(v, pos)
+            }
+        }
+
+        impl flatbuffers::SimpleToVerifyInSlice for SendStdinErrorReason {}
+        #[deprecated(
+            since = "2.0.0",
+            note = "Use associated constants instead. This will no longer be generated in 2021."
+        )]
+        pub const ENUM_MIN_TASK_MONITOR_ERROR: u8 = 0;
+        #[deprecated(
+            since = "2.0.0",
+            note = "Use associated constants instead. This will no longer be generated in 2021."
+        )]
+        pub const ENUM_MAX_TASK_MONITOR_ERROR: u8 = 5;
+        #[deprecated(
+            since = "2.0.0",
+            note = "Use associated constants instead. This will no longer be generated in 2021."
+        )]
+        #[allow(non_camel_case_types)]
+        pub const ENUM_VALUES_TASK_MONITOR_ERROR: [TaskMonitorError; 6] = [
             TaskMonitorError::NONE,
             TaskMonitorError::ConfigParse,
             TaskMonitorError::CircularDependency,
             TaskMonitorError::DependencyNotFound,
+            TaskMonitorError::SendStdin,
             TaskMonitorError::TaskError,
         ];
 
@@ -60,15 +164,17 @@ pub mod tcrm {
             pub const ConfigParse: Self = Self(1);
             pub const CircularDependency: Self = Self(2);
             pub const DependencyNotFound: Self = Self(3);
-            pub const TaskError: Self = Self(4);
+            pub const SendStdin: Self = Self(4);
+            pub const TaskError: Self = Self(5);
 
             pub const ENUM_MIN: u8 = 0;
-            pub const ENUM_MAX: u8 = 4;
+            pub const ENUM_MAX: u8 = 5;
             pub const ENUM_VALUES: &'static [Self] = &[
                 Self::NONE,
                 Self::ConfigParse,
                 Self::CircularDependency,
                 Self::DependencyNotFound,
+                Self::SendStdin,
                 Self::TaskError,
             ];
             /// Returns the variant's name or "" if unknown.
@@ -78,6 +184,7 @@ pub mod tcrm {
                     Self::ConfigParse => Some("ConfigParse"),
                     Self::CircularDependency => Some("CircularDependency"),
                     Self::DependencyNotFound => Some("DependencyNotFound"),
+                    Self::SendStdin => Some("SendStdin"),
                     Self::TaskError => Some("TaskError"),
                     _ => None,
                 }
@@ -141,23 +248,255 @@ pub mod tcrm {
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
-        pub const ENUM_MIN_TASK_SHELL: i8 = 0;
+        pub const ENUM_MIN_TASK_MONITOR_CONTROL_TYPE: i8 = 0;
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
-        pub const ENUM_MAX_TASK_SHELL: i8 = 4;
+        pub const ENUM_MAX_TASK_MONITOR_CONTROL_TYPE: i8 = 2;
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
         #[allow(non_camel_case_types)]
-        pub const ENUM_VALUES_TASK_SHELL: [TaskShell; 5] = [
+        pub const ENUM_VALUES_TASK_MONITOR_CONTROL_TYPE: [TaskMonitorControlType; 3] = [
+            TaskMonitorControlType::Stop,
+            TaskMonitorControlType::TerminateTask,
+            TaskMonitorControlType::SendStdin,
+        ];
+
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+        #[repr(transparent)]
+        pub struct TaskMonitorControlType(pub i8);
+        #[allow(non_upper_case_globals)]
+        impl TaskMonitorControlType {
+            pub const Stop: Self = Self(0);
+            pub const TerminateTask: Self = Self(1);
+            pub const SendStdin: Self = Self(2);
+
+            pub const ENUM_MIN: i8 = 0;
+            pub const ENUM_MAX: i8 = 2;
+            pub const ENUM_VALUES: &'static [Self] =
+                &[Self::Stop, Self::TerminateTask, Self::SendStdin];
+            /// Returns the variant's name or "" if unknown.
+            pub fn variant_name(self) -> Option<&'static str> {
+                match self {
+                    Self::Stop => Some("Stop"),
+                    Self::TerminateTask => Some("TerminateTask"),
+                    Self::SendStdin => Some("SendStdin"),
+                    _ => None,
+                }
+            }
+        }
+        impl core::fmt::Debug for TaskMonitorControlType {
+            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                if let Some(name) = self.variant_name() {
+                    f.write_str(name)
+                } else {
+                    f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+                }
+            }
+        }
+        impl<'a> flatbuffers::Follow<'a> for TaskMonitorControlType {
+            type Inner = Self;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                let b = unsafe { flatbuffers::read_scalar_at::<i8>(buf, loc) };
+                Self(b)
+            }
+        }
+
+        impl flatbuffers::Push for TaskMonitorControlType {
+            type Output = TaskMonitorControlType;
+            #[inline]
+            unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+                unsafe { flatbuffers::emplace_scalar::<i8>(dst, self.0) };
+            }
+        }
+
+        impl flatbuffers::EndianScalar for TaskMonitorControlType {
+            type Scalar = i8;
+            #[inline]
+            fn to_little_endian(self) -> i8 {
+                self.0.to_le()
+            }
+            #[inline]
+            #[allow(clippy::wrong_self_convention)]
+            fn from_little_endian(v: i8) -> Self {
+                let b = i8::from_le(v);
+                Self(b)
+            }
+        }
+
+        impl<'a> flatbuffers::Verifiable for TaskMonitorControlType {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                i8::run_verifier(v, pos)
+            }
+        }
+
+        impl flatbuffers::SimpleToVerifyInSlice for TaskMonitorControlType {}
+        #[deprecated(
+            since = "2.0.0",
+            note = "Use associated constants instead. This will no longer be generated in 2021."
+        )]
+        pub const ENUM_MIN_TASK_MONITOR_EVENT: u8 = 0;
+        #[deprecated(
+            since = "2.0.0",
+            note = "Use associated constants instead. This will no longer be generated in 2021."
+        )]
+        pub const ENUM_MAX_TASK_MONITOR_EVENT: u8 = 10;
+        #[deprecated(
+            since = "2.0.0",
+            note = "Use associated constants instead. This will no longer be generated in 2021."
+        )]
+        #[allow(non_camel_case_types)]
+        pub const ENUM_VALUES_TASK_MONITOR_EVENT: [TaskMonitorEvent; 11] = [
+            TaskMonitorEvent::NONE,
+            TaskMonitorEvent::ExecutionStarted,
+            TaskMonitorEvent::ExecutionCompleted,
+            TaskMonitorEvent::ControlReceived,
+            TaskMonitorEvent::ControlProcessed,
+            TaskMonitorEvent::ControlError,
+            TaskMonitorEvent::AllTasksTerminationRequested,
+            TaskMonitorEvent::TaskTerminationRequested,
+            TaskMonitorEvent::StdinSent,
+            TaskMonitorEvent::StdinError,
+            TaskMonitorEvent::Task,
+        ];
+
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+        #[repr(transparent)]
+        pub struct TaskMonitorEvent(pub u8);
+        #[allow(non_upper_case_globals)]
+        impl TaskMonitorEvent {
+            pub const NONE: Self = Self(0);
+            pub const ExecutionStarted: Self = Self(1);
+            pub const ExecutionCompleted: Self = Self(2);
+            pub const ControlReceived: Self = Self(3);
+            pub const ControlProcessed: Self = Self(4);
+            pub const ControlError: Self = Self(5);
+            pub const AllTasksTerminationRequested: Self = Self(6);
+            pub const TaskTerminationRequested: Self = Self(7);
+            pub const StdinSent: Self = Self(8);
+            pub const StdinError: Self = Self(9);
+            pub const Task: Self = Self(10);
+
+            pub const ENUM_MIN: u8 = 0;
+            pub const ENUM_MAX: u8 = 10;
+            pub const ENUM_VALUES: &'static [Self] = &[
+                Self::NONE,
+                Self::ExecutionStarted,
+                Self::ExecutionCompleted,
+                Self::ControlReceived,
+                Self::ControlProcessed,
+                Self::ControlError,
+                Self::AllTasksTerminationRequested,
+                Self::TaskTerminationRequested,
+                Self::StdinSent,
+                Self::StdinError,
+                Self::Task,
+            ];
+            /// Returns the variant's name or "" if unknown.
+            pub fn variant_name(self) -> Option<&'static str> {
+                match self {
+                    Self::NONE => Some("NONE"),
+                    Self::ExecutionStarted => Some("ExecutionStarted"),
+                    Self::ExecutionCompleted => Some("ExecutionCompleted"),
+                    Self::ControlReceived => Some("ControlReceived"),
+                    Self::ControlProcessed => Some("ControlProcessed"),
+                    Self::ControlError => Some("ControlError"),
+                    Self::AllTasksTerminationRequested => Some("AllTasksTerminationRequested"),
+                    Self::TaskTerminationRequested => Some("TaskTerminationRequested"),
+                    Self::StdinSent => Some("StdinSent"),
+                    Self::StdinError => Some("StdinError"),
+                    Self::Task => Some("Task"),
+                    _ => None,
+                }
+            }
+        }
+        impl core::fmt::Debug for TaskMonitorEvent {
+            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                if let Some(name) = self.variant_name() {
+                    f.write_str(name)
+                } else {
+                    f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+                }
+            }
+        }
+        impl<'a> flatbuffers::Follow<'a> for TaskMonitorEvent {
+            type Inner = Self;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                let b = unsafe { flatbuffers::read_scalar_at::<u8>(buf, loc) };
+                Self(b)
+            }
+        }
+
+        impl flatbuffers::Push for TaskMonitorEvent {
+            type Output = TaskMonitorEvent;
+            #[inline]
+            unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+                unsafe { flatbuffers::emplace_scalar::<u8>(dst, self.0) };
+            }
+        }
+
+        impl flatbuffers::EndianScalar for TaskMonitorEvent {
+            type Scalar = u8;
+            #[inline]
+            fn to_little_endian(self) -> u8 {
+                self.0.to_le()
+            }
+            #[inline]
+            #[allow(clippy::wrong_self_convention)]
+            fn from_little_endian(v: u8) -> Self {
+                let b = u8::from_le(v);
+                Self(b)
+            }
+        }
+
+        impl<'a> flatbuffers::Verifiable for TaskMonitorEvent {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                u8::run_verifier(v, pos)
+            }
+        }
+
+        impl flatbuffers::SimpleToVerifyInSlice for TaskMonitorEvent {}
+        pub struct TaskMonitorEventUnionTableOffset {}
+
+        #[deprecated(
+            since = "2.0.0",
+            note = "Use associated constants instead. This will no longer be generated in 2021."
+        )]
+        pub const ENUM_MIN_TASK_SHELL: i8 = 0;
+        #[deprecated(
+            since = "2.0.0",
+            note = "Use associated constants instead. This will no longer be generated in 2021."
+        )]
+        pub const ENUM_MAX_TASK_SHELL: i8 = 7;
+        #[deprecated(
+            since = "2.0.0",
+            note = "Use associated constants instead. This will no longer be generated in 2021."
+        )]
+        #[allow(non_camel_case_types)]
+        pub const ENUM_VALUES_TASK_SHELL: [TaskShell; 8] = [
             TaskShell::None,
             TaskShell::Auto,
             TaskShell::Cmd,
             TaskShell::Powershell,
             TaskShell::Bash,
+            TaskShell::Sh,
+            TaskShell::Zsh,
+            TaskShell::Fish,
         ];
 
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -170,15 +509,21 @@ pub mod tcrm {
             pub const Cmd: Self = Self(2);
             pub const Powershell: Self = Self(3);
             pub const Bash: Self = Self(4);
+            pub const Sh: Self = Self(5);
+            pub const Zsh: Self = Self(6);
+            pub const Fish: Self = Self(7);
 
             pub const ENUM_MIN: i8 = 0;
-            pub const ENUM_MAX: i8 = 4;
+            pub const ENUM_MAX: i8 = 7;
             pub const ENUM_VALUES: &'static [Self] = &[
                 Self::None,
                 Self::Auto,
                 Self::Cmd,
                 Self::Powershell,
                 Self::Bash,
+                Self::Sh,
+                Self::Zsh,
+                Self::Fish,
             ];
             /// Returns the variant's name or "" if unknown.
             pub fn variant_name(self) -> Option<&'static str> {
@@ -188,6 +533,9 @@ pub mod tcrm {
                     Self::Cmd => Some("Cmd"),
                     Self::Powershell => Some("Powershell"),
                     Self::Bash => Some("Bash"),
+                    Self::Sh => Some("Sh"),
+                    Self::Zsh => Some("Zsh"),
+                    Self::Fish => Some("Fish"),
                     _ => None,
                 }
             }
@@ -647,6 +995,158 @@ pub mod tcrm {
                 ds.finish()
             }
         }
+        pub enum SendStdinErrorOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct SendStdinError<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for SendStdinError<'a> {
+            type Inner = SendStdinError<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                Self {
+                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
+                }
+            }
+        }
+
+        impl<'a> SendStdinError<'a> {
+            pub const VT_REASON: flatbuffers::VOffsetT = 4;
+            pub const VT_TASK_NAME: flatbuffers::VOffsetT = 6;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                SendStdinError { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args SendStdinErrorArgs<'args>,
+            ) -> flatbuffers::WIPOffset<SendStdinError<'bldr>> {
+                let mut builder = SendStdinErrorBuilder::new(_fbb);
+                if let Some(x) = args.task_name {
+                    builder.add_task_name(x);
+                }
+                builder.add_reason(args.reason);
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn reason(&self) -> SendStdinErrorReason {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<SendStdinErrorReason>(
+                            SendStdinError::VT_REASON,
+                            Some(SendStdinErrorReason::TaskNotFound),
+                        )
+                        .unwrap()
+                }
+            }
+            #[inline]
+            pub fn task_name(&self) -> &'a str {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<&str>>(
+                            SendStdinError::VT_TASK_NAME,
+                            None,
+                        )
+                        .unwrap()
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for SendStdinError<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+                    .visit_field::<SendStdinErrorReason>("reason", Self::VT_REASON, false)?
+                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
+                        "task_name",
+                        Self::VT_TASK_NAME,
+                        true,
+                    )?
+                    .finish();
+                Ok(())
+            }
+        }
+        pub struct SendStdinErrorArgs<'a> {
+            pub reason: SendStdinErrorReason,
+            pub task_name: Option<flatbuffers::WIPOffset<&'a str>>,
+        }
+        impl<'a> Default for SendStdinErrorArgs<'a> {
+            #[inline]
+            fn default() -> Self {
+                SendStdinErrorArgs {
+                    reason: SendStdinErrorReason::TaskNotFound,
+                    task_name: None, // required field
+                }
+            }
+        }
+
+        pub struct SendStdinErrorBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> SendStdinErrorBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_reason(&mut self, reason: SendStdinErrorReason) {
+                self.fbb_.push_slot::<SendStdinErrorReason>(
+                    SendStdinError::VT_REASON,
+                    reason,
+                    SendStdinErrorReason::TaskNotFound,
+                );
+            }
+            #[inline]
+            pub fn add_task_name(&mut self, task_name: flatbuffers::WIPOffset<&'b str>) {
+                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                    SendStdinError::VT_TASK_NAME,
+                    task_name,
+                );
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> SendStdinErrorBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                SendStdinErrorBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<SendStdinError<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                self.fbb_
+                    .required(o, SendStdinError::VT_TASK_NAME, "task_name");
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for SendStdinError<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("SendStdinError");
+                ds.field("reason", &self.reason());
+                ds.field("task_name", &self.task_name());
+                ds.finish()
+            }
+        }
         pub enum TaskErrorWrapperOffset {}
         #[derive(Copy, Clone, PartialEq)]
 
@@ -768,6 +1268,1849 @@ pub mod tcrm {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 let mut ds = f.debug_struct("TaskErrorWrapper");
                 ds.field("error_message", &self.error_message());
+                ds.finish()
+            }
+        }
+        pub enum ExecutionStartedEventOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct ExecutionStartedEvent<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for ExecutionStartedEvent<'a> {
+            type Inner = ExecutionStartedEvent<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                Self {
+                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
+                }
+            }
+        }
+
+        impl<'a> ExecutionStartedEvent<'a> {
+            pub const VT_TOTAL_TASKS: flatbuffers::VOffsetT = 4;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                ExecutionStartedEvent { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args ExecutionStartedEventArgs,
+            ) -> flatbuffers::WIPOffset<ExecutionStartedEvent<'bldr>> {
+                let mut builder = ExecutionStartedEventBuilder::new(_fbb);
+                builder.add_total_tasks(args.total_tasks);
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn total_tasks(&self) -> u32 {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<u32>(ExecutionStartedEvent::VT_TOTAL_TASKS, Some(0))
+                        .unwrap()
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for ExecutionStartedEvent<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+                    .visit_field::<u32>("total_tasks", Self::VT_TOTAL_TASKS, false)?
+                    .finish();
+                Ok(())
+            }
+        }
+        pub struct ExecutionStartedEventArgs {
+            pub total_tasks: u32,
+        }
+        impl<'a> Default for ExecutionStartedEventArgs {
+            #[inline]
+            fn default() -> Self {
+                ExecutionStartedEventArgs { total_tasks: 0 }
+            }
+        }
+
+        pub struct ExecutionStartedEventBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> ExecutionStartedEventBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_total_tasks(&mut self, total_tasks: u32) {
+                self.fbb_
+                    .push_slot::<u32>(ExecutionStartedEvent::VT_TOTAL_TASKS, total_tasks, 0);
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> ExecutionStartedEventBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                ExecutionStartedEventBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<ExecutionStartedEvent<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for ExecutionStartedEvent<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("ExecutionStartedEvent");
+                ds.field("total_tasks", &self.total_tasks());
+                ds.finish()
+            }
+        }
+        pub enum ExecutionCompletedEventOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct ExecutionCompletedEvent<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for ExecutionCompletedEvent<'a> {
+            type Inner = ExecutionCompletedEvent<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                Self {
+                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
+                }
+            }
+        }
+
+        impl<'a> ExecutionCompletedEvent<'a> {
+            pub const VT_COMPLETED_TASKS: flatbuffers::VOffsetT = 4;
+            pub const VT_FAILED_TASKS: flatbuffers::VOffsetT = 6;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                ExecutionCompletedEvent { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args ExecutionCompletedEventArgs,
+            ) -> flatbuffers::WIPOffset<ExecutionCompletedEvent<'bldr>> {
+                let mut builder = ExecutionCompletedEventBuilder::new(_fbb);
+                builder.add_failed_tasks(args.failed_tasks);
+                builder.add_completed_tasks(args.completed_tasks);
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn completed_tasks(&self) -> u32 {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<u32>(ExecutionCompletedEvent::VT_COMPLETED_TASKS, Some(0))
+                        .unwrap()
+                }
+            }
+            #[inline]
+            pub fn failed_tasks(&self) -> u32 {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<u32>(ExecutionCompletedEvent::VT_FAILED_TASKS, Some(0))
+                        .unwrap()
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for ExecutionCompletedEvent<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+                    .visit_field::<u32>("completed_tasks", Self::VT_COMPLETED_TASKS, false)?
+                    .visit_field::<u32>("failed_tasks", Self::VT_FAILED_TASKS, false)?
+                    .finish();
+                Ok(())
+            }
+        }
+        pub struct ExecutionCompletedEventArgs {
+            pub completed_tasks: u32,
+            pub failed_tasks: u32,
+        }
+        impl<'a> Default for ExecutionCompletedEventArgs {
+            #[inline]
+            fn default() -> Self {
+                ExecutionCompletedEventArgs {
+                    completed_tasks: 0,
+                    failed_tasks: 0,
+                }
+            }
+        }
+
+        pub struct ExecutionCompletedEventBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> ExecutionCompletedEventBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_completed_tasks(&mut self, completed_tasks: u32) {
+                self.fbb_.push_slot::<u32>(
+                    ExecutionCompletedEvent::VT_COMPLETED_TASKS,
+                    completed_tasks,
+                    0,
+                );
+            }
+            #[inline]
+            pub fn add_failed_tasks(&mut self, failed_tasks: u32) {
+                self.fbb_.push_slot::<u32>(
+                    ExecutionCompletedEvent::VT_FAILED_TASKS,
+                    failed_tasks,
+                    0,
+                );
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> ExecutionCompletedEventBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                ExecutionCompletedEventBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<ExecutionCompletedEvent<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for ExecutionCompletedEvent<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("ExecutionCompletedEvent");
+                ds.field("completed_tasks", &self.completed_tasks());
+                ds.field("failed_tasks", &self.failed_tasks());
+                ds.finish()
+            }
+        }
+        pub enum ControlReceivedEventOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct ControlReceivedEvent<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for ControlReceivedEvent<'a> {
+            type Inner = ControlReceivedEvent<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                Self {
+                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
+                }
+            }
+        }
+
+        impl<'a> ControlReceivedEvent<'a> {
+            pub const VT_CONTROL_TYPE: flatbuffers::VOffsetT = 4;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                ControlReceivedEvent { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args ControlReceivedEventArgs,
+            ) -> flatbuffers::WIPOffset<ControlReceivedEvent<'bldr>> {
+                let mut builder = ControlReceivedEventBuilder::new(_fbb);
+                builder.add_control_type(args.control_type);
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn control_type(&self) -> TaskMonitorControlType {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<TaskMonitorControlType>(
+                            ControlReceivedEvent::VT_CONTROL_TYPE,
+                            Some(TaskMonitorControlType::Stop),
+                        )
+                        .unwrap()
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for ControlReceivedEvent<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+                    .visit_field::<TaskMonitorControlType>(
+                        "control_type",
+                        Self::VT_CONTROL_TYPE,
+                        false,
+                    )?
+                    .finish();
+                Ok(())
+            }
+        }
+        pub struct ControlReceivedEventArgs {
+            pub control_type: TaskMonitorControlType,
+        }
+        impl<'a> Default for ControlReceivedEventArgs {
+            #[inline]
+            fn default() -> Self {
+                ControlReceivedEventArgs {
+                    control_type: TaskMonitorControlType::Stop,
+                }
+            }
+        }
+
+        pub struct ControlReceivedEventBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> ControlReceivedEventBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_control_type(&mut self, control_type: TaskMonitorControlType) {
+                self.fbb_.push_slot::<TaskMonitorControlType>(
+                    ControlReceivedEvent::VT_CONTROL_TYPE,
+                    control_type,
+                    TaskMonitorControlType::Stop,
+                );
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> ControlReceivedEventBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                ControlReceivedEventBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<ControlReceivedEvent<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for ControlReceivedEvent<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("ControlReceivedEvent");
+                ds.field("control_type", &self.control_type());
+                ds.finish()
+            }
+        }
+        pub enum ControlProcessedEventOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct ControlProcessedEvent<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for ControlProcessedEvent<'a> {
+            type Inner = ControlProcessedEvent<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                Self {
+                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
+                }
+            }
+        }
+
+        impl<'a> ControlProcessedEvent<'a> {
+            pub const VT_CONTROL_TYPE: flatbuffers::VOffsetT = 4;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                ControlProcessedEvent { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args ControlProcessedEventArgs,
+            ) -> flatbuffers::WIPOffset<ControlProcessedEvent<'bldr>> {
+                let mut builder = ControlProcessedEventBuilder::new(_fbb);
+                builder.add_control_type(args.control_type);
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn control_type(&self) -> TaskMonitorControlType {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<TaskMonitorControlType>(
+                            ControlProcessedEvent::VT_CONTROL_TYPE,
+                            Some(TaskMonitorControlType::Stop),
+                        )
+                        .unwrap()
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for ControlProcessedEvent<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+                    .visit_field::<TaskMonitorControlType>(
+                        "control_type",
+                        Self::VT_CONTROL_TYPE,
+                        false,
+                    )?
+                    .finish();
+                Ok(())
+            }
+        }
+        pub struct ControlProcessedEventArgs {
+            pub control_type: TaskMonitorControlType,
+        }
+        impl<'a> Default for ControlProcessedEventArgs {
+            #[inline]
+            fn default() -> Self {
+                ControlProcessedEventArgs {
+                    control_type: TaskMonitorControlType::Stop,
+                }
+            }
+        }
+
+        pub struct ControlProcessedEventBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> ControlProcessedEventBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_control_type(&mut self, control_type: TaskMonitorControlType) {
+                self.fbb_.push_slot::<TaskMonitorControlType>(
+                    ControlProcessedEvent::VT_CONTROL_TYPE,
+                    control_type,
+                    TaskMonitorControlType::Stop,
+                );
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> ControlProcessedEventBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                ControlProcessedEventBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<ControlProcessedEvent<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for ControlProcessedEvent<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("ControlProcessedEvent");
+                ds.field("control_type", &self.control_type());
+                ds.finish()
+            }
+        }
+        pub enum ControlErrorEventOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct ControlErrorEvent<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for ControlErrorEvent<'a> {
+            type Inner = ControlErrorEvent<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                Self {
+                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
+                }
+            }
+        }
+
+        impl<'a> ControlErrorEvent<'a> {
+            pub const VT_CONTROL_TYPE: flatbuffers::VOffsetT = 4;
+            pub const VT_ERROR_TYPE: flatbuffers::VOffsetT = 6;
+            pub const VT_ERROR: flatbuffers::VOffsetT = 8;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                ControlErrorEvent { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args ControlErrorEventArgs,
+            ) -> flatbuffers::WIPOffset<ControlErrorEvent<'bldr>> {
+                let mut builder = ControlErrorEventBuilder::new(_fbb);
+                if let Some(x) = args.error {
+                    builder.add_error(x);
+                }
+                builder.add_error_type(args.error_type);
+                builder.add_control_type(args.control_type);
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn control_type(&self) -> TaskMonitorControlType {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<TaskMonitorControlType>(
+                            ControlErrorEvent::VT_CONTROL_TYPE,
+                            Some(TaskMonitorControlType::Stop),
+                        )
+                        .unwrap()
+                }
+            }
+            #[inline]
+            pub fn error_type(&self) -> TaskMonitorError {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<TaskMonitorError>(
+                            ControlErrorEvent::VT_ERROR_TYPE,
+                            Some(TaskMonitorError::NONE),
+                        )
+                        .unwrap()
+                }
+            }
+            #[inline]
+            pub fn error(&self) -> flatbuffers::Table<'a> {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<flatbuffers::Table<'a>>>(
+                            ControlErrorEvent::VT_ERROR,
+                            None,
+                        )
+                        .unwrap()
+                }
+            }
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn error_as_config_parse(&self) -> Option<ConfigParseError<'a>> {
+                if self.error_type() == TaskMonitorError::ConfigParse {
+                    let u = self.error();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { ConfigParseError::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn error_as_circular_dependency(&self) -> Option<CircularDependencyError<'a>> {
+                if self.error_type() == TaskMonitorError::CircularDependency {
+                    let u = self.error();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { CircularDependencyError::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn error_as_dependency_not_found(&self) -> Option<DependencyNotFoundError<'a>> {
+                if self.error_type() == TaskMonitorError::DependencyNotFound {
+                    let u = self.error();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { DependencyNotFoundError::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn error_as_send_stdin(&self) -> Option<SendStdinError<'a>> {
+                if self.error_type() == TaskMonitorError::SendStdin {
+                    let u = self.error();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { SendStdinError::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn error_as_task_error(&self) -> Option<TaskErrorWrapper<'a>> {
+                if self.error_type() == TaskMonitorError::TaskError {
+                    let u = self.error();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { TaskErrorWrapper::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for ControlErrorEvent<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+     .visit_field::<TaskMonitorControlType>("control_type", Self::VT_CONTROL_TYPE, false)?
+     .visit_union::<TaskMonitorError, _>("error_type", Self::VT_ERROR_TYPE, "error", Self::VT_ERROR, true, |key, v, pos| {
+        match key {
+          TaskMonitorError::ConfigParse => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ConfigParseError>>("TaskMonitorError::ConfigParse", pos),
+          TaskMonitorError::CircularDependency => v.verify_union_variant::<flatbuffers::ForwardsUOffset<CircularDependencyError>>("TaskMonitorError::CircularDependency", pos),
+          TaskMonitorError::DependencyNotFound => v.verify_union_variant::<flatbuffers::ForwardsUOffset<DependencyNotFoundError>>("TaskMonitorError::DependencyNotFound", pos),
+          TaskMonitorError::SendStdin => v.verify_union_variant::<flatbuffers::ForwardsUOffset<SendStdinError>>("TaskMonitorError::SendStdin", pos),
+          TaskMonitorError::TaskError => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TaskErrorWrapper>>("TaskMonitorError::TaskError", pos),
+          _ => Ok(()),
+        }
+     })?
+     .finish();
+                Ok(())
+            }
+        }
+        pub struct ControlErrorEventArgs {
+            pub control_type: TaskMonitorControlType,
+            pub error_type: TaskMonitorError,
+            pub error: Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>>,
+        }
+        impl<'a> Default for ControlErrorEventArgs {
+            #[inline]
+            fn default() -> Self {
+                ControlErrorEventArgs {
+                    control_type: TaskMonitorControlType::Stop,
+                    error_type: TaskMonitorError::NONE,
+                    error: None, // required field
+                }
+            }
+        }
+
+        pub struct ControlErrorEventBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> ControlErrorEventBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_control_type(&mut self, control_type: TaskMonitorControlType) {
+                self.fbb_.push_slot::<TaskMonitorControlType>(
+                    ControlErrorEvent::VT_CONTROL_TYPE,
+                    control_type,
+                    TaskMonitorControlType::Stop,
+                );
+            }
+            #[inline]
+            pub fn add_error_type(&mut self, error_type: TaskMonitorError) {
+                self.fbb_.push_slot::<TaskMonitorError>(
+                    ControlErrorEvent::VT_ERROR_TYPE,
+                    error_type,
+                    TaskMonitorError::NONE,
+                );
+            }
+            #[inline]
+            pub fn add_error(
+                &mut self,
+                error: flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
+            ) {
+                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                    ControlErrorEvent::VT_ERROR,
+                    error,
+                );
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> ControlErrorEventBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                ControlErrorEventBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<ControlErrorEvent<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                self.fbb_.required(o, ControlErrorEvent::VT_ERROR, "error");
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for ControlErrorEvent<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("ControlErrorEvent");
+                ds.field("control_type", &self.control_type());
+                ds.field("error_type", &self.error_type());
+                match self.error_type() {
+                    TaskMonitorError::ConfigParse => {
+                        if let Some(x) = self.error_as_config_parse() {
+                            ds.field("error", &x)
+                        } else {
+                            ds.field(
+                                "error",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorError::CircularDependency => {
+                        if let Some(x) = self.error_as_circular_dependency() {
+                            ds.field("error", &x)
+                        } else {
+                            ds.field(
+                                "error",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorError::DependencyNotFound => {
+                        if let Some(x) = self.error_as_dependency_not_found() {
+                            ds.field("error", &x)
+                        } else {
+                            ds.field(
+                                "error",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorError::SendStdin => {
+                        if let Some(x) = self.error_as_send_stdin() {
+                            ds.field("error", &x)
+                        } else {
+                            ds.field(
+                                "error",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorError::TaskError => {
+                        if let Some(x) = self.error_as_task_error() {
+                            ds.field("error", &x)
+                        } else {
+                            ds.field(
+                                "error",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    _ => {
+                        let x: Option<()> = None;
+                        ds.field("error", &x)
+                    }
+                };
+                ds.finish()
+            }
+        }
+        pub enum TaskTerminationRequestedEventOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct TaskTerminationRequestedEvent<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for TaskTerminationRequestedEvent<'a> {
+            type Inner = TaskTerminationRequestedEvent<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                Self {
+                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
+                }
+            }
+        }
+
+        impl<'a> TaskTerminationRequestedEvent<'a> {
+            pub const VT_TASK_NAME: flatbuffers::VOffsetT = 4;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                TaskTerminationRequestedEvent { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args TaskTerminationRequestedEventArgs<'args>,
+            ) -> flatbuffers::WIPOffset<TaskTerminationRequestedEvent<'bldr>> {
+                let mut builder = TaskTerminationRequestedEventBuilder::new(_fbb);
+                if let Some(x) = args.task_name {
+                    builder.add_task_name(x);
+                }
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn task_name(&self) -> &'a str {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<&str>>(
+                            TaskTerminationRequestedEvent::VT_TASK_NAME,
+                            None,
+                        )
+                        .unwrap()
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for TaskTerminationRequestedEvent<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
+                        "task_name",
+                        Self::VT_TASK_NAME,
+                        true,
+                    )?
+                    .finish();
+                Ok(())
+            }
+        }
+        pub struct TaskTerminationRequestedEventArgs<'a> {
+            pub task_name: Option<flatbuffers::WIPOffset<&'a str>>,
+        }
+        impl<'a> Default for TaskTerminationRequestedEventArgs<'a> {
+            #[inline]
+            fn default() -> Self {
+                TaskTerminationRequestedEventArgs {
+                    task_name: None, // required field
+                }
+            }
+        }
+
+        pub struct TaskTerminationRequestedEventBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TaskTerminationRequestedEventBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_task_name(&mut self, task_name: flatbuffers::WIPOffset<&'b str>) {
+                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                    TaskTerminationRequestedEvent::VT_TASK_NAME,
+                    task_name,
+                );
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> TaskTerminationRequestedEventBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                TaskTerminationRequestedEventBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<TaskTerminationRequestedEvent<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                self.fbb_
+                    .required(o, TaskTerminationRequestedEvent::VT_TASK_NAME, "task_name");
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for TaskTerminationRequestedEvent<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("TaskTerminationRequestedEvent");
+                ds.field("task_name", &self.task_name());
+                ds.finish()
+            }
+        }
+        pub enum StdinSentEventOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct StdinSentEvent<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for StdinSentEvent<'a> {
+            type Inner = StdinSentEvent<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                Self {
+                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
+                }
+            }
+        }
+
+        impl<'a> StdinSentEvent<'a> {
+            pub const VT_TASK_NAME: flatbuffers::VOffsetT = 4;
+            pub const VT_INPUT_LENGTH: flatbuffers::VOffsetT = 6;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                StdinSentEvent { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args StdinSentEventArgs<'args>,
+            ) -> flatbuffers::WIPOffset<StdinSentEvent<'bldr>> {
+                let mut builder = StdinSentEventBuilder::new(_fbb);
+                builder.add_input_length(args.input_length);
+                if let Some(x) = args.task_name {
+                    builder.add_task_name(x);
+                }
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn task_name(&self) -> &'a str {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<&str>>(
+                            StdinSentEvent::VT_TASK_NAME,
+                            None,
+                        )
+                        .unwrap()
+                }
+            }
+            #[inline]
+            pub fn input_length(&self) -> u32 {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<u32>(StdinSentEvent::VT_INPUT_LENGTH, Some(0))
+                        .unwrap()
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for StdinSentEvent<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
+                        "task_name",
+                        Self::VT_TASK_NAME,
+                        true,
+                    )?
+                    .visit_field::<u32>("input_length", Self::VT_INPUT_LENGTH, false)?
+                    .finish();
+                Ok(())
+            }
+        }
+        pub struct StdinSentEventArgs<'a> {
+            pub task_name: Option<flatbuffers::WIPOffset<&'a str>>,
+            pub input_length: u32,
+        }
+        impl<'a> Default for StdinSentEventArgs<'a> {
+            #[inline]
+            fn default() -> Self {
+                StdinSentEventArgs {
+                    task_name: None, // required field
+                    input_length: 0,
+                }
+            }
+        }
+
+        pub struct StdinSentEventBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> StdinSentEventBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_task_name(&mut self, task_name: flatbuffers::WIPOffset<&'b str>) {
+                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                    StdinSentEvent::VT_TASK_NAME,
+                    task_name,
+                );
+            }
+            #[inline]
+            pub fn add_input_length(&mut self, input_length: u32) {
+                self.fbb_
+                    .push_slot::<u32>(StdinSentEvent::VT_INPUT_LENGTH, input_length, 0);
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> StdinSentEventBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                StdinSentEventBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<StdinSentEvent<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                self.fbb_
+                    .required(o, StdinSentEvent::VT_TASK_NAME, "task_name");
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for StdinSentEvent<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("StdinSentEvent");
+                ds.field("task_name", &self.task_name());
+                ds.field("input_length", &self.input_length());
+                ds.finish()
+            }
+        }
+        pub enum StdinErrorEventOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct StdinErrorEvent<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for StdinErrorEvent<'a> {
+            type Inner = StdinErrorEvent<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                Self {
+                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
+                }
+            }
+        }
+
+        impl<'a> StdinErrorEvent<'a> {
+            pub const VT_TASK_NAME: flatbuffers::VOffsetT = 4;
+            pub const VT_ERROR: flatbuffers::VOffsetT = 6;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                StdinErrorEvent { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args StdinErrorEventArgs<'args>,
+            ) -> flatbuffers::WIPOffset<StdinErrorEvent<'bldr>> {
+                let mut builder = StdinErrorEventBuilder::new(_fbb);
+                if let Some(x) = args.task_name {
+                    builder.add_task_name(x);
+                }
+                builder.add_error(args.error);
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn task_name(&self) -> &'a str {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<&str>>(
+                            StdinErrorEvent::VT_TASK_NAME,
+                            None,
+                        )
+                        .unwrap()
+                }
+            }
+            #[inline]
+            pub fn error(&self) -> SendStdinErrorReason {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<SendStdinErrorReason>(
+                            StdinErrorEvent::VT_ERROR,
+                            Some(SendStdinErrorReason::TaskNotFound),
+                        )
+                        .unwrap()
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for StdinErrorEvent<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
+                        "task_name",
+                        Self::VT_TASK_NAME,
+                        true,
+                    )?
+                    .visit_field::<SendStdinErrorReason>("error", Self::VT_ERROR, false)?
+                    .finish();
+                Ok(())
+            }
+        }
+        pub struct StdinErrorEventArgs<'a> {
+            pub task_name: Option<flatbuffers::WIPOffset<&'a str>>,
+            pub error: SendStdinErrorReason,
+        }
+        impl<'a> Default for StdinErrorEventArgs<'a> {
+            #[inline]
+            fn default() -> Self {
+                StdinErrorEventArgs {
+                    task_name: None, // required field
+                    error: SendStdinErrorReason::TaskNotFound,
+                }
+            }
+        }
+
+        pub struct StdinErrorEventBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> StdinErrorEventBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_task_name(&mut self, task_name: flatbuffers::WIPOffset<&'b str>) {
+                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                    StdinErrorEvent::VT_TASK_NAME,
+                    task_name,
+                );
+            }
+            #[inline]
+            pub fn add_error(&mut self, error: SendStdinErrorReason) {
+                self.fbb_.push_slot::<SendStdinErrorReason>(
+                    StdinErrorEvent::VT_ERROR,
+                    error,
+                    SendStdinErrorReason::TaskNotFound,
+                );
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> StdinErrorEventBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                StdinErrorEventBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<StdinErrorEvent<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                self.fbb_
+                    .required(o, StdinErrorEvent::VT_TASK_NAME, "task_name");
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for StdinErrorEvent<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("StdinErrorEvent");
+                ds.field("task_name", &self.task_name());
+                ds.field("error", &self.error());
+                ds.finish()
+            }
+        }
+        pub enum TaskEventWrapperOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct TaskEventWrapper<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for TaskEventWrapper<'a> {
+            type Inner = TaskEventWrapper<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                Self {
+                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
+                }
+            }
+        }
+
+        impl<'a> TaskEventWrapper<'a> {
+            pub const VT_EVENT_DATA: flatbuffers::VOffsetT = 4;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                TaskEventWrapper { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args TaskEventWrapperArgs<'args>,
+            ) -> flatbuffers::WIPOffset<TaskEventWrapper<'bldr>> {
+                let mut builder = TaskEventWrapperBuilder::new(_fbb);
+                if let Some(x) = args.event_data {
+                    builder.add_event_data(x);
+                }
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn event_data(&self) -> flatbuffers::Vector<'a, u8> {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<flatbuffers::Vector<'a, u8>>>(
+                            TaskEventWrapper::VT_EVENT_DATA,
+                            None,
+                        )
+                        .unwrap()
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for TaskEventWrapper<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+                    .visit_field::<flatbuffers::ForwardsUOffset<flatbuffers::Vector<'_, u8>>>(
+                        "event_data",
+                        Self::VT_EVENT_DATA,
+                        true,
+                    )?
+                    .finish();
+                Ok(())
+            }
+        }
+        pub struct TaskEventWrapperArgs<'a> {
+            pub event_data: Option<flatbuffers::WIPOffset<flatbuffers::Vector<'a, u8>>>,
+        }
+        impl<'a> Default for TaskEventWrapperArgs<'a> {
+            #[inline]
+            fn default() -> Self {
+                TaskEventWrapperArgs {
+                    event_data: None, // required field
+                }
+            }
+        }
+
+        pub struct TaskEventWrapperBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TaskEventWrapperBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_event_data(
+                &mut self,
+                event_data: flatbuffers::WIPOffset<flatbuffers::Vector<'b, u8>>,
+            ) {
+                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                    TaskEventWrapper::VT_EVENT_DATA,
+                    event_data,
+                );
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> TaskEventWrapperBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                TaskEventWrapperBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<TaskEventWrapper<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                self.fbb_
+                    .required(o, TaskEventWrapper::VT_EVENT_DATA, "event_data");
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for TaskEventWrapper<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("TaskEventWrapper");
+                ds.field("event_data", &self.event_data());
+                ds.finish()
+            }
+        }
+        pub enum EmptyEventOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct EmptyEvent<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for EmptyEvent<'a> {
+            type Inner = EmptyEvent<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                Self {
+                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
+                }
+            }
+        }
+
+        impl<'a> EmptyEvent<'a> {
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                EmptyEvent { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                _args: &'args EmptyEventArgs,
+            ) -> flatbuffers::WIPOffset<EmptyEvent<'bldr>> {
+                let mut builder = EmptyEventBuilder::new(_fbb);
+                builder.finish()
+            }
+        }
+
+        impl flatbuffers::Verifiable for EmptyEvent<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?.finish();
+                Ok(())
+            }
+        }
+        pub struct EmptyEventArgs {}
+        impl<'a> Default for EmptyEventArgs {
+            #[inline]
+            fn default() -> Self {
+                EmptyEventArgs {}
+            }
+        }
+
+        pub struct EmptyEventBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> EmptyEventBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> EmptyEventBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                EmptyEventBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<EmptyEvent<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for EmptyEvent<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("EmptyEvent");
+                ds.finish()
+            }
+        }
+        pub enum TaskMonitorEventMessageOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct TaskMonitorEventMessage<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for TaskMonitorEventMessage<'a> {
+            type Inner = TaskMonitorEventMessage<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                Self {
+                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
+                }
+            }
+        }
+
+        impl<'a> TaskMonitorEventMessage<'a> {
+            pub const VT_EVENT_TYPE: flatbuffers::VOffsetT = 4;
+            pub const VT_EVENT: flatbuffers::VOffsetT = 6;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                TaskMonitorEventMessage { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args TaskMonitorEventMessageArgs,
+            ) -> flatbuffers::WIPOffset<TaskMonitorEventMessage<'bldr>> {
+                let mut builder = TaskMonitorEventMessageBuilder::new(_fbb);
+                if let Some(x) = args.event {
+                    builder.add_event(x);
+                }
+                builder.add_event_type(args.event_type);
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn event_type(&self) -> TaskMonitorEvent {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<TaskMonitorEvent>(
+                            TaskMonitorEventMessage::VT_EVENT_TYPE,
+                            Some(TaskMonitorEvent::NONE),
+                        )
+                        .unwrap()
+                }
+            }
+            #[inline]
+            pub fn event(&self) -> flatbuffers::Table<'a> {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<flatbuffers::Table<'a>>>(
+                            TaskMonitorEventMessage::VT_EVENT,
+                            None,
+                        )
+                        .unwrap()
+                }
+            }
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn event_as_execution_started(&self) -> Option<ExecutionStartedEvent<'a>> {
+                if self.event_type() == TaskMonitorEvent::ExecutionStarted {
+                    let u = self.event();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { ExecutionStartedEvent::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn event_as_execution_completed(&self) -> Option<ExecutionCompletedEvent<'a>> {
+                if self.event_type() == TaskMonitorEvent::ExecutionCompleted {
+                    let u = self.event();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { ExecutionCompletedEvent::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn event_as_control_received(&self) -> Option<ControlReceivedEvent<'a>> {
+                if self.event_type() == TaskMonitorEvent::ControlReceived {
+                    let u = self.event();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { ControlReceivedEvent::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn event_as_control_processed(&self) -> Option<ControlProcessedEvent<'a>> {
+                if self.event_type() == TaskMonitorEvent::ControlProcessed {
+                    let u = self.event();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { ControlProcessedEvent::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn event_as_control_error(&self) -> Option<ControlErrorEvent<'a>> {
+                if self.event_type() == TaskMonitorEvent::ControlError {
+                    let u = self.event();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { ControlErrorEvent::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn event_as_all_tasks_termination_requested(&self) -> Option<EmptyEvent<'a>> {
+                if self.event_type() == TaskMonitorEvent::AllTasksTerminationRequested {
+                    let u = self.event();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { EmptyEvent::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn event_as_task_termination_requested(
+                &self,
+            ) -> Option<TaskTerminationRequestedEvent<'a>> {
+                if self.event_type() == TaskMonitorEvent::TaskTerminationRequested {
+                    let u = self.event();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { TaskTerminationRequestedEvent::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn event_as_stdin_sent(&self) -> Option<StdinSentEvent<'a>> {
+                if self.event_type() == TaskMonitorEvent::StdinSent {
+                    let u = self.event();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { StdinSentEvent::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn event_as_stdin_error(&self) -> Option<StdinErrorEvent<'a>> {
+                if self.event_type() == TaskMonitorEvent::StdinError {
+                    let u = self.event();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { StdinErrorEvent::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn event_as_task(&self) -> Option<TaskEventWrapper<'a>> {
+                if self.event_type() == TaskMonitorEvent::Task {
+                    let u = self.event();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { TaskEventWrapper::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for TaskMonitorEventMessage<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+     .visit_union::<TaskMonitorEvent, _>("event_type", Self::VT_EVENT_TYPE, "event", Self::VT_EVENT, true, |key, v, pos| {
+        match key {
+          TaskMonitorEvent::ExecutionStarted => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ExecutionStartedEvent>>("TaskMonitorEvent::ExecutionStarted", pos),
+          TaskMonitorEvent::ExecutionCompleted => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ExecutionCompletedEvent>>("TaskMonitorEvent::ExecutionCompleted", pos),
+          TaskMonitorEvent::ControlReceived => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ControlReceivedEvent>>("TaskMonitorEvent::ControlReceived", pos),
+          TaskMonitorEvent::ControlProcessed => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ControlProcessedEvent>>("TaskMonitorEvent::ControlProcessed", pos),
+          TaskMonitorEvent::ControlError => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ControlErrorEvent>>("TaskMonitorEvent::ControlError", pos),
+          TaskMonitorEvent::AllTasksTerminationRequested => v.verify_union_variant::<flatbuffers::ForwardsUOffset<EmptyEvent>>("TaskMonitorEvent::AllTasksTerminationRequested", pos),
+          TaskMonitorEvent::TaskTerminationRequested => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TaskTerminationRequestedEvent>>("TaskMonitorEvent::TaskTerminationRequested", pos),
+          TaskMonitorEvent::StdinSent => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StdinSentEvent>>("TaskMonitorEvent::StdinSent", pos),
+          TaskMonitorEvent::StdinError => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StdinErrorEvent>>("TaskMonitorEvent::StdinError", pos),
+          TaskMonitorEvent::Task => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TaskEventWrapper>>("TaskMonitorEvent::Task", pos),
+          _ => Ok(()),
+        }
+     })?
+     .finish();
+                Ok(())
+            }
+        }
+        pub struct TaskMonitorEventMessageArgs {
+            pub event_type: TaskMonitorEvent,
+            pub event: Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>>,
+        }
+        impl<'a> Default for TaskMonitorEventMessageArgs {
+            #[inline]
+            fn default() -> Self {
+                TaskMonitorEventMessageArgs {
+                    event_type: TaskMonitorEvent::NONE,
+                    event: None, // required field
+                }
+            }
+        }
+
+        pub struct TaskMonitorEventMessageBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TaskMonitorEventMessageBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_event_type(&mut self, event_type: TaskMonitorEvent) {
+                self.fbb_.push_slot::<TaskMonitorEvent>(
+                    TaskMonitorEventMessage::VT_EVENT_TYPE,
+                    event_type,
+                    TaskMonitorEvent::NONE,
+                );
+            }
+            #[inline]
+            pub fn add_event(
+                &mut self,
+                event: flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
+            ) {
+                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                    TaskMonitorEventMessage::VT_EVENT,
+                    event,
+                );
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> TaskMonitorEventMessageBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                TaskMonitorEventMessageBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<TaskMonitorEventMessage<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                self.fbb_
+                    .required(o, TaskMonitorEventMessage::VT_EVENT, "event");
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for TaskMonitorEventMessage<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("TaskMonitorEventMessage");
+                ds.field("event_type", &self.event_type());
+                match self.event_type() {
+                    TaskMonitorEvent::ExecutionStarted => {
+                        if let Some(x) = self.event_as_execution_started() {
+                            ds.field("event", &x)
+                        } else {
+                            ds.field(
+                                "event",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorEvent::ExecutionCompleted => {
+                        if let Some(x) = self.event_as_execution_completed() {
+                            ds.field("event", &x)
+                        } else {
+                            ds.field(
+                                "event",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorEvent::ControlReceived => {
+                        if let Some(x) = self.event_as_control_received() {
+                            ds.field("event", &x)
+                        } else {
+                            ds.field(
+                                "event",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorEvent::ControlProcessed => {
+                        if let Some(x) = self.event_as_control_processed() {
+                            ds.field("event", &x)
+                        } else {
+                            ds.field(
+                                "event",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorEvent::ControlError => {
+                        if let Some(x) = self.event_as_control_error() {
+                            ds.field("event", &x)
+                        } else {
+                            ds.field(
+                                "event",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorEvent::AllTasksTerminationRequested => {
+                        if let Some(x) = self.event_as_all_tasks_termination_requested() {
+                            ds.field("event", &x)
+                        } else {
+                            ds.field(
+                                "event",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorEvent::TaskTerminationRequested => {
+                        if let Some(x) = self.event_as_task_termination_requested() {
+                            ds.field("event", &x)
+                        } else {
+                            ds.field(
+                                "event",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorEvent::StdinSent => {
+                        if let Some(x) = self.event_as_stdin_sent() {
+                            ds.field("event", &x)
+                        } else {
+                            ds.field(
+                                "event",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorEvent::StdinError => {
+                        if let Some(x) = self.event_as_stdin_error() {
+                            ds.field("event", &x)
+                        } else {
+                            ds.field(
+                                "event",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    TaskMonitorEvent::Task => {
+                        if let Some(x) = self.event_as_task() {
+                            ds.field("event", &x)
+                        } else {
+                            ds.field(
+                                "event",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    _ => {
+                        let x: Option<()> = None;
+                        ds.field("event", &x)
+                    }
+                };
                 ds.finish()
             }
         }
