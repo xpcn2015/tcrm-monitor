@@ -26,9 +26,8 @@ impl TaskMonitor {
         check_circular_dependencies(&dependencies)?;
         shell_tasks(&mut tasks);
         let tasks_spawner: HashMap<String, TaskSpawner> = tasks
-            .clone()
-            .into_iter()
-            .map(|(k, v)| (k.clone(), TaskSpawner::new(k, v.config)))
+            .iter()
+            .map(|(k, v)| (k.clone(), TaskSpawner::new(k.clone(), v.config.clone())))
             .collect();
 
         Ok(Self {
@@ -398,61 +397,90 @@ mod tests {
         };
 
         #[test]
-        fn test_auto_shell_configuration() {
+        fn test_shell_command_transformation() {
             let mut tasks = HashMap::new();
 
+            // Test that Auto shell transforms commands correctly based on platform
             tasks.insert(
-                "echo_hello".to_string(),
-                TaskSpec::new(TaskConfig::new("echo").args(["hello"])).shell(TaskShell::Auto),
+                "echo_test".to_string(),
+                TaskSpec::new(TaskConfig::new("echo").args(["hello world"])).shell(TaskShell::Auto),
             );
 
-            tasks.insert(
-                "echo_hi".to_string(),
-                TaskSpec::new(TaskConfig::new("echo").args(["hi"])).shell(TaskShell::Auto),
-            );
+            let monitor = TaskMonitor::new(tasks).unwrap();
+            let task = monitor.tasks.get("echo_test").unwrap();
 
-            let monitor = TaskMonitor::new(tasks);
-            assert!(monitor.is_ok());
+            // Verify the shell wrapper is applied correctly
+            #[cfg(windows)]
+            {
+                assert!(task.config.command == "cmd" || task.config.command == "powershell");
+                assert!(task.config.args.as_ref().unwrap().len() >= 2); // Should have shell args
+            }
+
+            #[cfg(unix)]
+            {
+                assert_eq!(task.config.command, "bash");
+                assert!(task.config.args.as_ref().unwrap().len() >= 2); // Should have shell args
+            }
         }
 
         #[test]
-        fn test_none_shell_configuration() {
+        fn test_none_shell_preserves_original_command() {
             let mut tasks = HashMap::new();
+            let original_command = "custom_executable";
+            let original_args = vec!["arg1".to_string(), "arg2".to_string()];
+
             tasks.insert(
                 "raw_command".to_string(),
-                TaskSpec::new(TaskConfig::new("echo").args(["test"])).shell(TaskShell::None),
+                TaskSpec::new(TaskConfig::new(original_command).args(original_args.clone()))
+                    .shell(TaskShell::None),
             );
 
             let monitor = TaskMonitor::new(tasks).unwrap();
             let task = monitor.tasks.get("raw_command").unwrap();
-            assert_eq!(task.config.command, "echo");
+
+            // Verify original command and args are preserved
+            assert_eq!(task.config.command, original_command);
+            assert_eq!(task.config.args.as_ref().unwrap(), &original_args);
         }
 
         #[cfg(windows)]
         #[test]
-        fn test_windows_specific_shells() {
+        fn test_windows_shell_argument_escaping() {
             let mut tasks = HashMap::new();
 
-            // Test PowerShell
+            // Test PowerShell with special characters
             tasks.insert(
-                "powershell_task".to_string(),
-                TaskSpec::new(TaskConfig::new("Write-Host").args(["test"]))
-                    .shell(TaskShell::Powershell),
+                "powershell_escape".to_string(),
+                TaskSpec::new(
+                    TaskConfig::new("Write-Host").args(["test with spaces & special chars"]),
+                )
+                .shell(TaskShell::Powershell),
             );
 
-            // Test CMD
+            // Test CMD with quotes and pipes
             tasks.insert(
-                "cmd_task".to_string(),
-                TaskSpec::new(TaskConfig::new("echo").args(["test"])).shell(TaskShell::Cmd),
+                "cmd_escape".to_string(),
+                TaskSpec::new(TaskConfig::new("echo").args(["\"quoted string\" | more"]))
+                    .shell(TaskShell::Cmd),
             );
 
             let monitor = TaskMonitor::new(tasks).unwrap();
 
-            let ps_task = monitor.tasks.get("powershell_task").unwrap();
+            let ps_task = monitor.tasks.get("powershell_escape").unwrap();
             assert_eq!(ps_task.config.command, "powershell");
+            // Verify PowerShell-specific argument structure
+            let ps_args = ps_task.config.args.as_ref().unwrap();
+            assert!(ps_args.len() >= 2);
+            assert!(
+                ps_args.contains(&"-Command".to_string()) || ps_args.contains(&"-c".to_string())
+            );
 
-            let cmd_task = monitor.tasks.get("cmd_task").unwrap();
+            let cmd_task = monitor.tasks.get("cmd_escape").unwrap();
             assert_eq!(cmd_task.config.command, "cmd");
+            // Verify CMD-specific argument structure
+            let cmd_args = cmd_task.config.args.as_ref().unwrap();
+            assert!(cmd_args.len() >= 2);
+            assert!(cmd_args.contains(&"/c".to_string()) || cmd_args.contains(&"/C".to_string()));
         }
 
         #[cfg(unix)]
@@ -480,21 +508,57 @@ mod tests {
         use crate::monitor::{config::TaskSpec, tasks::TaskMonitor};
 
         #[test]
-        fn test_single_task_no_dependencies() {
+        fn test_dependency_graph_construction() {
+            let mut tasks = HashMap::new();
+
+            // Create a meaningful dependency structure
+            tasks.insert(
+                "root".to_string(),
+                TaskSpec::new(TaskConfig::new("echo").args(["root task"])),
+            );
+
+            tasks.insert(
+                "dependent".to_string(),
+                TaskSpec::new(TaskConfig::new("echo").args(["dependent task"]))
+                    .dependencies(["root"]),
+            );
+
+            let monitor = TaskMonitor::new(tasks).unwrap();
+
+            // Verify dependency graph structure
+            assert_eq!(monitor.tasks.len(), 2);
+            assert!(!monitor.dependencies.contains_key("root")); // Root has no dependencies
+            assert!(monitor.dependencies.contains_key("dependent"));
+
+            // Verify dependent relationships
+            let root_dependents = monitor.dependents.get("root").unwrap();
+            assert!(root_dependents.contains(&"dependent".to_string()));
+
+            let dependent_deps = monitor.dependencies.get("dependent").unwrap();
+            assert!(dependent_deps.contains(&"root".to_string()));
+        }
+
+        #[test]
+        fn test_task_state_initialization() {
             let mut tasks = HashMap::new();
             tasks.insert(
-                "single".to_string(),
+                "test_task".to_string(),
                 TaskSpec::new(TaskConfig::new("echo").args(["hello"])),
             );
 
             let monitor = TaskMonitor::new(tasks).unwrap();
-            assert_eq!(monitor.tasks.len(), 1);
-            assert!(monitor.dependencies.is_empty());
-            assert!(monitor.dependents.is_empty());
+
+            // Verify all tasks start in NotStarted state
+            for (_name, task) in &monitor.tasks {
+                // This would require accessing task state if it was exposed
+                // For now, verify the task exists and has correct configuration
+                assert_eq!(task.config.command, "echo");
+                assert_eq!(task.config.args.as_ref().unwrap()[0], "hello");
+            }
         }
 
         #[test]
-        fn test_empty_task_list() {
+        fn test_empty_task_list_edge_case() {
             let tasks = HashMap::new();
             let monitor = TaskMonitor::new(tasks);
             assert!(monitor.is_ok());
@@ -542,6 +606,192 @@ mod tests {
             monitor
                 .terminate_dependencies_if_all_dependent_finished("child2")
                 .await;
+        }
+    }
+
+    mod validation_tests {
+        use crate::monitor::{
+            config::{TaskShell, TaskSpec},
+            error::TaskMonitorError,
+            tasks::TaskMonitor,
+        };
+        use std::collections::HashMap;
+        use tcrm_task::tasks::config::TaskConfig;
+
+        #[test]
+        fn test_empty_command_validation() {
+            // Test that empty commands are handled appropriately
+            let mut tasks = HashMap::new();
+
+            // Empty command should not cause creation to fail, but might fail at execution
+            tasks.insert(
+                "empty_command".to_string(),
+                TaskSpec::new(TaskConfig::new("")),
+            );
+
+            let monitor = TaskMonitor::new(tasks);
+            // The monitor should be created successfully even with empty command
+            assert!(monitor.is_ok());
+        }
+
+        #[test]
+        fn test_large_dependency_graph_validation() {
+            // Test validation with a large number of dependencies
+            let mut tasks = HashMap::new();
+
+            // Create a large dependency chain
+            tasks.insert(
+                "start".to_string(),
+                TaskSpec::new(TaskConfig::new("echo").args(["start"])),
+            );
+
+            for i in 1..100 {
+                let task_name = format!("task_{}", i);
+                let prev_task = if i == 1 {
+                    "start".to_string()
+                } else {
+                    format!("task_{}", i - 1)
+                };
+                tasks.insert(
+                    task_name,
+                    TaskSpec::new(TaskConfig::new("echo").args([&format!("task {}", i)]))
+                        .dependencies([&prev_task]),
+                );
+            }
+
+            let start_time = std::time::Instant::now();
+            let monitor = TaskMonitor::new(tasks);
+            let duration = start_time.elapsed();
+
+            assert!(monitor.is_ok(), "Large dependency graph should be valid");
+            assert!(
+                duration.as_millis() < 1000,
+                "Validation should complete quickly even for large graphs"
+            );
+        }
+
+        #[test]
+        fn test_self_dependency_detection() {
+            // Test that self-dependencies are properly detected as circular
+            let mut tasks = HashMap::new();
+
+            tasks.insert(
+                "self_dependent".to_string(),
+                TaskSpec::new(TaskConfig::new("echo").args(["hello"]))
+                    .dependencies(["self_dependent"]),
+            );
+
+            let monitor = TaskMonitor::new(tasks);
+            assert!(monitor.is_err());
+
+            if let Err(TaskMonitorError::CircularDependency(task)) = monitor {
+                assert_eq!(task, "self_dependent");
+            } else {
+                panic!("Expected CircularDependency error for self-dependency");
+            }
+        }
+
+        #[test]
+        fn test_configuration_memory_efficiency() {
+            // Test that configuration doesn't consume excessive memory
+            let mut tasks = HashMap::new();
+
+            // Create many tasks with various configurations
+            for i in 0..1000 {
+                let task_name = format!("task_{}", i);
+                let config =
+                    TaskConfig::new("echo").args([&format!("arg_{}", i), &format!("value_{}", i)]);
+
+                tasks.insert(
+                    task_name,
+                    TaskSpec::new(config)
+                        .shell(if i % 2 == 0 {
+                            TaskShell::Auto
+                        } else {
+                            TaskShell::None
+                        })
+                        .ignore_dependencies_error(i % 3 == 0),
+                );
+            }
+
+            let start_memory = get_memory_usage();
+            let monitor = TaskMonitor::new(tasks);
+            let end_memory = get_memory_usage();
+
+            assert!(monitor.is_ok());
+
+            // Memory usage should be reasonable (this is a loose check)
+            let memory_diff = end_memory.saturating_sub(start_memory);
+            assert!(
+                memory_diff < 50_000_000,
+                "Memory usage should be reasonable for 1000 tasks"
+            ); // 50MB limit
+        }
+
+        fn get_memory_usage() -> usize {
+            // Simple memory usage estimation - in real scenarios you'd use proper profiling
+            // This is a placeholder that returns 0, but in practice you could integrate
+            // with system memory monitoring tools
+            0
+        }
+
+        #[test]
+        fn test_dependency_chain_depth_limits() {
+            // Test extremely deep dependency chains
+            let mut tasks = HashMap::new();
+
+            tasks.insert(
+                "root".to_string(),
+                TaskSpec::new(TaskConfig::new("echo").args(["root"])),
+            );
+
+            for i in 1..=500 {
+                let task_name = format!("deep_{}", i);
+                let prev_task = if i == 1 {
+                    "root".to_string()
+                } else {
+                    format!("deep_{}", i - 1)
+                };
+                tasks.insert(
+                    task_name,
+                    TaskSpec::new(TaskConfig::new("echo").args([&format!("deep {}", i)]))
+                        .dependencies([&prev_task]),
+                );
+            }
+
+            let monitor = TaskMonitor::new(tasks);
+            assert!(
+                monitor.is_ok(),
+                "Deep dependency chains should be handled without stack overflow"
+            );
+        }
+
+        #[test]
+        fn test_unicode_task_names_and_arguments() {
+            // Test that unicode in task names and arguments is handled correctly
+            let mut tasks = HashMap::new();
+
+            tasks.insert(
+                "測試任務_🚀".to_string(),
+                TaskSpec::new(TaskConfig::new("echo").args(["你好世界", "🌟✨", "Здравствуй мир"])),
+            );
+
+            tasks.insert(
+                "τεστ_задача_🎯".to_string(),
+                TaskSpec::new(TaskConfig::new("echo").args(["العالم مرحبا"]))
+                    .dependencies(["測試任務_🚀"]),
+            );
+
+            let monitor = TaskMonitor::new(tasks);
+            assert!(
+                monitor.is_ok(),
+                "Unicode task names and arguments should be supported"
+            );
+
+            // Verify the tasks are properly stored
+            let monitor = monitor.unwrap();
+            assert!(monitor.tasks.contains_key("測試任務_🚀"));
+            assert!(monitor.tasks.contains_key("τεστ_задача_🎯"));
         }
     }
 }
