@@ -159,7 +159,7 @@ impl TaskMonitor {
             }
 
             let ignore_dependencies_error = match self.tasks.get(&task_name) {
-                Some(config) => config.ignore_dependencies_error.unwrap_or(false),
+                Some(config) => config.ignore_dependencies_error.unwrap_or_default(),
                 None => false,
             };
 
@@ -453,5 +453,210 @@ mod tests {
         assert!(resilient_started.is_some());
 
         let _ = timeout(Duration::from_secs(10), execute_handle).await;
+    }
+
+    #[tokio::test]
+    async fn test_channel_overflow_resilience() {
+        // Test that the system handles event channel overflow gracefully
+        let mut tasks = HashMap::new();
+
+        // Create tasks that generate output to stress the channel
+        for i in 0..10 {
+            tasks.insert(
+                format!("task_{}", i),
+                TaskSpec::new(TaskConfig::new("echo").args([&format!("output from task {}", i)])),
+            );
+        }
+
+        let mut monitor = TaskMonitor::new(tasks).unwrap();
+
+        // Use a very small channel buffer to force overflow scenarios
+        let (event_tx, mut event_rx) = mpsc::channel(2);
+        let execute_handle =
+            tokio::spawn(async move { monitor.execute_all_direct(Some(event_tx)).await });
+
+        // Consume events with some backpressure
+        let mut event_count = 0;
+        let timeout_duration = Duration::from_millis(200);
+
+        while let Ok(Some(_event)) = timeout(timeout_duration, event_rx.recv()).await {
+            event_count += 1;
+            if event_count > 50 {
+                break; // Prevent infinite loop
+            }
+            tokio::time::sleep(Duration::from_millis(2)).await; // Slight backpressure
+        }
+
+        // Verify that execution completes despite channel stress
+        let result = timeout(Duration::from_secs(10), execute_handle).await;
+        assert!(
+            result.is_ok(),
+            "Execution should complete despite channel pressure"
+        );
+
+        // Should have received a reasonable number of events (at least some starts and stops)
+        assert!(
+            event_count >= 10,
+            "Should receive at least 10 events, got {}",
+            event_count
+        );
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_task_state_consistency() {
+        // Test that task state remains consistent under concurrent access
+        let mut tasks = HashMap::new();
+
+        // Create a chain of dependent tasks
+        tasks.insert(
+            "first".to_string(),
+            TaskSpec::new(TaskConfig::new("echo").args(["first"])),
+        );
+
+        for i in 1..10 {
+            tasks.insert(
+                format!("task_{}", i),
+                TaskSpec::new(TaskConfig::new("echo").args([&format!("task {}", i)]))
+                    .dependencies([&format!("task_{}", i - 1)]),
+            );
+        }
+        tasks.insert(
+            "task_0".to_string(),
+            TaskSpec::new(TaskConfig::new("echo").args(["task 0"])).dependencies(["first"]),
+        );
+
+        let mut monitor = TaskMonitor::new(tasks).unwrap();
+        let (event_tx, mut event_rx) = mpsc::channel(1024);
+
+        let execute_handle =
+            tokio::spawn(async move { monitor.execute_all_direct(Some(event_tx)).await });
+
+        let events = collect_events(&mut event_rx, 50).await;
+
+        // Verify that tasks started in dependency order
+        let mut start_times = HashMap::new();
+        for (idx, event) in events.iter().enumerate() {
+            if let TaskEvent::Started { task_name } = event {
+                start_times.insert(task_name.clone(), idx);
+            }
+        }
+
+        // Verify dependency ordering
+        if let (Some(&first_start), Some(&task_0_start)) =
+            (start_times.get("first"), start_times.get("task_0"))
+        {
+            assert!(
+                first_start < task_0_start,
+                "Dependencies should start before dependents"
+            );
+        }
+
+        for i in 1..9 {
+            let task_name = format!("task_{}", i);
+            let prev_task_name = format!("task_{}", i - 1);
+            if let (Some(&current), Some(&previous)) = (
+                start_times.get(&task_name),
+                start_times.get(&prev_task_name),
+            ) {
+                assert!(
+                    previous < current,
+                    "Task {} should start after task {}",
+                    i,
+                    i - 1
+                );
+            }
+        }
+
+        let _ = timeout(Duration::from_secs(10), execute_handle).await;
+    }
+
+    #[tokio::test]
+    async fn test_resource_cleanup_on_early_termination() {
+        // Test that resources are properly cleaned up when execution is terminated early
+        let mut tasks = HashMap::new();
+
+        // Create long-running tasks that should be terminated
+        tasks.insert(
+            "long_task_1".to_string(),
+            TaskSpec::new(TaskConfig::new("ping").args(["127.0.0.1", "-n", "100"])),
+        );
+        tasks.insert(
+            "long_task_2".to_string(),
+            TaskSpec::new(TaskConfig::new("ping").args(["127.0.0.1", "-n", "100"])),
+        );
+
+        let mut monitor = TaskMonitor::new(tasks).unwrap();
+        let (event_tx, mut event_rx) = mpsc::channel(1024);
+
+        let execute_handle =
+            tokio::spawn(async move { monitor.execute_all_direct(Some(event_tx)).await });
+
+        // Wait for tasks to start
+        let mut started_count = 0;
+        while let Ok(Some(event)) = timeout(Duration::from_secs(2), event_rx.recv()).await {
+            if matches!(event, TaskEvent::Started { .. }) {
+                started_count += 1;
+                if started_count >= 2 {
+                    break;
+                }
+            }
+        }
+
+        // Abort execution handle to simulate early termination
+        execute_handle.abort();
+
+        // Give some time for cleanup
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // The test passing means no panics occurred during cleanup
+        assert!(
+            started_count >= 2,
+            "Both long-running tasks should have started"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_invalid_command_error_propagation() {
+        // Test that invalid commands properly propagate errors
+        let mut tasks = HashMap::new();
+
+        tasks.insert(
+            "invalid_command".to_string(),
+            TaskSpec::new(TaskConfig::new("definitely_not_a_real_command_12345")),
+        );
+
+        tasks.insert(
+            "dependent_task".to_string(),
+            TaskSpec::new(TaskConfig::new("echo").args(["should not run"]))
+                .dependencies(["invalid_command"]),
+        );
+
+        let mut monitor = TaskMonitor::new(tasks).unwrap();
+        let (event_tx, mut event_rx) = mpsc::channel(1024);
+
+        let execute_handle =
+            tokio::spawn(async move { monitor.execute_all_direct(Some(event_tx)).await });
+
+        let events = collect_events(&mut event_rx, 10).await;
+
+        // Verify that invalid command generates an error
+        let error_event = events.iter().find(
+            |e| matches!(e, TaskEvent::Error { task_name, .. } if task_name == "invalid_command"),
+        );
+        assert!(
+            error_event.is_some(),
+            "Invalid command should generate an error event"
+        );
+
+        // Verify dependent task doesn't start
+        let dependent_started = events.iter().find(
+            |e| matches!(e, TaskEvent::Started { task_name } if task_name == "dependent_task"),
+        );
+        assert!(
+            dependent_started.is_none(),
+            "Dependent task should not start after dependency error"
+        );
+
+        let _ = timeout(Duration::from_secs(5), execute_handle).await;
     }
 }
