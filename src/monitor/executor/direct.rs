@@ -123,18 +123,19 @@ impl TaskMonitor {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// use std::collections::HashMap;
     /// use tokio::sync::mpsc;
     /// use tcrm_monitor::monitor::{TaskMonitor, config::TaskSpec};
     /// use tcrm_task::tasks::{config::TaskConfig, event::TaskEvent};
+    /// use tcrm_monitor::monitor::config::TaskShell;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let mut tasks = HashMap::new();
     /// tasks.insert(
     ///     "test".to_string(),
-    ///     TaskSpec::new(TaskConfig::new("echo").args(["Running tests"]))
+    ///     TaskSpec::new(TaskConfig::new("echo").args(["Running tests"])).shell(TaskShell::Auto)
     /// );
     ///
     /// let mut monitor = TaskMonitor::new(tasks)?;
@@ -146,7 +147,7 @@ impl TaskMonitor {
     /// let mut tasks2 = HashMap::new();
     /// tasks2.insert(
     ///     "test2".to_string(),
-    ///     TaskSpec::new(TaskConfig::new("echo").args(["Running tests 2"]))
+    ///     TaskSpec::new(TaskConfig::new("echo").args(["Running tests 2"])).shell(TaskShell::Auto)
     /// );
     /// let mut monitor2 = TaskMonitor::new(tasks2)?;
     ///
