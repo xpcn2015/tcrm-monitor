@@ -6,7 +6,7 @@ A task dependency management and execution library for Rust applications.
 ## Features
 - **Task Dependency Management**: Define task dependency graphs with validation
 - **Parallel Execution**: Execute independent tasks concurrently while respecting dependencies
-- **Termination Control**: Automatically terminate dependencies tasks when dependents finish
+- **Termination Control**: Automatically terminate dependent tasks when dependents finish
 - **Event-Driven**: Real-time task execution events for monitoring and logging
 - **Task Control**: Stop, terminate specific tasks, and send stdin input during execution
 - **Stdin Support**: Send input to tasks with stdin enabled
@@ -17,7 +17,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tcrm-monitor = { version = "0.1.0" }
+tcrm-monitor = { version = "0.1.1" }
 
 ```
 
@@ -55,7 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Create and execute the task monitor
     let mut monitor = TaskMonitor::new(tasks)?;
-    monitor.execute_all_direct(None).await?;
+    monitor.execute_all_direct(None).await;
     
     Ok(())
 }
@@ -95,7 +95,7 @@ tokio::spawn(async move {
 });
 
 // Execute with event monitoring
-monitor.execute_all_direct(Some(event_tx)).await?;
+monitor.execute_all_direct(Some(event_tx)).await;
 ```
 
 ## License
