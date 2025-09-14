@@ -241,27 +241,24 @@ impl TaskMonitor {
         &mut self,
         task_name: &str,
     ) {
-        let dependencies = match self.dependencies.get(task_name) {
-            Some(d) => d,
-            None => return,
+        let Some(dependencies) = self.dependencies.get(task_name) else {
+            return;
         };
         for name in dependencies {
-            let task = match self.tasks.get(name) {
-                Some(t) => t,
-                None => continue,
+            let Some(task) = self.tasks.get(name) else {
+                continue;
             };
             if !task.terminate_after_dependents_finished.unwrap_or_default() {
                 continue;
             }
 
-            let dependents = match self.dependents.get(name) {
-                Some(d) => d,
-                None => continue,
+            let Some(dependents) = self.dependents.get(name) else {
+                continue;
             };
 
             let mut all_finished = true;
             for dep_name in dependents {
-                let dep_spawner = if let Some(s) = self.tasks_spawner.get(dep_name) { s } else {
+                let Some(dep_spawner) = self.tasks_spawner.get(dep_name) else {
                     all_finished = false;
                     break;
                 };
@@ -273,9 +270,8 @@ impl TaskMonitor {
             }
 
             if all_finished {
-                let spawner = match self.tasks_spawner.get_mut(name) {
-                    Some(s) => s,
-                    None => continue,
+                let Some(spawner) = self.tasks_spawner.get_mut(name) else {
+                    continue;
                 };
                 match spawner
                     .send_terminate_signal(TaskTerminateReason::DependenciesFinished)

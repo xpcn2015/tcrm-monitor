@@ -330,18 +330,19 @@ impl TaskMonitorEvent {
     /// };
     /// assert_eq!(event.task_name(), Some("interactive"));
     /// ```
-    #[must_use] pub fn task_name(&self) -> Option<&str> {
+    #[must_use]
+    pub fn task_name(&self) -> Option<&str> {
         match self {
             TaskMonitorEvent::Task(task_event) => match task_event {
-                TaskEvent::Started { task_name } => Some(task_name),
-                TaskEvent::Output { task_name, .. } => Some(task_name),
-                TaskEvent::Ready { task_name } => Some(task_name),
-                TaskEvent::Stopped { task_name, .. } => Some(task_name),
-                TaskEvent::Error { task_name, .. } => Some(task_name),
+                TaskEvent::Started { task_name }
+                | TaskEvent::Output { task_name, .. }
+                | TaskEvent::Ready { task_name }
+                | TaskEvent::Stopped { task_name, .. }
+                | TaskEvent::Error { task_name, .. } => Some(task_name),
             },
-            TaskMonitorEvent::StdinSent { task_name, .. } => Some(task_name),
-            TaskMonitorEvent::StdinError { task_name, .. } => Some(task_name),
-            TaskMonitorEvent::TaskTerminationRequested { task_name } => Some(task_name),
+            TaskMonitorEvent::StdinSent { task_name, .. }
+            | TaskMonitorEvent::StdinError { task_name, .. }
+            | TaskMonitorEvent::TaskTerminationRequested { task_name } => Some(task_name),
             _ => None,
         }
     }
@@ -372,7 +373,8 @@ impl TaskMonitorEvent {
     /// let event = TaskMonitorEvent::ExecutionStarted { total_tasks: 1 };
     /// assert!(!event.is_task_event());
     /// ```
-    #[must_use] pub fn is_task_event(&self) -> bool {
+    #[must_use]
+    pub fn is_task_event(&self) -> bool {
         matches!(self, TaskMonitorEvent::Task(_))
     }
 
@@ -405,7 +407,8 @@ impl TaskMonitorEvent {
     /// });
     /// assert!(!event.is_monitor_event());
     /// ```
-    #[must_use] pub fn is_monitor_event(&self) -> bool {
+    #[must_use]
+    pub fn is_monitor_event(&self) -> bool {
         !self.is_task_event()
     }
 }

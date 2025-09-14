@@ -125,7 +125,8 @@ impl TaskSpec {
     ///     TaskConfig::new("ls").args(["-la"])
     /// );
     /// ```
-    #[must_use] pub fn new(config: TaskConfig) -> Self {
+    #[must_use]
+    pub fn new(config: TaskConfig) -> Self {
         TaskSpec {
             config,
             ..Default::default()
@@ -147,7 +148,8 @@ impl TaskSpec {
     /// let task = TaskSpec::new(TaskConfig::new("echo").args(["test"]))
     ///     .shell(TaskShell::Auto);
     /// ```
-    #[must_use] pub fn shell(mut self, shell: TaskShell) -> Self {
+    #[must_use]
+    pub fn shell(mut self, shell: TaskShell) -> Self {
         self.shell = Some(shell);
         self
     }
@@ -169,6 +171,7 @@ impl TaskSpec {
     /// let task = TaskSpec::new(TaskConfig::new("cargo").args(["build"]))
     ///     .dependencies(["test", "lint"]);
     /// ```
+    #[must_use]
     pub fn dependencies<I, S>(mut self, dependencies: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -196,7 +199,8 @@ impl TaskSpec {
     /// let db_task = TaskSpec::new(TaskConfig::new("postgres").args(["-D", "/data"]))
     ///     .terminate_after_dependents(true);
     /// ```
-    #[must_use] pub fn terminate_after_dependents(mut self, terminate: bool) -> Self {
+    #[must_use]
+    pub fn terminate_after_dependents(mut self, terminate: bool) -> Self {
         self.terminate_after_dependents_finished = Some(terminate);
         self
     }
@@ -220,7 +224,8 @@ impl TaskSpec {
     ///     .dependencies(["test"])
     ///     .ignore_dependencies_error(true);
     /// ```
-    #[must_use] pub fn ignore_dependencies_error(mut self, ignore: bool) -> Self {
+    #[must_use]
+    pub fn ignore_dependencies_error(mut self, ignore: bool) -> Self {
         self.ignore_dependencies_error = Some(ignore);
         self
     }
@@ -310,7 +315,8 @@ impl TaskShell {
     ///     assert!(!TaskShell::Cmd.is_unix());
     /// }
     /// ```
-    #[must_use] pub fn is_unix(&self) -> bool {
+    #[must_use]
+    pub fn is_unix(&self) -> bool {
         match self {
             #[cfg(unix)]
             TaskShell::Bash | TaskShell::Sh | TaskShell::Zsh | TaskShell::Fish => true,
@@ -336,7 +342,8 @@ impl TaskShell {
     ///     assert!(!TaskShell::Bash.is_windows());
     /// }
     /// ```
-    #[must_use] pub fn is_windows(&self) -> bool {
+    #[must_use]
+    pub fn is_windows(&self) -> bool {
         match self {
             #[cfg(windows)]
             TaskShell::Powershell | TaskShell::Cmd => true,
@@ -354,7 +361,8 @@ impl TaskShell {
     /// assert!(TaskShell::Auto.is_cross_platform());
     /// assert!(TaskShell::None.is_cross_platform());
     /// ```
-    #[must_use] pub fn is_cross_platform(&self) -> bool {
+    #[must_use]
+    pub fn is_cross_platform(&self) -> bool {
         matches!(self, TaskShell::Auto | TaskShell::None)
     }
 
@@ -374,7 +382,8 @@ impl TaskShell {
     /// #[cfg(windows)]
     /// assert_eq!(TaskShell::Powershell.command_name(), Some("powershell"));
     /// ```
-    #[must_use] pub fn command_name(&self) -> Option<&str> {
+    #[must_use]
+    pub fn command_name(&self) -> Option<&str> {
         match self {
             TaskShell::None | TaskShell::Auto => None,
             #[cfg(windows)]

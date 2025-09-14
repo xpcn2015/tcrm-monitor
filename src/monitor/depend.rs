@@ -130,13 +130,10 @@ pub fn build_depend_map(tasks: &TcrmTasks) -> Result<TaskMonitorDependMap, TaskM
                 });
             }
             if all_deps.insert(dep.clone()) {
-                let config = match tasks.get(&dep) {
-                    Some(c) => c,
-                    None => {
-                        return Err(TaskMonitorError::ConfigParse(format!(
-                            "Unable to get task: {dep}"
-                        )));
-                    }
+                let Some(config) = tasks.get(&dep) else {
+                    return Err(TaskMonitorError::ConfigParse(format!(
+                        "Unable to get task: {dep}"
+                    )));
                 };
                 if let Some(dep_cfg) = &config.dependencies {
                     stack.extend(dep_cfg.clone());
@@ -212,17 +209,22 @@ pub fn build_depend_map(tasks: &TcrmTasks) -> Result<TaskMonitorDependMap, TaskM
 /// 1. Maintains a `visited` set to track processed nodes
 /// 2. Maintains a `rec_stack` to track the current path
 /// 3. A back edge (pointing to a node in the current path) indicates a cycle
-pub fn check_circular_dependencies(
-    dependencies: &HashMap<String, Vec<String>>,
+///
+/// # Errors
+///
+/// Returns [`TaskMonitorError::CircularDependency`] if a circular dependency is detected.
+pub fn check_circular_dependencies<S: ::std::hash::BuildHasher>(
+    dependencies: &HashMap<String, Vec<String>, S>,
 ) -> Result<(), TaskMonitorError> {
     let mut visited = HashSet::new();
     let mut rec_stack = HashSet::new();
 
     for task_name in dependencies.keys() {
         if !visited.contains(task_name.as_str())
-            && has_cycle(dependencies, task_name, &mut visited, &mut rec_stack) {
-                return Err(TaskMonitorError::CircularDependency(task_name.clone()));
-            }
+            && has_cycle(dependencies, task_name, &mut visited, &mut rec_stack)
+        {
+            return Err(TaskMonitorError::CircularDependency(task_name.clone()));
+        }
     }
     Ok(())
 }
@@ -232,8 +234,8 @@ pub fn check_circular_dependencies(
 /// Performs depth-first search to detect back edges that indicate circular dependencies.
 /// Uses a visited set to track processed nodes and a recursion stack to identify
 /// cycles during traversal.
-fn has_cycle<'a>(
-    dependencies: &'a HashMap<String, Vec<String>>,
+fn has_cycle<'a, S: ::std::hash::BuildHasher>(
+    dependencies: &'a HashMap<String, Vec<String>, S>,
     task_name: &'a str,
     visited: &mut HashSet<&'a str>,
     rec_stack: &mut HashSet<&'a str>,
