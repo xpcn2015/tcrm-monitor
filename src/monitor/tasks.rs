@@ -190,7 +190,7 @@ impl TaskMonitor {
         shell_tasks(&mut tasks);
 
         // Create stdin channels and task spawners
-        let mut tasks_spawner: HashMap<String, TaskSpawner> = HashMap::new();
+        let mut tasks_spawner: HashMap<String, TaskSpawner> = HashMap::with_capacity(tasks.len());
         let mut stdin_senders: HashMap<String, mpsc::Sender<String>> = HashMap::new();
 
         for (task_name, task_spec) in &tasks {
@@ -304,23 +304,25 @@ impl TaskMonitor {
 /// based on the shell configuration. This transformation happens in-place and only
 /// affects tasks that have a shell setting other than `TaskShell::None`.
 fn shell_tasks(tasks: &mut TcrmTasks) {
-    for (_, task_spec) in tasks.iter_mut() {
+    for task_spec in tasks.values_mut() {
         // Get shell setting, use default if None
-        let shell = task_spec.shell.clone().unwrap_or_default();
+        let default_shell = TaskShell::default();
+        let shell = task_spec.shell.as_ref().unwrap_or(&default_shell);
 
         // Only modify if shell is not None
-        if shell != TaskShell::None {
-            let original_command = task_spec.config.command.clone();
+        if *shell != TaskShell::None {
+            let original_command = std::mem::take(&mut task_spec.config.command);
 
             // Update command and args based on shell type
             match shell {
                 TaskShell::None => {
-                    // No changes needed
+                    // Restore original command since we took it
+                    task_spec.config.command = original_command;
                 }
                 #[cfg(windows)]
                 TaskShell::Cmd => {
-                    task_spec.config.command = "cmd".to_string();
-                    let mut new_args = vec!["/C".to_string(), original_command];
+                    task_spec.config.command = "cmd".into();
+                    let mut new_args = vec!["/C".into(), original_command];
                     if let Some(existing_args) = task_spec.config.args.take() {
                         new_args.extend(existing_args);
                     }
@@ -328,8 +330,8 @@ fn shell_tasks(tasks: &mut TcrmTasks) {
                 }
                 #[cfg(windows)]
                 TaskShell::Powershell => {
-                    task_spec.config.command = "powershell".to_string();
-                    let mut new_args = vec!["-Command".to_string(), original_command];
+                    task_spec.config.command = "powershell".into();
+                    let mut new_args = vec!["-Command".into(), original_command];
                     if let Some(existing_args) = task_spec.config.args.take() {
                         new_args.extend(existing_args);
                     }
@@ -337,8 +339,8 @@ fn shell_tasks(tasks: &mut TcrmTasks) {
                 }
                 #[cfg(unix)]
                 TaskShell::Bash => {
-                    task_spec.config.command = "bash".to_string();
-                    let mut new_args = vec!["-c".to_string(), original_command];
+                    task_spec.config.command = "bash".into();
+                    let mut new_args = vec!["-c".into(), original_command];
                     if let Some(existing_args) = task_spec.config.args.take() {
                         new_args.extend(existing_args);
                     }
@@ -346,8 +348,8 @@ fn shell_tasks(tasks: &mut TcrmTasks) {
                 }
                 #[cfg(unix)]
                 TaskShell::Sh => {
-                    task_spec.config.command = "sh".to_string();
-                    let mut new_args = vec!["-c".to_string(), original_command];
+                    task_spec.config.command = "sh".into();
+                    let mut new_args = vec!["-c".into(), original_command];
                     if let Some(existing_args) = task_spec.config.args.take() {
                         new_args.extend(existing_args);
                     }
@@ -355,8 +357,8 @@ fn shell_tasks(tasks: &mut TcrmTasks) {
                 }
                 #[cfg(unix)]
                 TaskShell::Zsh => {
-                    task_spec.config.command = "zsh".to_string();
-                    let mut new_args = vec!["-c".to_string(), original_command];
+                    task_spec.config.command = "zsh".into();
+                    let mut new_args = vec!["-c".into(), original_command];
                     if let Some(existing_args) = task_spec.config.args.take() {
                         new_args.extend(existing_args);
                     }
@@ -364,8 +366,8 @@ fn shell_tasks(tasks: &mut TcrmTasks) {
                 }
                 #[cfg(unix)]
                 TaskShell::Fish => {
-                    task_spec.config.command = "fish".to_string();
-                    let mut new_args = vec!["-c".to_string(), original_command];
+                    task_spec.config.command = "fish".into();
+                    let mut new_args = vec!["-c".into(), original_command];
                     if let Some(existing_args) = task_spec.config.args.take() {
                         new_args.extend(existing_args);
                     }
@@ -374,8 +376,8 @@ fn shell_tasks(tasks: &mut TcrmTasks) {
                 TaskShell::Auto => {
                     #[cfg(windows)]
                     {
-                        task_spec.config.command = "powershell".to_string();
-                        let mut new_args = vec!["-Command".to_string(), original_command];
+                        task_spec.config.command = "powershell".into();
+                        let mut new_args = vec!["-Command".into(), original_command];
                         if let Some(existing_args) = task_spec.config.args.take() {
                             new_args.extend(existing_args);
                         }
@@ -383,8 +385,8 @@ fn shell_tasks(tasks: &mut TcrmTasks) {
                     }
                     #[cfg(unix)]
                     {
-                        task_spec.config.command = "bash".to_string();
-                        let mut new_args = vec!["-c".to_string(), original_command];
+                        task_spec.config.command = "bash".into();
+                        let mut new_args = vec!["-c".into(), original_command];
                         if let Some(existing_args) = task_spec.config.args.take() {
                             new_args.extend(existing_args);
                         }
