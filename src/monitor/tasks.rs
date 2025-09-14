@@ -183,6 +183,11 @@ impl TaskMonitor {
     /// # }
     /// ```
     pub fn new(mut tasks: TcrmTasks) -> Result<Self, TaskMonitorError> {
+        if tasks.is_empty() {
+            return Err(TaskMonitorError::ConfigParse(
+                "Task list cannot be empty".to_string(),
+            ));
+        }
         let depen = build_depend_map(&tasks)?;
         let dependencies = depen.dependencies;
         let dependents = depen.dependents;
@@ -787,14 +792,6 @@ mod tests {
             }
         }
 
-        #[test]
-        fn test_empty_task_list_edge_case() {
-            let tasks = HashMap::new();
-            let monitor = TaskMonitor::new(tasks);
-            assert!(monitor.is_ok());
-            assert_eq!(monitor.unwrap().tasks.len(), 0);
-        }
-
         #[tokio::test]
         async fn test_terminate_after_dependents_finished() {
             let mut tasks = HashMap::new();
@@ -862,6 +859,17 @@ mod tests {
             let monitor = TaskMonitor::new(tasks);
             // The monitor should be created successfully even with empty command
             assert!(monitor.is_ok());
+        }
+
+        #[test]
+        fn test_empty_task_map_returns_config_parse_error() {
+            // TaskMonitor::new() should return ConfigParse error for empty HashMap
+            let tasks: HashMap<String, crate::monitor::config::TaskSpec> = HashMap::new();
+            let monitor = TaskMonitor::new(tasks);
+            match monitor {
+                Err(crate::monitor::error::TaskMonitorError::ConfigParse(_)) => {}
+                other => panic!("Expected ConfigParse error, got: {:?}", other),
+            }
         }
 
         #[test]
