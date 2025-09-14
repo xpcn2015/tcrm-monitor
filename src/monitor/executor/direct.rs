@@ -771,7 +771,7 @@ impl TaskMonitor {
             .collect();
         // Start tasks that have no dependencies
         for name in independent_tasks {
-            self.start_task_direct(&name, &tx.clone()).await;
+            self.start_task_direct(&name, &tx).await;
         }
     }
 
