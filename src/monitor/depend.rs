@@ -134,8 +134,7 @@ pub fn build_depend_map(tasks: &TcrmTasks) -> Result<TaskMonitorDependMap, TaskM
                     Some(c) => c,
                     None => {
                         return Err(TaskMonitorError::ConfigParse(format!(
-                            "Unable to get task: {}",
-                            dep
+                            "Unable to get task: {dep}"
                         )));
                     }
                 };
@@ -220,11 +219,10 @@ pub fn check_circular_dependencies(
     let mut rec_stack = HashSet::new();
 
     for task_name in dependencies.keys() {
-        if !visited.contains(task_name.as_str()) {
-            if has_cycle(&dependencies, task_name, &mut visited, &mut rec_stack) {
+        if !visited.contains(task_name.as_str())
+            && has_cycle(dependencies, task_name, &mut visited, &mut rec_stack) {
                 return Err(TaskMonitorError::CircularDependency(task_name.clone()));
             }
-        }
     }
     Ok(())
 }

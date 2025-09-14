@@ -8,7 +8,7 @@ use tcrm_task::tasks::event::TaskEvent;
 
 use crate::monitor::error::{SendStdinErrorReason, TaskMonitorError};
 
-/// Events emitted by TaskMonitor during execution.
+/// Events emitted by `TaskMonitor` during execution.
 ///
 /// These events provide real-time information about task execution progress,
 /// control message processing, and error conditions. They can be used to build
@@ -330,7 +330,7 @@ impl TaskMonitorEvent {
     /// };
     /// assert_eq!(event.task_name(), Some("interactive"));
     /// ```
-    pub fn task_name(&self) -> Option<&str> {
+    #[must_use] pub fn task_name(&self) -> Option<&str> {
         match self {
             TaskMonitorEvent::Task(task_event) => match task_event {
                 TaskEvent::Started { task_name } => Some(task_name),
@@ -372,7 +372,7 @@ impl TaskMonitorEvent {
     /// let event = TaskMonitorEvent::ExecutionStarted { total_tasks: 1 };
     /// assert!(!event.is_task_event());
     /// ```
-    pub fn is_task_event(&self) -> bool {
+    #[must_use] pub fn is_task_event(&self) -> bool {
         matches!(self, TaskMonitorEvent::Task(_))
     }
 
@@ -405,7 +405,7 @@ impl TaskMonitorEvent {
     /// });
     /// assert!(!event.is_monitor_event());
     /// ```
-    pub fn is_monitor_event(&self) -> bool {
+    #[must_use] pub fn is_monitor_event(&self) -> bool {
         !self.is_task_event()
     }
 }

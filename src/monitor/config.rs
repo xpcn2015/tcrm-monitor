@@ -125,7 +125,7 @@ impl TaskSpec {
     ///     TaskConfig::new("ls").args(["-la"])
     /// );
     /// ```
-    pub fn new(config: TaskConfig) -> Self {
+    #[must_use] pub fn new(config: TaskConfig) -> Self {
         TaskSpec {
             config,
             ..Default::default()
@@ -147,7 +147,7 @@ impl TaskSpec {
     /// let task = TaskSpec::new(TaskConfig::new("echo").args(["test"]))
     ///     .shell(TaskShell::Auto);
     /// ```
-    pub fn shell(mut self, shell: TaskShell) -> Self {
+    #[must_use] pub fn shell(mut self, shell: TaskShell) -> Self {
         self.shell = Some(shell);
         self
     }
@@ -196,7 +196,7 @@ impl TaskSpec {
     /// let db_task = TaskSpec::new(TaskConfig::new("postgres").args(["-D", "/data"]))
     ///     .terminate_after_dependents(true);
     /// ```
-    pub fn terminate_after_dependents(mut self, terminate: bool) -> Self {
+    #[must_use] pub fn terminate_after_dependents(mut self, terminate: bool) -> Self {
         self.terminate_after_dependents_finished = Some(terminate);
         self
     }
@@ -220,7 +220,7 @@ impl TaskSpec {
     ///     .dependencies(["test"])
     ///     .ignore_dependencies_error(true);
     /// ```
-    pub fn ignore_dependencies_error(mut self, ignore: bool) -> Self {
+    #[must_use] pub fn ignore_dependencies_error(mut self, ignore: bool) -> Self {
         self.ignore_dependencies_error = Some(ignore);
         self
     }
@@ -265,7 +265,7 @@ pub enum TaskShell {
     /// Windows Command Prompt (Windows only)
     #[cfg(windows)]
     Cmd,
-    /// Windows PowerShell (Windows only)
+    /// Windows `PowerShell` (Windows only)
     #[cfg(windows)]
     Powershell,
     /// Bourne Again Shell (Unix only)
@@ -310,7 +310,7 @@ impl TaskShell {
     ///     assert!(!TaskShell::Cmd.is_unix());
     /// }
     /// ```
-    pub fn is_unix(&self) -> bool {
+    #[must_use] pub fn is_unix(&self) -> bool {
         match self {
             #[cfg(unix)]
             TaskShell::Bash | TaskShell::Sh | TaskShell::Zsh | TaskShell::Fish => true,
@@ -336,7 +336,7 @@ impl TaskShell {
     ///     assert!(!TaskShell::Bash.is_windows());
     /// }
     /// ```
-    pub fn is_windows(&self) -> bool {
+    #[must_use] pub fn is_windows(&self) -> bool {
         match self {
             #[cfg(windows)]
             TaskShell::Powershell | TaskShell::Cmd => true,
@@ -354,7 +354,7 @@ impl TaskShell {
     /// assert!(TaskShell::Auto.is_cross_platform());
     /// assert!(TaskShell::None.is_cross_platform());
     /// ```
-    pub fn is_cross_platform(&self) -> bool {
+    #[must_use] pub fn is_cross_platform(&self) -> bool {
         matches!(self, TaskShell::Auto | TaskShell::None)
     }
 
@@ -374,7 +374,7 @@ impl TaskShell {
     /// #[cfg(windows)]
     /// assert_eq!(TaskShell::Powershell.command_name(), Some("powershell"));
     /// ```
-    pub fn command_name(&self) -> Option<&str> {
+    #[must_use] pub fn command_name(&self) -> Option<&str> {
         match self {
             TaskShell::None | TaskShell::Auto => None,
             #[cfg(windows)]

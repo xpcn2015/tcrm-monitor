@@ -18,7 +18,7 @@ use crate::monitor::{
     tasks::TaskMonitor,
 };
 
-/// Control message for TaskMonitor execution.
+/// Control message for `TaskMonitor` execution.
 ///
 /// These control messages allow runtime interaction with task execution,
 /// providing the ability to stop tasks, send input, or terminate specific tasks.
@@ -177,11 +177,11 @@ impl TaskMonitor {
         let mut active_tasks: HashSet<String> = self.tasks_spawner.keys().cloned().collect();
 
         while let Some(event) = task_event_rx.recv().await {
-            if let Some(ref tx) = event_tx {
-                if let Err(_e) = tx.send(event.clone()).await {
-                    #[cfg(feature = "tracing")]
-                    tracing::warn!(event = ?event, "Failed to forward event");
-                }
+            if let Some(ref tx) = event_tx
+                && let Err(_e) = tx.send(event.clone()).await
+            {
+                #[cfg(feature = "tracing")]
+                tracing::warn!(event = ?event, "Failed to forward event");
             }
             match event {
                 TaskEvent::Started { .. } => {}
@@ -344,24 +344,17 @@ impl TaskMonitor {
                     match event {
                         Some(event) => {
                             // Count completed/failed tasks
-                            match &event {
-                                TaskEvent::Stopped { reason, .. } => {
-                                    completed_tasks += 1;
-                                    match reason {
-                                        TaskEventStopReason::Error(_) => failed_tasks += 1,
-                                        _ => {}
-                                    }
-                                }
-                                _ => {}
+                            if let TaskEvent::Stopped { reason, .. } = &event {
+                                completed_tasks += 1;
+                                if let TaskEventStopReason::Error(_) = reason { failed_tasks += 1 }
                             }
 
                             // Forward wrapped task event
-                            if let Some(ref tx) = event_tx {
-                                if let Err(_e) = tx.send(TaskMonitorEvent::Task(event.clone())).await {
+                            if let Some(ref tx) = event_tx
+                                && let Err(_e) = tx.send(TaskMonitorEvent::Task(event.clone())).await {
                                     #[cfg(feature = "tracing")]
                                     tracing::warn!(event = ?event, "Failed to forward task event");
                                 }
-                            }
                             match event {
                                 TaskEvent::Started { .. } => {}
                                 TaskEvent::Output { .. } => {}
@@ -500,7 +493,7 @@ impl TaskMonitor {
                             tracing::debug!(task_name = %task_name, input_len = input.len(), "Sending stdin to task");
 
                             match self.send_stdin_to_task(&task_name, &input).await {
-                                Ok(_) => {
+                                Ok(()) => {
                                     // Send stdin success event
                                     if let Some(ref tx) = event_tx {
                                         let _ = tx.send(TaskMonitorEvent::StdinSent {
@@ -586,19 +579,19 @@ impl TaskMonitor {
     async fn terminate_all_tasks(&mut self, reason: TaskTerminateReason) {
         for (task_name, spawner) in &mut self.tasks_spawner {
             let state = spawner.get_state().await;
-            if matches!(state, TaskState::Running | TaskState::Ready) {
-                if let Err(_e) = spawner.send_terminate_signal(reason.clone()).await {
-                    #[cfg(feature = "tracing")]
-                    tracing::warn!(
-                        task_name = %task_name,
-                        error = %_e,
-                        "Failed to terminate task"
-                    );
+            if matches!(state, TaskState::Running | TaskState::Ready)
+                && let Err(_e) = spawner.send_terminate_signal(reason.clone()).await
+            {
+                #[cfg(feature = "tracing")]
+                tracing::warn!(
+                    task_name = %task_name,
+                    error = %_e,
+                    "Failed to terminate task"
+                );
 
-                    // Avoid unused variable warning when tracing is disabled
-                    #[cfg(not(feature = "tracing"))]
-                    let _ = task_name;
-                }
+                // Avoid unused variable warning when tracing is disabled
+                #[cfg(not(feature = "tracing"))]
+                let _ = task_name;
             }
         }
     }
@@ -696,7 +689,7 @@ impl TaskMonitor {
 
         // Send the input to the task's stdin channel
         match stdin_sender.send(input.to_string()).await {
-            Ok(_) => {
+            Ok(()) => {
                 #[cfg(feature = "tracing")]
                 tracing::info!(
                     task_name = %task_name,
@@ -788,17 +781,13 @@ impl TaskMonitor {
             };
             let mut all_dependencies_ready = true;
             for dependency in dependencies {
-                let state = match self.tasks_spawner.get(dependency) {
-                    Some(c) => c.get_state().await,
-                    None => {
-                        #[cfg(feature = "tracing")]
-                        tracing::error!(
-                            task_name,
-                            "Failed to get task spawner, unexpected behavior"
-                        );
-                        all_dependencies_ready = false;
-                        break;
-                    }
+                let state = if let Some(c) = self.tasks_spawner.get(dependency) {
+                    c.get_state().await
+                } else {
+                    #[cfg(feature = "tracing")]
+                    tracing::error!(task_name, "Failed to get task spawner, unexpected behavior");
+                    all_dependencies_ready = false;
+                    break;
                 };
                 let not_ready = !matches!(state, TaskState::Ready | TaskState::Finished);
                 if not_ready {

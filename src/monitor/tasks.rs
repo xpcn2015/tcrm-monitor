@@ -126,7 +126,7 @@ impl TaskMonitor {
     ///
     /// # Arguments
     ///
-    /// * `tasks` - A HashMap of task names to task specifications
+    /// * `tasks` - A `HashMap` of task names to task specifications
     ///
     /// # Returns
     ///
@@ -261,12 +261,9 @@ impl TaskMonitor {
 
             let mut all_finished = true;
             for dep_name in dependents {
-                let dep_spawner = match self.tasks_spawner.get(dep_name) {
-                    Some(s) => s,
-                    None => {
-                        all_finished = false;
-                        break;
-                    }
+                let dep_spawner = if let Some(s) = self.tasks_spawner.get(dep_name) { s } else {
+                    all_finished = false;
+                    break;
                 };
                 let stopped = dep_spawner.get_state().await == TaskState::Finished;
                 if !stopped {
@@ -284,7 +281,7 @@ impl TaskMonitor {
                     .send_terminate_signal(TaskTerminateReason::DependenciesFinished)
                     .await
                 {
-                    Ok(_) => {}
+                    Ok(()) => {}
                     Err(_e) => {
                         #[cfg(feature = "tracing")]
                         tracing::warn!(

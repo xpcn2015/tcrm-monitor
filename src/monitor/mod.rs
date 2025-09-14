@@ -17,7 +17,7 @@
 //! The typical workflow involves:
 //!
 //! 1. Create task specifications with dependencies
-//! 2. Build a TaskMonitor with the task collection
+//! 2. Build a `TaskMonitor` with the task collection
 //! 3. Execute tasks either directly or with event monitoring
 //!
 //! ```rust
