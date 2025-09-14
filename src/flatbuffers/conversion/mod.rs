@@ -1,13 +1,13 @@
-﻿//! Conversion traits and implementations for FlatBuffers serialization.
+﻿//! Conversion traits and implementations for `FlatBuffers` serialization.
 //!
 //! This module provides conversion traits and implementations for converting
-//! between Rust types and their FlatBuffers representations. It supports
+//! between Rust types and their `FlatBuffers` representations. It supports
 //! bidirectional conversion with proper error handling.
 //!
 //! ## Core Traits
 //!
-//! - `ToFlatbuffers` - Convert Rust types to FlatBuffers binary format
-//! - `FromFlatbuffers` - Convert FlatBuffers binary format back to Rust types
+//! - `ToFlatbuffers` - Convert Rust types to `FlatBuffers` binary format
+//! - `FromFlatbuffers` - Convert `FlatBuffers` binary format back to Rust types
 //!
 //! ## Supported Types
 //!

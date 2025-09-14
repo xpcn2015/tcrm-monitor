@@ -278,6 +278,8 @@ impl TaskMonitor {
                     .await
                 {
                     Ok(()) => {}
+
+                    #[allow(clippy::used_underscore_binding)]
                     Err(_e) => {
                         #[cfg(feature = "tracing")]
                         tracing::warn!(

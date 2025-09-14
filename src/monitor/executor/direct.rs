@@ -345,81 +345,78 @@ impl TaskMonitor {
             tokio::select! {
                 // Handle task events
                 event = task_event_rx.recv() => {
-                    match event {
-                        Some(event) => {
-                            // Count completed/failed tasks
-                            if let TaskEvent::Stopped { reason, .. } = &event {
-                                completed_tasks += 1;
-                                if let TaskEventStopReason::Error(_) = reason { failed_tasks += 1 }
-                            }
+                    if let Some(event) = event {
+                        // Count completed/failed tasks
+                        if let TaskEvent::Stopped { reason, .. } = &event {
+                            completed_tasks += 1;
+                            if let TaskEventStopReason::Error(_) = reason { failed_tasks += 1 }
+                        }
 
-                            // Forward wrapped task event
-                            if let Some(ref tx) = event_tx
-                                && let Err(_e) = tx.send(TaskMonitorEvent::Task(event.clone())).await {
-                                    #[cfg(feature = "tracing")]
-                                    tracing::warn!(event = ?event, "Failed to forward task event");
-                                }
-                            match event {
-                                TaskEvent::Started { .. } | TaskEvent::Output { .. } => {}
-                                TaskEvent::Ready { task_name } => {
-                                    self.start_ready_dependents_direct(
-                                        &mut active_tasks,
-                                        &task_name,
-                                        None,
-                                        &task_event_tx.clone(),
-                                    )
-                                    .await;
-                                }
-                                TaskEvent::Stopped {
-                                    task_name,
-                                    exit_code: _,
-                                    reason,
-                                } => {
-                                    active_tasks.remove(&task_name);
-
-                                    self.terminate_dependencies_if_all_dependent_finished(&task_name)
-                                        .await;
-
-                                    self.start_ready_dependents_direct(
-                                        &mut active_tasks,
-                                        &task_name,
-                                        Some(reason),
-                                        &task_event_tx.clone(),
-                                    )
-                                    .await;
-                                }
-                                TaskEvent::Error { task_name, error } => {
-                                    active_tasks.remove(&task_name);
-
-                                    self.terminate_dependencies_if_all_dependent_finished(&task_name)
-                                        .await;
-
-                                    self.start_ready_dependents_direct(
-                                        &mut active_tasks,
-                                        &task_name,
-                                        Some(TaskEventStopReason::Error(error.to_string())),
-                                        &task_event_tx.clone(),
-                                    )
-                                    .await;
-                                }
-                            }
-
-                            // Exit when no tasks are active or stop was requested
-                            if active_tasks.is_empty() || should_stop {
+                        // Forward wrapped task event
+                        if let Some(ref tx) = event_tx
+                            && let Err(_e) = tx.send(TaskMonitorEvent::Task(event.clone())).await {
                                 #[cfg(feature = "tracing")]
-                                tracing::debug!(
-                                    active_tasks = active_tasks.len(),
-                                    should_stop = should_stop,
-                                    "Execution loop ending"
-                                );
-                                break;
+                                tracing::warn!(event = ?event, "Failed to forward task event");
+                            }
+                        match event {
+                            TaskEvent::Started { .. } | TaskEvent::Output { .. } => {}
+                            TaskEvent::Ready { task_name } => {
+                                self.start_ready_dependents_direct(
+                                    &mut active_tasks,
+                                    &task_name,
+                                    None,
+                                    &task_event_tx.clone(),
+                                )
+                                .await;
+                            }
+                            TaskEvent::Stopped {
+                                task_name,
+                                exit_code: _,
+                                reason,
+                            } => {
+                                active_tasks.remove(&task_name);
+
+                                self.terminate_dependencies_if_all_dependent_finished(&task_name)
+                                    .await;
+
+                                self.start_ready_dependents_direct(
+                                    &mut active_tasks,
+                                    &task_name,
+                                    Some(reason),
+                                    &task_event_tx.clone(),
+                                )
+                                .await;
+                            }
+                            TaskEvent::Error { task_name, error } => {
+                                active_tasks.remove(&task_name);
+
+                                self.terminate_dependencies_if_all_dependent_finished(&task_name)
+                                    .await;
+
+                                self.start_ready_dependents_direct(
+                                    &mut active_tasks,
+                                    &task_name,
+                                    Some(TaskEventStopReason::Error(error.to_string())),
+                                    &task_event_tx.clone(),
+                                )
+                                .await;
                             }
                         }
-                        None => {
+
+                        // Exit when no tasks are active or stop was requested
+                        if active_tasks.is_empty() || should_stop {
                             #[cfg(feature = "tracing")]
-                            tracing::debug!("Task event channel closed");
+                            tracing::debug!(
+                                active_tasks = active_tasks.len(),
+                                should_stop = should_stop,
+                                "Execution loop ending"
+                            );
                             break;
                         }
+                    } else {
+                        #[cfg(feature = "tracing")]
+                        tracing::debug!("Task event channel closed");
+                        break;
                     }
                 }
                 // Handle control messages
@@ -610,19 +607,20 @@ impl TaskMonitor {
     async fn terminate_all_tasks(&mut self, reason: TaskTerminateReason) {
         for (task_name, spawner) in &mut self.tasks_spawner {
             let state = spawner.get_state().await;
-            if matches!(state, TaskState::Running | TaskState::Ready)
-                && let Err(_e) = spawner.send_terminate_signal(reason.clone()).await
-            {
-                #[cfg(feature = "tracing")]
-                tracing::warn!(
-                    task_name = %task_name,
-                    error = %_e,
-                    "Failed to terminate task"
-                );
+            if matches!(state, TaskState::Running | TaskState::Ready) {
+                #[allow(clippy::used_underscore_binding)]
+                if let Err(_e) = spawner.send_terminate_signal(reason.clone()).await {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!(
+                        task_name = %task_name,
+                        error = %_e,
+                        "Failed to terminate task"
+                    );
 
-                // Avoid unused variable warning when tracing is disabled
-                #[cfg(not(feature = "tracing"))]
-                let _ = task_name;
+                    // Avoid unused variable warning when tracing is disabled
+                    #[cfg(not(feature = "tracing"))]
+                    let _ = task_name;
+                }
             }
         }
     }
@@ -635,6 +633,7 @@ impl TaskMonitor {
         if let Some(spawner) = self.tasks_spawner.get_mut(task_name) {
             let state = spawner.get_state().await;
             if matches!(state, TaskState::Running | TaskState::Ready) {
+                #[allow(clippy::used_underscore_binding)]
                 if let Err(_e) = spawner.send_terminate_signal(reason).await {
                     #[cfg(feature = "tracing")]
                     tracing::warn!(
@@ -724,6 +723,7 @@ impl TaskMonitor {
                 );
                 Ok(())
             }
+            #[allow(clippy::used_underscore_binding)]
             Err(_e) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!(

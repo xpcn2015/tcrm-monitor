@@ -25,8 +25,7 @@ impl TryFrom<fb::TaskMonitorControlType> for TaskMonitorControlType {
             fb::TaskMonitorControlType::TerminateTask => Ok(TaskMonitorControlType::TerminateTask),
             fb::TaskMonitorControlType::SendStdin => Ok(TaskMonitorControlType::SendStdin),
             _ => Err(ConversionError::InvalidEnumValue(format!(
-                "Invalid TaskMonitorControlType: {:?}",
-                fb_control_type
+                "Invalid TaskMonitorControlType: {fb_control_type:?}"
             ))),
         }
     }
@@ -51,28 +50,27 @@ impl TryFrom<fb::SendStdinErrorReason> for SendStdinErrorReason {
     fn try_from(fb_reason: fb::SendStdinErrorReason) -> Result<Self, Self::Error> {
         match fb_reason {
             fb::SendStdinErrorReason::TaskNotFound => {
-                Ok(SendStdinErrorReason::TaskNotFound("".to_string()))
+                Ok(SendStdinErrorReason::TaskNotFound(String::new()))
             }
             fb::SendStdinErrorReason::StdinNotEnabled => {
-                Ok(SendStdinErrorReason::StdinNotEnabled("".to_string()))
+                Ok(SendStdinErrorReason::StdinNotEnabled(String::new()))
             }
             fb::SendStdinErrorReason::TaskNotReady => {
-                Ok(SendStdinErrorReason::TaskNotReady("".to_string()))
+                Ok(SendStdinErrorReason::TaskNotReady(String::new()))
             }
             fb::SendStdinErrorReason::ChannelClosed => {
-                Ok(SendStdinErrorReason::ChannelClosed("".to_string()))
+                Ok(SendStdinErrorReason::ChannelClosed(String::new()))
             }
             _ => Err(ConversionError::InvalidEnumValue(format!(
-                "Invalid SendStdinErrorReason: {:?}",
-                fb_reason
+                "Invalid SendStdinErrorReason: {fb_reason:?}"
             ))),
         }
     }
 }
 
-/// Convert a TaskMonitorEvent to FlatBuffers format.
+/// Convert a `TaskMonitorEvent` to `FlatBuffers` format.
 ///
-/// Serializes task monitor events into FlatBuffers binary representation
+/// Serializes task monitor events into `FlatBuffers` binary representation
 /// for efficient storage and transmission. Handles all event types including
 /// execution events, task events, and control events.
 pub fn task_monitor_event_to_flatbuffers<'fbb>(
@@ -162,7 +160,7 @@ pub fn task_monitor_event_to_flatbuffers<'fbb>(
         } => {
             // For now, we'll convert the error to a string representation
             // This is simplified - in a full implementation you'd want proper error conversion
-            let error_message = format!("{}", error);
+            let error_message = format!("{error}");
             let error_str = fbb.create_string(&error_message);
 
             // Create a placeholder error wrapper for now
@@ -272,7 +270,7 @@ pub fn task_monitor_event_to_flatbuffers<'fbb>(
         TaskMonitorEvent::Task(task_event) => {
             // For now, we'll serialize the task event as a placeholder
             // In a full implementation, you'd want proper TaskEvent to FlatBuffers conversion
-            let event_data = format!("{:?}", task_event);
+            let event_data = format!("{task_event:?}");
             let event_bytes = fbb.create_vector(event_data.as_bytes());
 
             let task_wrapper = fb::TaskEventWrapper::create(
@@ -295,9 +293,9 @@ pub fn task_monitor_event_to_flatbuffers<'fbb>(
     }
 }
 
-/// Convert from FlatBuffers format to TaskMonitorEvent.
+/// Convert from `FlatBuffers` format to `TaskMonitorEvent`.
 ///
-/// Deserializes FlatBuffers binary data back into TaskMonitorEvent instances.
+/// Deserializes `FlatBuffers` binary data back into `TaskMonitorEvent` instances.
 /// Handles all event types and validates the data during conversion.
 /// Returns conversion errors for invalid or corrupted data.
 pub fn task_monitor_event_from_flatbuffers(

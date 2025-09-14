@@ -11,19 +11,19 @@ use crate::monitor::config::{
     TaskShell as ConfigTaskShell, TaskSpec as ConfigTaskSpec, TcrmTasks as ConfigTcrmTasks,
 };
 
-/// Trait for converting Rust types to FlatBuffers format.
+/// Trait for converting Rust types to `FlatBuffers` format.
 ///
 /// This trait provides a standardized interface for converting task monitor
-/// configuration types into their FlatBuffers representation. It handles
+/// configuration types into their `FlatBuffers` representation. It handles
 /// serialization into a compact, cross-platform binary format.
 ///
 /// # Type Parameters
 ///
-/// * `'a` - Lifetime parameter for the FlatBufferBuilder reference
+/// * `'a` - Lifetime parameter for the `FlatBufferBuilder` reference
 ///
 /// # Associated Types
 ///
-/// * `Output` - The FlatBuffers type that this conversion produces
+/// * `Output` - The `FlatBuffers` type that this conversion produces
 ///
 /// # Examples
 ///
@@ -45,18 +45,18 @@ use crate::monitor::config::{
 /// # }
 /// ```
 pub trait ToFlatbuffers<'a> {
-    /// The FlatBuffers type produced by this conversion
+    /// The `FlatBuffers` type produced by this conversion
     type Output;
 
-    /// Convert this type to its FlatBuffers representation.
+    /// Convert this type to its `FlatBuffers` representation.
     ///
     /// # Parameters
     ///
-    /// * `fbb` - Mutable reference to the FlatBufferBuilder for serialization
+    /// * `fbb` - Mutable reference to the `FlatBufferBuilder` for serialization
     ///
     /// # Returns
     ///
-    /// Returns the FlatBuffers offset for the serialized data, or a
+    /// Returns the `FlatBuffers` offset for the serialized data, or a
     /// [`ConversionError`] if serialization fails.
     fn to_flatbuffers(
         &self,
@@ -155,7 +155,7 @@ impl TryFrom<FbTaskSpec<'_>> for ConfigTaskSpec {
     fn try_from(fb_spec: FbTaskSpec) -> Result<Self, Self::Error> {
         // Convert TaskConfig
         let config = TaskConfig::try_from(fb_spec.config())
-            .map_err(|e| ConversionError::TaskConfigConversion(format!("{:?}", e)))?;
+            .map_err(|e| ConversionError::TaskConfigConversion(format!("{e:?}")))?;
 
         // Convert dependencies
         let dependencies = fb_spec.dependencies().map(|deps| {

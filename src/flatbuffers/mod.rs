@@ -1,14 +1,14 @@
-//! FlatBuffers serialization support for task monitoring types.
+//! `FlatBuffers` serialization support for task monitoring types.
 //!
 //! This module provides efficient binary serialization and deserialization
-//! of task monitoring types using FlatBuffers. This is useful for high-performance
+//! of task monitoring types using `FlatBuffers`. This is useful for high-performance
 //! scenarios where you need to serialize task configurations and results.
 //!
 //! ## Features
 //!
-//! - Conversion between Rust types and FlatBuffers representations
+//! - Conversion between Rust types and `FlatBuffers` representations
 //! - Efficient binary serialization for task specifications and events
-//! - Cross-language compatibility through FlatBuffers schema
+//! - Cross-language compatibility through `FlatBuffers` schema
 //!
 //! ## Usage
 //!
