@@ -589,15 +589,6 @@ impl TaskMonitor {
             #[cfg(feature = "tracing")]
             tracing::warn!("Event channel closed while sending ExecutionCompleted");
         }
-
-        // If stop was requested, wait a bit for graceful shutdown
-        if should_stop {
-            #[cfg(feature = "tracing")]
-            tracing::info!("Waiting for tasks to terminate gracefully");
-
-            // Give tasks a chance to shut down gracefully
-            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-        }
     }
 
     /// Terminate all running tasks with the specified reason.
