@@ -33,6 +33,13 @@ pub type TcrmTasks = HashMap<String, TaskSpec>;
 /// Wraps a [`TaskConfig`] with additional metadata for dependency management,
 /// shell selection, and execution behavior in a task graph.
 ///
+/// # Default Values
+/// - `config`: Default-initialized [`TaskConfig`]
+/// - `shell`: `Some(TaskShell::None)`
+/// - `dependencies`: `None`
+/// - `terminate_after_dependents_finished`: `Some(false)`
+/// - `ignore_dependencies_error`: `Some(false)`
+///
 /// ## Examples
 ///
 /// ### Simple Task
@@ -79,20 +86,30 @@ pub type TcrmTasks = HashMap<String, TaskSpec>;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct TaskSpec {
-    /// The underlying task configuration containing command, arguments, and execution options
+    /// The underlying task configuration containing command, arguments, and execution options.
+    ///
+    /// **Default:** `TaskConfig::default()`
     pub config: TaskConfig,
 
-    /// Shell to use for task execution. None means direct execution without shell
+    /// Shell to use for task execution. `None` means direct execution without shell.
+    ///
+    /// **Default:** `Some(TaskShell::None)`
     pub shell: Option<TaskShell>,
 
-    /// List of task names this task depends on. Must complete before this task starts
+    /// List of task names this task depends on. Must complete before this task starts.
+    ///
+    /// **Default:** `None`
     pub dependencies: Option<Vec<String>>,
 
     /// Whether to terminate this task when all dependent tasks finish.
-    /// Useful for long-running services that should stop when their dependents complete
+    /// Useful for long-running services that should stop when their dependents complete.
+    ///
+    /// **Default:** `Some(false)`
     pub terminate_after_dependents_finished: Option<bool>,
 
-    /// Whether to ignore errors from dependency tasks and continue execution anyway
+    /// Whether to ignore errors from dependency tasks and continue execution anyway.
+    ///
+    /// **Default:** `Some(false)`
     pub ignore_dependencies_error: Option<bool>,
 }
 
