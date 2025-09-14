@@ -4,7 +4,7 @@ use tcrm_task::tasks::config::{StreamSource, TaskConfig};
 use temp_dir::TempDir;
 
 use crate::{
-    flatbuffers::{conversion::config::ToFlatbuffers, tcrm_monitor_generated},
+    flatbuffers::{conversion::ToFlatbuffers, tcrm_monitor_generated},
     monitor::{
         config::{TaskShell, TaskSpec, TcrmTasks},
         depend::build_depend_map,
@@ -499,9 +499,7 @@ fn get_memory_usage() -> usize {
 /// Test TaskMonitorEvent flatbuffers conversion roundtrip
 #[test]
 fn test_task_monitor_event_flatbuffers_roundtrip() {
-    use crate::flatbuffers::conversion::event::{
-        task_monitor_event_from_flatbuffers, task_monitor_event_to_flatbuffers,
-    };
+    use crate::flatbuffers::conversion::FromFlatbuffers;
     use crate::monitor::error::SendStdinErrorReason;
     use crate::monitor::event::{TaskMonitorControlType, TaskMonitorEvent};
     use flatbuffers::FlatBufferBuilder;
@@ -535,20 +533,21 @@ fn test_task_monitor_event_flatbuffers_roundtrip() {
     for original_event in test_events {
         println!("Testing event: {:?}", original_event);
 
-        // Convert to flatbuffers
+        // Convert to flatbuffers using trait
         let mut fbb = FlatBufferBuilder::new();
-        let fb_event = task_monitor_event_to_flatbuffers(&original_event, &mut fbb)
+        let fb_event = original_event
+            .to_flatbuffers(&mut fbb)
             .expect("Should convert to flatbuffers");
         fbb.finish(fb_event, None);
 
-        // Convert back from flatbuffers
+        // Convert back from flatbuffers using trait
         let buffer = fbb.finished_data();
         let fb_event_message = flatbuffers::root::<
             crate::flatbuffers::tcrm_monitor_generated::tcrm::monitor::TaskMonitorEventMessage,
         >(&buffer)
         .expect("Should parse flatbuffers");
 
-        let converted_event = task_monitor_event_from_flatbuffers(fb_event_message)
+        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message)
             .expect("Should convert from flatbuffers");
 
         // Verify the conversion preserved the essential data

@@ -5,7 +5,7 @@ use tcrm_task::tasks::config::{StreamSource, TaskConfig};
 
 use crate::{
     flatbuffers::{
-        conversion::{config::ToFlatbuffers, error::ConversionError},
+        conversion::{ToFlatbuffers, error::ConversionError},
         tcrm_monitor_generated::tcrm::monitor,
     },
     monitor::config::{TaskShell, TaskSpec, TcrmTasks},

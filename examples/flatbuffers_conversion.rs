@@ -1,4 +1,4 @@
-use tcrm_monitor::flatbuffers::conversion::config::ToFlatbuffers;
+use tcrm_monitor::flatbuffers::conversion::ToFlatbuffers;
 use tcrm_monitor::flatbuffers::conversion::error::ConversionError;
 use tcrm_monitor::monitor::config::{TaskShell, TaskSpec, TcrmTasks};
 use tcrm_task::tasks::config::TaskConfig;

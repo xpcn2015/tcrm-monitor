@@ -2,8 +2,7 @@ use criterion::{ criterion_group, criterion_main, BenchmarkId, Criterion, Throug
 use flatbuffers::FlatBufferBuilder;
 use std::collections::HashMap;
 use std::hint::black_box;
-use tcrm_monitor::flatbuffers::conversion::config::ToFlatbuffers;
-use tcrm_monitor::monitor::config::{TaskShell, TaskSpec, TcrmTasks};
+use tcrm_monitor::{flatbuffers::conversion::ToFlatbuffers, monitor::config::{TaskShell, TaskSpec, TcrmTasks}};
 use tcrm_task::tasks::config::TaskConfig;
 
 fn create_sample_task_config(complexity: usize) -> TaskConfig {

@@ -3,8 +3,10 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use tcrm_monitor::flatbuffers::conversion::config::ToFlatbuffers;
-use tcrm_monitor::monitor::config::{TaskShell, TaskSpec, TcrmTasks};
+use tcrm_monitor::{
+    flatbuffers::conversion::ToFlatbuffers,
+    monitor::config::{TaskShell, TaskSpec, TcrmTasks},
+};
 use tcrm_task::tasks::config::{StreamSource, TaskConfig};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

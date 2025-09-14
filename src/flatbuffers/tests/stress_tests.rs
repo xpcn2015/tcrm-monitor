@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use tcrm_task::tasks::config::{StreamSource, TaskConfig};
 
 use crate::{
-    flatbuffers::{conversion::config::ToFlatbuffers, tcrm_monitor_generated},
+    flatbuffers::{conversion::ToFlatbuffers, tcrm_monitor_generated},
     monitor::config::{TaskShell, TaskSpec, TcrmTasks},
 };
 

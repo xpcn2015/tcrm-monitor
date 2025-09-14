@@ -1,4 +1,6 @@
+use super::FromFlatbuffers;
 use super::error::ConversionError;
+use crate::flatbuffers::conversion::ToFlatbuffers;
 use crate::flatbuffers::tcrm_monitor_generated::tcrm::monitor as fb;
 use crate::monitor::error::SendStdinErrorReason;
 use crate::monitor::event::{TaskMonitorControlType, TaskMonitorEvent};
@@ -79,222 +81,226 @@ impl TryFrom<fb::SendStdinErrorReason> for SendStdinErrorReason {
 /// Returns [`ConversionError`] if the conversion to `FlatBuffers` format fails.
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::cast_possible_truncation)]
-pub fn task_monitor_event_to_flatbuffers<'fbb>(
-    event: &TaskMonitorEvent,
-    fbb: &mut FlatBufferBuilder<'fbb>,
-) -> Result<WIPOffset<fb::TaskMonitorEventMessage<'fbb>>, ConversionError> {
-    match event {
-        TaskMonitorEvent::ExecutionStarted { total_tasks } => {
-            let exec_started = fb::ExecutionStartedEvent::create(
-                fbb,
-                &fb::ExecutionStartedEventArgs {
-                    total_tasks: *total_tasks as u32,
-                },
-            );
+impl<'a> ToFlatbuffers<'a> for TaskMonitorEvent {
+    type Output = WIPOffset<fb::TaskMonitorEventMessage<'a>>;
 
-            let event_message = fb::TaskMonitorEventMessage::create(
-                fbb,
-                &fb::TaskMonitorEventMessageArgs {
-                    event_type: fb::TaskMonitorEvent::ExecutionStarted,
-                    event: Some(exec_started.as_union_value()),
-                },
-            );
+    fn to_flatbuffers(
+        &self,
+        fbb: &mut FlatBufferBuilder<'a>,
+    ) -> Result<Self::Output, ConversionError> {
+        match self {
+            TaskMonitorEvent::ExecutionStarted { total_tasks } => {
+                let exec_started = fb::ExecutionStartedEvent::create(
+                    fbb,
+                    &fb::ExecutionStartedEventArgs {
+                        total_tasks: *total_tasks as u32,
+                    },
+                );
 
-            Ok(event_message)
-        }
-        TaskMonitorEvent::ExecutionCompleted {
-            completed_tasks,
-            failed_tasks,
-        } => {
-            let exec_completed = fb::ExecutionCompletedEvent::create(
-                fbb,
-                &fb::ExecutionCompletedEventArgs {
-                    completed_tasks: *completed_tasks as u32,
-                    failed_tasks: *failed_tasks as u32,
-                },
-            );
+                let event_message = fb::TaskMonitorEventMessage::create(
+                    fbb,
+                    &fb::TaskMonitorEventMessageArgs {
+                        event_type: fb::TaskMonitorEvent::ExecutionStarted,
+                        event: Some(exec_started.as_union_value()),
+                    },
+                );
 
-            let event_message = fb::TaskMonitorEventMessage::create(
-                fbb,
-                &fb::TaskMonitorEventMessageArgs {
-                    event_type: fb::TaskMonitorEvent::ExecutionCompleted,
-                    event: Some(exec_completed.as_union_value()),
-                },
-            );
+                Ok(event_message)
+            }
+            TaskMonitorEvent::ExecutionCompleted {
+                completed_tasks,
+                failed_tasks,
+            } => {
+                let exec_completed = fb::ExecutionCompletedEvent::create(
+                    fbb,
+                    &fb::ExecutionCompletedEventArgs {
+                        completed_tasks: *completed_tasks as u32,
+                        failed_tasks: *failed_tasks as u32,
+                    },
+                );
 
-            Ok(event_message)
-        }
-        TaskMonitorEvent::ControlReceived { control_type } => {
-            let control_received = fb::ControlReceivedEvent::create(
-                fbb,
-                &fb::ControlReceivedEventArgs {
-                    control_type: control_type.clone().into(),
-                },
-            );
+                let event_message = fb::TaskMonitorEventMessage::create(
+                    fbb,
+                    &fb::TaskMonitorEventMessageArgs {
+                        event_type: fb::TaskMonitorEvent::ExecutionCompleted,
+                        event: Some(exec_completed.as_union_value()),
+                    },
+                );
 
-            let event_message = fb::TaskMonitorEventMessage::create(
-                fbb,
-                &fb::TaskMonitorEventMessageArgs {
-                    event_type: fb::TaskMonitorEvent::ControlReceived,
-                    event: Some(control_received.as_union_value()),
-                },
-            );
+                Ok(event_message)
+            }
+            TaskMonitorEvent::ControlReceived { control_type } => {
+                let control_received = fb::ControlReceivedEvent::create(
+                    fbb,
+                    &fb::ControlReceivedEventArgs {
+                        control_type: control_type.clone().into(),
+                    },
+                );
 
-            Ok(event_message)
-        }
-        TaskMonitorEvent::ControlProcessed { control_type } => {
-            let control_processed = fb::ControlProcessedEvent::create(
-                fbb,
-                &fb::ControlProcessedEventArgs {
-                    control_type: control_type.clone().into(),
-                },
-            );
+                let event_message = fb::TaskMonitorEventMessage::create(
+                    fbb,
+                    &fb::TaskMonitorEventMessageArgs {
+                        event_type: fb::TaskMonitorEvent::ControlReceived,
+                        event: Some(control_received.as_union_value()),
+                    },
+                );
 
-            let event_message = fb::TaskMonitorEventMessage::create(
-                fbb,
-                &fb::TaskMonitorEventMessageArgs {
-                    event_type: fb::TaskMonitorEvent::ControlProcessed,
-                    event: Some(control_processed.as_union_value()),
-                },
-            );
+                Ok(event_message)
+            }
+            TaskMonitorEvent::ControlProcessed { control_type } => {
+                let control_processed = fb::ControlProcessedEvent::create(
+                    fbb,
+                    &fb::ControlProcessedEventArgs {
+                        control_type: control_type.clone().into(),
+                    },
+                );
 
-            Ok(event_message)
-        }
-        TaskMonitorEvent::ControlError {
-            control_type,
-            error,
-        } => {
-            // For now, we'll convert the error to a string representation
-            // This is simplified - in a full implementation you'd want proper error conversion
-            let error_message = format!("{error}");
-            let error_str = fbb.create_string(&error_message);
+                let event_message = fb::TaskMonitorEventMessage::create(
+                    fbb,
+                    &fb::TaskMonitorEventMessageArgs {
+                        event_type: fb::TaskMonitorEvent::ControlProcessed,
+                        event: Some(control_processed.as_union_value()),
+                    },
+                );
 
-            // Create a placeholder error wrapper for now
-            let task_error = fb::TaskErrorWrapper::create(
-                fbb,
-                &fb::TaskErrorWrapperArgs {
-                    error_message: Some(error_str),
-                },
-            );
+                Ok(event_message)
+            }
+            TaskMonitorEvent::ControlError {
+                control_type,
+                error,
+            } => {
+                // For now, we'll convert the error to a string representation
+                // This is simplified - in a full implementation you'd want proper error conversion
+                let error_message = format!("{error}");
+                let error_str = fbb.create_string(&error_message);
 
-            let error_union = fb::TaskMonitorError::TaskError;
+                // Create a placeholder error wrapper for now
+                let task_error = fb::TaskErrorWrapper::create(
+                    fbb,
+                    &fb::TaskErrorWrapperArgs {
+                        error_message: Some(error_str),
+                    },
+                );
 
-            let control_error = fb::ControlErrorEvent::create(
-                fbb,
-                &fb::ControlErrorEventArgs {
-                    control_type: control_type.clone().into(),
-                    error_type: error_union,
-                    error: Some(task_error.as_union_value()),
-                },
-            );
+                let error_union = fb::TaskMonitorError::TaskError;
 
-            let event_message = fb::TaskMonitorEventMessage::create(
-                fbb,
-                &fb::TaskMonitorEventMessageArgs {
-                    event_type: fb::TaskMonitorEvent::ControlError,
-                    event: Some(control_error.as_union_value()),
-                },
-            );
+                let control_error = fb::ControlErrorEvent::create(
+                    fbb,
+                    &fb::ControlErrorEventArgs {
+                        control_type: control_type.clone().into(),
+                        error_type: error_union,
+                        error: Some(task_error.as_union_value()),
+                    },
+                );
 
-            Ok(event_message)
-        }
-        TaskMonitorEvent::AllTasksTerminationRequested => {
-            let empty_event = fb::EmptyEvent::create(fbb, &fb::EmptyEventArgs {});
+                let event_message = fb::TaskMonitorEventMessage::create(
+                    fbb,
+                    &fb::TaskMonitorEventMessageArgs {
+                        event_type: fb::TaskMonitorEvent::ControlError,
+                        event: Some(control_error.as_union_value()),
+                    },
+                );
 
-            let event_message = fb::TaskMonitorEventMessage::create(
-                fbb,
-                &fb::TaskMonitorEventMessageArgs {
-                    event_type: fb::TaskMonitorEvent::AllTasksTerminationRequested,
-                    event: Some(empty_event.as_union_value()),
-                },
-            );
+                Ok(event_message)
+            }
+            TaskMonitorEvent::AllTasksTerminationRequested => {
+                let empty_event = fb::EmptyEvent::create(fbb, &fb::EmptyEventArgs {});
 
-            Ok(event_message)
-        }
-        TaskMonitorEvent::TaskTerminationRequested { task_name } => {
-            let task_name_str = fbb.create_string(task_name);
-            let task_termination = fb::TaskTerminationRequestedEvent::create(
-                fbb,
-                &fb::TaskTerminationRequestedEventArgs {
-                    task_name: Some(task_name_str),
-                },
-            );
+                let event_message = fb::TaskMonitorEventMessage::create(
+                    fbb,
+                    &fb::TaskMonitorEventMessageArgs {
+                        event_type: fb::TaskMonitorEvent::AllTasksTerminationRequested,
+                        event: Some(empty_event.as_union_value()),
+                    },
+                );
 
-            let event_message = fb::TaskMonitorEventMessage::create(
-                fbb,
-                &fb::TaskMonitorEventMessageArgs {
-                    event_type: fb::TaskMonitorEvent::TaskTerminationRequested,
-                    event: Some(task_termination.as_union_value()),
-                },
-            );
+                Ok(event_message)
+            }
+            TaskMonitorEvent::TaskTerminationRequested { task_name } => {
+                let task_name_str = fbb.create_string(task_name);
+                let task_termination = fb::TaskTerminationRequestedEvent::create(
+                    fbb,
+                    &fb::TaskTerminationRequestedEventArgs {
+                        task_name: Some(task_name_str),
+                    },
+                );
 
-            Ok(event_message)
-        }
-        TaskMonitorEvent::StdinSent {
-            task_name,
-            input_length,
-        } => {
-            let task_name_str = fbb.create_string(task_name);
-            let stdin_sent = fb::StdinSentEvent::create(
-                fbb,
-                &fb::StdinSentEventArgs {
-                    task_name: Some(task_name_str),
-                    input_length: *input_length as u32,
-                },
-            );
+                let event_message = fb::TaskMonitorEventMessage::create(
+                    fbb,
+                    &fb::TaskMonitorEventMessageArgs {
+                        event_type: fb::TaskMonitorEvent::TaskTerminationRequested,
+                        event: Some(task_termination.as_union_value()),
+                    },
+                );
 
-            let event_message = fb::TaskMonitorEventMessage::create(
-                fbb,
-                &fb::TaskMonitorEventMessageArgs {
-                    event_type: fb::TaskMonitorEvent::StdinSent,
-                    event: Some(stdin_sent.as_union_value()),
-                },
-            );
+                Ok(event_message)
+            }
+            TaskMonitorEvent::StdinSent {
+                task_name,
+                input_length,
+            } => {
+                let task_name_str = fbb.create_string(task_name);
+                let stdin_sent = fb::StdinSentEvent::create(
+                    fbb,
+                    &fb::StdinSentEventArgs {
+                        task_name: Some(task_name_str),
+                        input_length: *input_length as u32,
+                    },
+                );
 
-            Ok(event_message)
-        }
-        TaskMonitorEvent::StdinError { task_name, error } => {
-            let task_name_str = fbb.create_string(task_name);
-            let stdin_error = fb::StdinErrorEvent::create(
-                fbb,
-                &fb::StdinErrorEventArgs {
-                    task_name: Some(task_name_str),
-                    error: error.clone().into(),
-                },
-            );
+                let event_message = fb::TaskMonitorEventMessage::create(
+                    fbb,
+                    &fb::TaskMonitorEventMessageArgs {
+                        event_type: fb::TaskMonitorEvent::StdinSent,
+                        event: Some(stdin_sent.as_union_value()),
+                    },
+                );
 
-            let event_message = fb::TaskMonitorEventMessage::create(
-                fbb,
-                &fb::TaskMonitorEventMessageArgs {
-                    event_type: fb::TaskMonitorEvent::StdinError,
-                    event: Some(stdin_error.as_union_value()),
-                },
-            );
+                Ok(event_message)
+            }
+            TaskMonitorEvent::StdinError { task_name, error } => {
+                let task_name_str = fbb.create_string(task_name);
+                let stdin_error = fb::StdinErrorEvent::create(
+                    fbb,
+                    &fb::StdinErrorEventArgs {
+                        task_name: Some(task_name_str),
+                        error: error.clone().into(),
+                    },
+                );
 
-            Ok(event_message)
-        }
-        TaskMonitorEvent::Task(task_event) => {
-            // For now, we'll serialize the task event as a placeholder
-            // In a full implementation, you'd want proper TaskEvent to FlatBuffers conversion
-            let event_data = format!("{task_event:?}");
-            let event_bytes = fbb.create_vector(event_data.as_bytes());
+                let event_message = fb::TaskMonitorEventMessage::create(
+                    fbb,
+                    &fb::TaskMonitorEventMessageArgs {
+                        event_type: fb::TaskMonitorEvent::StdinError,
+                        event: Some(stdin_error.as_union_value()),
+                    },
+                );
 
-            let task_wrapper = fb::TaskEventWrapper::create(
-                fbb,
-                &fb::TaskEventWrapperArgs {
-                    event_data: Some(event_bytes),
-                },
-            );
+                Ok(event_message)
+            }
+            TaskMonitorEvent::Task(task_event) => {
+                // For now, we'll serialize the task event as a placeholder
+                // In a full implementation, you'd want proper TaskEvent to FlatBuffers conversion
+                let event_data = format!("{task_event:?}");
+                let event_bytes = fbb.create_vector(event_data.as_bytes());
 
-            let event_message = fb::TaskMonitorEventMessage::create(
-                fbb,
-                &fb::TaskMonitorEventMessageArgs {
-                    event_type: fb::TaskMonitorEvent::Task,
-                    event: Some(task_wrapper.as_union_value()),
-                },
-            );
+                let task_wrapper = fb::TaskEventWrapper::create(
+                    fbb,
+                    &fb::TaskEventWrapperArgs {
+                        event_data: Some(event_bytes),
+                    },
+                );
 
-            Ok(event_message)
+                let event_message = fb::TaskMonitorEventMessage::create(
+                    fbb,
+                    &fb::TaskMonitorEventMessageArgs {
+                        event_type: fb::TaskMonitorEvent::Task,
+                        event: Some(task_wrapper.as_union_value()),
+                    },
+                );
+
+                Ok(event_message)
+            }
         }
     }
 }
@@ -308,118 +314,126 @@ pub fn task_monitor_event_to_flatbuffers<'fbb>(
 /// # Errors
 ///
 /// Returns [`ConversionError`] if the `FlatBuffers` data is invalid or corrupted.
-pub fn task_monitor_event_from_flatbuffers(
-    fb_event_message: fb::TaskMonitorEventMessage,
-) -> Result<TaskMonitorEvent, ConversionError> {
-    match fb_event_message.event_type() {
-        fb::TaskMonitorEvent::ExecutionStarted => {
-            let exec_started = fb_event_message
-                .event_as_execution_started()
-                .ok_or_else(|| {
-                    ConversionError::MissingField("ExecutionStarted event data".to_string())
+impl FromFlatbuffers<fb::TaskMonitorEventMessage<'_>> for TaskMonitorEvent {
+    #[allow(clippy::too_many_lines)]
+    fn from_flatbuffers(
+        fb_event_message: fb::TaskMonitorEventMessage<'_>,
+    ) -> Result<Self, ConversionError> {
+        match fb_event_message.event_type() {
+            fb::TaskMonitorEvent::ExecutionStarted => {
+                let exec_started =
+                    fb_event_message
+                        .event_as_execution_started()
+                        .ok_or_else(|| {
+                            ConversionError::MissingField("ExecutionStarted event data".to_string())
+                        })?;
+
+                Ok(TaskMonitorEvent::ExecutionStarted {
+                    total_tasks: exec_started.total_tasks() as usize,
+                })
+            }
+            fb::TaskMonitorEvent::ExecutionCompleted => {
+                let exec_completed =
+                    fb_event_message
+                        .event_as_execution_completed()
+                        .ok_or_else(|| {
+                            ConversionError::MissingField(
+                                "ExecutionCompleted event data".to_string(),
+                            )
+                        })?;
+
+                Ok(TaskMonitorEvent::ExecutionCompleted {
+                    completed_tasks: exec_completed.completed_tasks() as usize,
+                    failed_tasks: exec_completed.failed_tasks() as usize,
+                })
+            }
+            fb::TaskMonitorEvent::ControlReceived => {
+                let control_received =
+                    fb_event_message
+                        .event_as_control_received()
+                        .ok_or_else(|| {
+                            ConversionError::MissingField("ControlReceived event data".to_string())
+                        })?;
+
+                Ok(TaskMonitorEvent::ControlReceived {
+                    control_type: control_received.control_type().try_into()?,
+                })
+            }
+            fb::TaskMonitorEvent::ControlProcessed => {
+                let control_processed =
+                    fb_event_message
+                        .event_as_control_processed()
+                        .ok_or_else(|| {
+                            ConversionError::MissingField("ControlProcessed event data".to_string())
+                        })?;
+
+                Ok(TaskMonitorEvent::ControlProcessed {
+                    control_type: control_processed.control_type().try_into()?,
+                })
+            }
+            fb::TaskMonitorEvent::AllTasksTerminationRequested => {
+                Ok(TaskMonitorEvent::AllTasksTerminationRequested)
+            }
+            fb::TaskMonitorEvent::TaskTerminationRequested => {
+                let task_termination = fb_event_message
+                    .event_as_task_termination_requested()
+                    .ok_or_else(|| {
+                        ConversionError::MissingField(
+                            "TaskTerminationRequested event data".to_string(),
+                        )
+                    })?;
+
+                let task_name = task_termination.task_name().to_string();
+
+                Ok(TaskMonitorEvent::TaskTerminationRequested { task_name })
+            }
+            fb::TaskMonitorEvent::StdinSent => {
+                let stdin_sent = fb_event_message.event_as_stdin_sent().ok_or_else(|| {
+                    ConversionError::MissingField("StdinSent event data".to_string())
                 })?;
 
-            Ok(TaskMonitorEvent::ExecutionStarted {
-                total_tasks: exec_started.total_tasks() as usize,
-            })
-        }
-        fb::TaskMonitorEvent::ExecutionCompleted => {
-            let exec_completed =
-                fb_event_message
-                    .event_as_execution_completed()
-                    .ok_or_else(|| {
-                        ConversionError::MissingField("ExecutionCompleted event data".to_string())
-                    })?;
+                let task_name = stdin_sent.task_name().to_string();
 
-            Ok(TaskMonitorEvent::ExecutionCompleted {
-                completed_tasks: exec_completed.completed_tasks() as usize,
-                failed_tasks: exec_completed.failed_tasks() as usize,
-            })
-        }
-        fb::TaskMonitorEvent::ControlReceived => {
-            let control_received =
-                fb_event_message
-                    .event_as_control_received()
-                    .ok_or_else(|| {
-                        ConversionError::MissingField("ControlReceived event data".to_string())
-                    })?;
-
-            Ok(TaskMonitorEvent::ControlReceived {
-                control_type: control_received.control_type().try_into()?,
-            })
-        }
-        fb::TaskMonitorEvent::ControlProcessed => {
-            let control_processed =
-                fb_event_message
-                    .event_as_control_processed()
-                    .ok_or_else(|| {
-                        ConversionError::MissingField("ControlProcessed event data".to_string())
-                    })?;
-
-            Ok(TaskMonitorEvent::ControlProcessed {
-                control_type: control_processed.control_type().try_into()?,
-            })
-        }
-        fb::TaskMonitorEvent::AllTasksTerminationRequested => {
-            Ok(TaskMonitorEvent::AllTasksTerminationRequested)
-        }
-        fb::TaskMonitorEvent::TaskTerminationRequested => {
-            let task_termination = fb_event_message
-                .event_as_task_termination_requested()
-                .ok_or_else(|| {
-                    ConversionError::MissingField("TaskTerminationRequested event data".to_string())
+                Ok(TaskMonitorEvent::StdinSent {
+                    task_name,
+                    input_length: stdin_sent.input_length() as usize,
+                })
+            }
+            fb::TaskMonitorEvent::StdinError => {
+                let stdin_error = fb_event_message.event_as_stdin_error().ok_or_else(|| {
+                    ConversionError::MissingField("StdinError event data".to_string())
                 })?;
 
-            let task_name = task_termination.task_name().to_string();
+                let task_name = stdin_error.task_name().to_string();
 
-            Ok(TaskMonitorEvent::TaskTerminationRequested { task_name })
+                let error_reason: SendStdinErrorReason = stdin_error.error().try_into()?;
+
+                // Update the error reason with the actual task name
+                let updated_error = match error_reason {
+                    SendStdinErrorReason::TaskNotFound(_) => {
+                        SendStdinErrorReason::TaskNotFound(task_name.clone())
+                    }
+                    SendStdinErrorReason::StdinNotEnabled(_) => {
+                        SendStdinErrorReason::StdinNotEnabled(task_name.clone())
+                    }
+                    SendStdinErrorReason::TaskNotReady(_) => {
+                        SendStdinErrorReason::TaskNotReady(task_name.clone())
+                    }
+                    SendStdinErrorReason::ChannelClosed(_) => {
+                        SendStdinErrorReason::ChannelClosed(task_name.clone())
+                    }
+                };
+
+                Ok(TaskMonitorEvent::StdinError {
+                    task_name,
+                    error: updated_error,
+                })
+            }
+            _ => Err(ConversionError::UnsupportedEventType(format!(
+                "Unsupported TaskMonitorEvent type: {:?}",
+                fb_event_message.event_type()
+            ))),
         }
-        fb::TaskMonitorEvent::StdinSent => {
-            let stdin_sent = fb_event_message
-                .event_as_stdin_sent()
-                .ok_or_else(|| ConversionError::MissingField("StdinSent event data".to_string()))?;
-
-            let task_name = stdin_sent.task_name().to_string();
-
-            Ok(TaskMonitorEvent::StdinSent {
-                task_name,
-                input_length: stdin_sent.input_length() as usize,
-            })
-        }
-        fb::TaskMonitorEvent::StdinError => {
-            let stdin_error = fb_event_message.event_as_stdin_error().ok_or_else(|| {
-                ConversionError::MissingField("StdinError event data".to_string())
-            })?;
-
-            let task_name = stdin_error.task_name().to_string();
-
-            let error_reason: SendStdinErrorReason = stdin_error.error().try_into()?;
-
-            // Update the error reason with the actual task name
-            let updated_error = match error_reason {
-                SendStdinErrorReason::TaskNotFound(_) => {
-                    SendStdinErrorReason::TaskNotFound(task_name.clone())
-                }
-                SendStdinErrorReason::StdinNotEnabled(_) => {
-                    SendStdinErrorReason::StdinNotEnabled(task_name.clone())
-                }
-                SendStdinErrorReason::TaskNotReady(_) => {
-                    SendStdinErrorReason::TaskNotReady(task_name.clone())
-                }
-                SendStdinErrorReason::ChannelClosed(_) => {
-                    SendStdinErrorReason::ChannelClosed(task_name.clone())
-                }
-            };
-
-            Ok(TaskMonitorEvent::StdinError {
-                task_name,
-                error: updated_error,
-            })
-        }
-        _ => Err(ConversionError::UnsupportedEventType(format!(
-            "Unsupported TaskMonitorEvent type: {:?}",
-            fb_event_message.event_type()
-        ))),
     }
 }
 
@@ -480,14 +494,14 @@ mod tests {
 
         let event = TaskMonitorEvent::ExecutionStarted { total_tasks: 5 };
 
-        // Convert to FlatBuffers
-        let fb_event = task_monitor_event_to_flatbuffers(&event, &mut fbb).unwrap();
+        // Convert to FlatBuffers using trait
+        let fb_event = event.to_flatbuffers(&mut fbb).unwrap();
         fbb.finish(fb_event, None);
 
-        // Convert back from FlatBuffers
+        // Convert back from FlatBuffers using trait
         let buffer = fbb.finished_data();
         let fb_event_message = flatbuffers::root::<fb::TaskMonitorEventMessage>(&buffer).unwrap();
-        let converted_event = task_monitor_event_from_flatbuffers(fb_event_message).unwrap();
+        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message).unwrap();
 
         match converted_event {
             TaskMonitorEvent::ExecutionStarted { total_tasks } => {
@@ -506,14 +520,14 @@ mod tests {
             input_length: 42,
         };
 
-        // Convert to FlatBuffers
-        let fb_event = task_monitor_event_to_flatbuffers(&event, &mut fbb).unwrap();
+        // Convert to FlatBuffers using trait
+        let fb_event = event.to_flatbuffers(&mut fbb).unwrap();
         fbb.finish(fb_event, None);
 
-        // Convert back from FlatBuffers
+        // Convert back from FlatBuffers using trait
         let buffer = fbb.finished_data();
         let fb_event_message = flatbuffers::root::<fb::TaskMonitorEventMessage>(&buffer).unwrap();
-        let converted_event = task_monitor_event_from_flatbuffers(fb_event_message).unwrap();
+        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message).unwrap();
 
         match converted_event {
             TaskMonitorEvent::StdinSent {
@@ -533,14 +547,14 @@ mod tests {
 
         let event = TaskMonitorEvent::AllTasksTerminationRequested;
 
-        // Convert to FlatBuffers
-        let fb_event = task_monitor_event_to_flatbuffers(&event, &mut fbb).unwrap();
+        // Convert to FlatBuffers using trait
+        let fb_event = event.to_flatbuffers(&mut fbb).unwrap();
         fbb.finish(fb_event, None);
 
-        // Convert back from FlatBuffers
+        // Convert back from FlatBuffers using trait
         let buffer = fbb.finished_data();
         let fb_event_message = flatbuffers::root::<fb::TaskMonitorEventMessage>(&buffer).unwrap();
-        let converted_event = task_monitor_event_from_flatbuffers(fb_event_message).unwrap();
+        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message).unwrap();
 
         match converted_event {
             TaskMonitorEvent::AllTasksTerminationRequested => {
