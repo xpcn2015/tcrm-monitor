@@ -73,6 +73,12 @@ impl TryFrom<fb::SendStdinErrorReason> for SendStdinErrorReason {
 /// Serializes task monitor events into `FlatBuffers` binary representation
 /// for efficient storage and transmission. Handles all event types including
 /// execution events, task events, and control events.
+///
+/// # Errors
+///
+/// Returns [`ConversionError`] if the conversion to `FlatBuffers` format fails.
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::cast_possible_truncation)]
 pub fn task_monitor_event_to_flatbuffers<'fbb>(
     event: &TaskMonitorEvent,
     fbb: &mut FlatBufferBuilder<'fbb>,
@@ -298,6 +304,10 @@ pub fn task_monitor_event_to_flatbuffers<'fbb>(
 /// Deserializes `FlatBuffers` binary data back into `TaskMonitorEvent` instances.
 /// Handles all event types and validates the data during conversion.
 /// Returns conversion errors for invalid or corrupted data.
+///
+/// # Errors
+///
+/// Returns [`ConversionError`] if the `FlatBuffers` data is invalid or corrupted.
 pub fn task_monitor_event_from_flatbuffers(
     fb_event_message: fb::TaskMonitorEventMessage,
 ) -> Result<TaskMonitorEvent, ConversionError> {

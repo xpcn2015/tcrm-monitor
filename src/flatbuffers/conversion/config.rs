@@ -58,6 +58,10 @@ pub trait ToFlatbuffers<'a> {
     ///
     /// Returns the `FlatBuffers` offset for the serialized data, or a
     /// [`ConversionError`] if serialization fails.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConversionError`] if the `FlatBuffers` data is invalid or corrupted.
     fn to_flatbuffers(
         &self,
         fbb: &mut FlatBufferBuilder<'a>,
