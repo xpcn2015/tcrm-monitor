@@ -324,9 +324,13 @@ impl TaskMonitor {
 
         // Send execution started event
         if let Some(ref tx) = event_tx {
-            let _ = tx
+            if let Err(_) = tx
                 .send(TaskMonitorEvent::ExecutionStarted { total_tasks })
-                .await;
+                .await
+            {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("Event channel closed while sending ExecutionStarted");
+            }
         }
         let (task_event_tx, mut task_event_rx) = mpsc::channel::<TaskEvent>(1024);
         self.start_independent_tasks_direct(&task_event_tx).await;
@@ -427,9 +431,12 @@ impl TaskMonitor {
 
                             // Send control received event
                             if let Some(ref tx) = event_tx {
-                                let _ = tx.send(TaskMonitorEvent::ControlReceived {
+                                if let Err(_) = tx.send(TaskMonitorEvent::ControlReceived {
                                     control_type: control_type.clone()
-                                }).await;
+                                }).await {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::warn!("Event channel closed while sending ControlReceived");
+                                }
                             }
 
                             #[cfg(feature = "tracing")]
@@ -437,7 +444,10 @@ impl TaskMonitor {
 
                             // Send all tasks termination requested event
                             if let Some(ref tx) = event_tx {
-                                let _ = tx.send(TaskMonitorEvent::AllTasksTerminationRequested).await;
+                                if let Err(_) = tx.send(TaskMonitorEvent::AllTasksTerminationRequested).await {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::warn!("Event channel closed while sending AllTasksTerminationRequested");
+                                }
                             }
 
                             should_stop = true;
@@ -445,9 +455,12 @@ impl TaskMonitor {
 
                             // Send control processed event
                             if let Some(ref tx) = event_tx {
-                                let _ = tx.send(TaskMonitorEvent::ControlProcessed {
+                                if let Err(_) = tx.send(TaskMonitorEvent::ControlProcessed {
                                     control_type
-                                }).await;
+                                }).await {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::warn!("Event channel closed while sending ControlProcessed");
+                                }
                             }
                         }
                         Some(TaskMonitorControl::TerminateTask { task_name}) => {
@@ -455,9 +468,12 @@ impl TaskMonitor {
 
                             // Send control received event
                             if let Some(ref tx) = event_tx {
-                                let _ = tx.send(TaskMonitorEvent::ControlReceived {
+                                if let Err(_) = tx.send(TaskMonitorEvent::ControlReceived {
                                     control_type: control_type.clone()
-                                }).await;
+                                }).await {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::warn!("Event channel closed while sending ControlReceived");
+                                }
                             }
 
                             #[cfg(feature = "tracing")]
@@ -465,18 +481,24 @@ impl TaskMonitor {
 
                             // Send task termination requested event
                             if let Some(ref tx) = event_tx {
-                                let _ = tx.send(TaskMonitorEvent::TaskTerminationRequested {
+                                if let Err(_) = tx.send(TaskMonitorEvent::TaskTerminationRequested {
                                     task_name: task_name.clone()
-                                }).await;
+                                }).await {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::warn!("Event channel closed while sending TaskTerminationRequested");
+                                }
                             }
 
                             self.terminate_task(&task_name, TaskTerminateReason::Custom("User requested".to_string())).await;
 
                             // Send control processed event
                             if let Some(ref tx) = event_tx {
-                                let _ = tx.send(TaskMonitorEvent::ControlProcessed {
+                                if let Err(_) = tx.send(TaskMonitorEvent::ControlProcessed {
                                     control_type
-                                }).await;
+                                }).await {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::warn!("Event channel closed while sending ControlProcessed");
+                                }
                             }
                         }
                         Some(TaskMonitorControl::SendStdin { task_name, input }) => {
@@ -484,9 +506,12 @@ impl TaskMonitor {
 
                             // Send control received event
                             if let Some(ref tx) = event_tx {
-                                let _ = tx.send(TaskMonitorEvent::ControlReceived {
+                                if let Err(_) = tx.send(TaskMonitorEvent::ControlReceived {
                                     control_type: control_type.clone()
-                                }).await;
+                                }).await {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::warn!("Event channel closed while sending ControlReceived");
+                                }
                             }
 
                             #[cfg(feature = "tracing")]
@@ -496,17 +521,23 @@ impl TaskMonitor {
                                 Ok(()) => {
                                     // Send stdin success event
                                     if let Some(ref tx) = event_tx {
-                                        let _ = tx.send(TaskMonitorEvent::StdinSent {
+                                        if let Err(_) = tx.send(TaskMonitorEvent::StdinSent {
                                             task_name: task_name.clone(),
                                             input_length: input.len()
-                                        }).await;
+                                        }).await {
+                                            #[cfg(feature = "tracing")]
+                                            tracing::warn!("Event channel closed while sending StdinSent");
+                                        }
                                     }
 
                                     // Send control processed event
                                     if let Some(ref tx) = event_tx {
-                                        let _ = tx.send(TaskMonitorEvent::ControlProcessed {
+                                        if let Err(_) = tx.send(TaskMonitorEvent::ControlProcessed {
                                             control_type
-                                        }).await;
+                                        }).await {
+                                            #[cfg(feature = "tracing")]
+                                            tracing::warn!("Event channel closed while sending ControlProcessed");
+                                        }
                                     }
                                 }
                                 Err(TaskMonitorError::SendStdinError(error)) => {
@@ -515,18 +546,24 @@ impl TaskMonitor {
 
                                     // Send stdin error event
                                     if let Some(ref tx) = event_tx {
-                                        let _ = tx.send(TaskMonitorEvent::StdinError {
+                                        if let Err(_) = tx.send(TaskMonitorEvent::StdinError {
                                             task_name: task_name.clone(),
                                             error: error.clone()
-                                        }).await;
+                                        }).await {
+                                            #[cfg(feature = "tracing")]
+                                            tracing::warn!("Event channel closed while sending StdinError");
+                                        }
                                     }
 
                                     // Send control error event
                                     if let Some(ref tx) = event_tx {
-                                        let _ = tx.send(TaskMonitorEvent::ControlError {
+                                        if let Err(_) = tx.send(TaskMonitorEvent::ControlError {
                                             control_type,
                                             error: TaskMonitorError::SendStdinError(error)
-                                        }).await;
+                                        }).await {
+                                            #[cfg(feature = "tracing")]
+                                            tracing::warn!("Event channel closed while sending ControlError");
+                                        }
                                     }
                                 }
                                 Err(other_error) => {
@@ -535,10 +572,13 @@ impl TaskMonitor {
 
                                     // Send control error event for other errors
                                     if let Some(ref tx) = event_tx {
-                                        let _ = tx.send(TaskMonitorEvent::ControlError {
+                                        if let Err(_) = tx.send(TaskMonitorEvent::ControlError {
                                             control_type,
                                             error: other_error
-                                        }).await;
+                                        }).await {
+                                            #[cfg(feature = "tracing")]
+                                            tracing::warn!("Event channel closed while sending ControlError");
+                                        }
                                     }
                                 }
                             }
@@ -554,12 +594,16 @@ impl TaskMonitor {
 
         // Send execution completed event
         if let Some(ref tx) = event_tx {
-            let _ = tx
+            if let Err(_) = tx
                 .send(TaskMonitorEvent::ExecutionCompleted {
                     completed_tasks,
                     failed_tasks,
                 })
-                .await;
+                .await
+            {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("Event channel closed while sending ExecutionCompleted");
+            }
         }
 
         // If stop was requested, wait a bit for graceful shutdown
