@@ -12,7 +12,7 @@
 //!
 //! - **Dependency Management**: Define task graphs with automatic dependency validation and circular dependency detection
 //! - **Parallel Execution**: Execute independent tasks concurrently while respecting dependency order
-//! - **Shell Integration**: Support running from shell (Bash, Zsh, Fish, Sh, PowerShell, CMD) based on OS
+//! - **Shell Integration**: Support for running tasks from various shells (Bash, Zsh, Fish, Sh, PowerShell, CMD) based on OS
 //! - **Real-time Events**: Monitor task execution with detailed event streams
 //! - **Runtime Control**: Stop tasks, send stdin input, and terminate specific tasks during execution
 //! - **Serialization**: Optional flatbuffers and serde support for task configuration
