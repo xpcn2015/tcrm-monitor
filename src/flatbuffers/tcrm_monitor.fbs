@@ -88,12 +88,6 @@ table StdinErrorEvent {
   error: SendStdinErrorReason;
 }
 
-table TaskEventWrapper {
-  // This wraps the TaskEvent from the Task namespace
-  // The actual event details would be in the Task namespace
-  event_data: [uint8] (required);
-}
-
 union TaskMonitorEvent {
   ExecutionStarted: ExecutionStartedEvent,
   ExecutionCompleted: ExecutionCompletedEvent,
@@ -104,7 +98,7 @@ union TaskMonitorEvent {
   TaskTerminationRequested: TaskTerminationRequestedEvent,
   StdinSent: StdinSentEvent,
   StdinError: StdinErrorEvent,
-  Task: TaskEventWrapper
+  Task: TCRM.Task.TaskEventWrapper
 }
 
 table EmptyEvent {

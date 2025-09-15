@@ -34,7 +34,10 @@ pub mod tcrm {
 
         use core::cmp::Ordering;
         use core::mem;
-        use tcrm_task::flatbuffers::tcrm_task_generated::{tcrm::task::TaskConfig, *};
+        use tcrm_task::flatbuffers::tcrm_task_generated::{
+            tcrm::task::{TaskConfig, TaskEventWrapper},
+            *,
+        };
 
         extern crate flatbuffers;
         use self::flatbuffers::{EndianScalar, Follow};
@@ -80,7 +83,6 @@ pub mod tcrm {
                 Self::ChannelClosed,
             ];
             /// Returns the variant's name or "" if unknown.
-            #[must_use]
             pub fn variant_name(self) -> Option<&'static str> {
                 match self {
                     Self::TaskNotFound => Some("TaskNotFound"),
@@ -190,7 +192,6 @@ pub mod tcrm {
                 Self::TaskError,
             ];
             /// Returns the variant's name or "" if unknown.
-            #[must_use]
             pub fn variant_name(self) -> Option<&'static str> {
                 match self {
                     Self::NONE => Some("NONE"),
@@ -292,7 +293,6 @@ pub mod tcrm {
             pub const ENUM_VALUES: &'static [Self] =
                 &[Self::Stop, Self::TerminateTask, Self::SendStdin];
             /// Returns the variant's name or "" if unknown.
-            #[must_use]
             pub fn variant_name(self) -> Option<&'static str> {
                 match self {
                     Self::Stop => Some("Stop"),
@@ -416,7 +416,6 @@ pub mod tcrm {
                 Self::Task,
             ];
             /// Returns the variant's name or "" if unknown.
-            #[must_use]
             pub fn variant_name(self) -> Option<&'static str> {
                 match self {
                     Self::NONE => Some("NONE"),
@@ -541,7 +540,6 @@ pub mod tcrm {
                 Self::Fish,
             ];
             /// Returns the variant's name or "" if unknown.
-            #[must_use]
             pub fn variant_name(self) -> Option<&'static str> {
                 match self {
                     Self::None => Some("None"),
@@ -629,7 +627,6 @@ pub mod tcrm {
             pub const VT_MESSAGE: flatbuffers::VOffsetT = 4;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 ConfigParseError { _tab: table }
             }
@@ -651,7 +648,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn message(&self) -> &'a str {
                 // Safety:
                 // Created from valid Table for this object
@@ -687,7 +683,7 @@ pub mod tcrm {
         pub struct ConfigParseErrorArgs<'a> {
             pub message: Option<flatbuffers::WIPOffset<&'a str>>,
         }
-        impl Default for ConfigParseErrorArgs<'_> {
+        impl<'a> Default for ConfigParseErrorArgs<'a> {
             #[inline]
             fn default() -> Self {
                 ConfigParseErrorArgs {
@@ -719,7 +715,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<ConfigParseError<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_
@@ -756,7 +751,6 @@ pub mod tcrm {
             pub const VT_TASK_NAME: flatbuffers::VOffsetT = 4;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 CircularDependencyError { _tab: table }
             }
@@ -778,7 +772,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn task_name(&self) -> &'a str {
                 // Safety:
                 // Created from valid Table for this object
@@ -814,7 +807,7 @@ pub mod tcrm {
         pub struct CircularDependencyErrorArgs<'a> {
             pub task_name: Option<flatbuffers::WIPOffset<&'a str>>,
         }
-        impl Default for CircularDependencyErrorArgs<'_> {
+        impl<'a> Default for CircularDependencyErrorArgs<'a> {
             #[inline]
             fn default() -> Self {
                 CircularDependencyErrorArgs {
@@ -846,7 +839,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<CircularDependencyError<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_
@@ -884,7 +876,6 @@ pub mod tcrm {
             pub const VT_TASK: flatbuffers::VOffsetT = 6;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 DependencyNotFoundError { _tab: table }
             }
@@ -909,7 +900,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn dependency(&self) -> &'a str {
                 // Safety:
                 // Created from valid Table for this object
@@ -924,7 +914,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn task(&self) -> &'a str {
                 // Safety:
                 // Created from valid Table for this object
@@ -962,7 +951,7 @@ pub mod tcrm {
             pub dependency: Option<flatbuffers::WIPOffset<&'a str>>,
             pub task: Option<flatbuffers::WIPOffset<&'a str>>,
         }
-        impl Default for DependencyNotFoundErrorArgs<'_> {
+        impl<'a> Default for DependencyNotFoundErrorArgs<'a> {
             #[inline]
             fn default() -> Self {
                 DependencyNotFoundErrorArgs {
@@ -1002,7 +991,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<DependencyNotFoundError<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_
@@ -1043,7 +1031,6 @@ pub mod tcrm {
             pub const VT_TASK_NAME: flatbuffers::VOffsetT = 6;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 SendStdinError { _tab: table }
             }
@@ -1066,7 +1053,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn reason(&self) -> SendStdinErrorReason {
                 // Safety:
                 // Created from valid Table for this object
@@ -1081,7 +1067,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn task_name(&self) -> &'a str {
                 // Safety:
                 // Created from valid Table for this object
@@ -1119,7 +1104,7 @@ pub mod tcrm {
             pub reason: SendStdinErrorReason,
             pub task_name: Option<flatbuffers::WIPOffset<&'a str>>,
         }
-        impl Default for SendStdinErrorArgs<'_> {
+        impl<'a> Default for SendStdinErrorArgs<'a> {
             #[inline]
             fn default() -> Self {
                 SendStdinErrorArgs {
@@ -1160,7 +1145,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<SendStdinError<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_
@@ -1198,7 +1182,6 @@ pub mod tcrm {
             pub const VT_ERROR_MESSAGE: flatbuffers::VOffsetT = 4;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 TaskErrorWrapper { _tab: table }
             }
@@ -1220,7 +1203,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn error_message(&self) -> &'a str {
                 // Safety:
                 // Created from valid Table for this object
@@ -1256,7 +1238,7 @@ pub mod tcrm {
         pub struct TaskErrorWrapperArgs<'a> {
             pub error_message: Option<flatbuffers::WIPOffset<&'a str>>,
         }
-        impl Default for TaskErrorWrapperArgs<'_> {
+        impl<'a> Default for TaskErrorWrapperArgs<'a> {
             #[inline]
             fn default() -> Self {
                 TaskErrorWrapperArgs {
@@ -1288,7 +1270,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<TaskErrorWrapper<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_
@@ -1325,7 +1306,6 @@ pub mod tcrm {
             pub const VT_TOTAL_TASKS: flatbuffers::VOffsetT = 4;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 ExecutionStartedEvent { _tab: table }
             }
@@ -1345,7 +1325,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn total_tasks(&self) -> u32 {
                 // Safety:
                 // Created from valid Table for this object
@@ -1402,7 +1381,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<ExecutionStartedEvent<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 flatbuffers::WIPOffset::new(o.value())
@@ -1438,7 +1416,6 @@ pub mod tcrm {
             pub const VT_FAILED_TASKS: flatbuffers::VOffsetT = 6;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 ExecutionCompletedEvent { _tab: table }
             }
@@ -1459,7 +1436,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn completed_tasks(&self) -> u32 {
                 // Safety:
                 // Created from valid Table for this object
@@ -1471,7 +1447,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn failed_tasks(&self) -> u32 {
                 // Safety:
                 // Created from valid Table for this object
@@ -1544,7 +1519,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<ExecutionCompletedEvent<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 flatbuffers::WIPOffset::new(o.value())
@@ -1580,7 +1554,6 @@ pub mod tcrm {
             pub const VT_CONTROL_TYPE: flatbuffers::VOffsetT = 4;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 ControlReceivedEvent { _tab: table }
             }
@@ -1600,7 +1573,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn control_type(&self) -> TaskMonitorControlType {
                 // Safety:
                 // Created from valid Table for this object
@@ -1669,7 +1641,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<ControlReceivedEvent<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 flatbuffers::WIPOffset::new(o.value())
@@ -1704,7 +1675,6 @@ pub mod tcrm {
             pub const VT_CONTROL_TYPE: flatbuffers::VOffsetT = 4;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 ControlProcessedEvent { _tab: table }
             }
@@ -1724,7 +1694,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn control_type(&self) -> TaskMonitorControlType {
                 // Safety:
                 // Created from valid Table for this object
@@ -1793,7 +1762,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<ControlProcessedEvent<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 flatbuffers::WIPOffset::new(o.value())
@@ -1830,7 +1798,6 @@ pub mod tcrm {
             pub const VT_ERROR: flatbuffers::VOffsetT = 8;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 ControlErrorEvent { _tab: table }
             }
@@ -1854,7 +1821,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn control_type(&self) -> TaskMonitorControlType {
                 // Safety:
                 // Created from valid Table for this object
@@ -1869,7 +1835,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn error_type(&self) -> TaskMonitorError {
                 // Safety:
                 // Created from valid Table for this object
@@ -1884,7 +1849,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn error(&self) -> flatbuffers::Table<'a> {
                 // Safety:
                 // Created from valid Table for this object
@@ -1900,7 +1864,6 @@ pub mod tcrm {
             }
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn error_as_config_parse(&self) -> Option<ConfigParseError<'a>> {
                 if self.error_type() == TaskMonitorError::ConfigParse {
                     let u = self.error();
@@ -1915,7 +1878,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn error_as_circular_dependency(&self) -> Option<CircularDependencyError<'a>> {
                 if self.error_type() == TaskMonitorError::CircularDependency {
                     let u = self.error();
@@ -1930,7 +1892,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn error_as_dependency_not_found(&self) -> Option<DependencyNotFoundError<'a>> {
                 if self.error_type() == TaskMonitorError::DependencyNotFound {
                     let u = self.error();
@@ -1945,7 +1906,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn error_as_send_stdin(&self) -> Option<SendStdinError<'a>> {
                 if self.error_type() == TaskMonitorError::SendStdin {
                     let u = self.error();
@@ -1960,7 +1920,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn error_as_task_error(&self) -> Option<TaskErrorWrapper<'a>> {
                 if self.error_type() == TaskMonitorError::TaskError {
                     let u = self.error();
@@ -2055,7 +2014,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<ControlErrorEvent<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_.required(o, ControlErrorEvent::VT_ERROR, "error");
@@ -2148,7 +2106,6 @@ pub mod tcrm {
             pub const VT_TASK_NAME: flatbuffers::VOffsetT = 4;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 TaskTerminationRequestedEvent { _tab: table }
             }
@@ -2170,7 +2127,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn task_name(&self) -> &'a str {
                 // Safety:
                 // Created from valid Table for this object
@@ -2206,7 +2162,7 @@ pub mod tcrm {
         pub struct TaskTerminationRequestedEventArgs<'a> {
             pub task_name: Option<flatbuffers::WIPOffset<&'a str>>,
         }
-        impl Default for TaskTerminationRequestedEventArgs<'_> {
+        impl<'a> Default for TaskTerminationRequestedEventArgs<'a> {
             #[inline]
             fn default() -> Self {
                 TaskTerminationRequestedEventArgs {
@@ -2238,7 +2194,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<TaskTerminationRequestedEvent<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_
@@ -2276,7 +2231,6 @@ pub mod tcrm {
             pub const VT_INPUT_LENGTH: flatbuffers::VOffsetT = 6;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 StdinSentEvent { _tab: table }
             }
@@ -2299,7 +2253,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn task_name(&self) -> &'a str {
                 // Safety:
                 // Created from valid Table for this object
@@ -2314,7 +2267,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn input_length(&self) -> u32 {
                 // Safety:
                 // Created from valid Table for this object
@@ -2349,7 +2301,7 @@ pub mod tcrm {
             pub task_name: Option<flatbuffers::WIPOffset<&'a str>>,
             pub input_length: u32,
         }
-        impl Default for StdinSentEventArgs<'_> {
+        impl<'a> Default for StdinSentEventArgs<'a> {
             #[inline]
             fn default() -> Self {
                 StdinSentEventArgs {
@@ -2387,7 +2339,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<StdinSentEvent<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_
@@ -2426,7 +2377,6 @@ pub mod tcrm {
             pub const VT_ERROR: flatbuffers::VOffsetT = 6;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 StdinErrorEvent { _tab: table }
             }
@@ -2449,7 +2399,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn task_name(&self) -> &'a str {
                 // Safety:
                 // Created from valid Table for this object
@@ -2464,7 +2413,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn error(&self) -> SendStdinErrorReason {
                 // Safety:
                 // Created from valid Table for this object
@@ -2502,7 +2450,7 @@ pub mod tcrm {
             pub task_name: Option<flatbuffers::WIPOffset<&'a str>>,
             pub error: SendStdinErrorReason,
         }
-        impl Default for StdinErrorEventArgs<'_> {
+        impl<'a> Default for StdinErrorEventArgs<'a> {
             #[inline]
             fn default() -> Self {
                 StdinErrorEventArgs {
@@ -2543,7 +2491,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<StdinErrorEvent<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_
@@ -2557,136 +2504,6 @@ pub mod tcrm {
                 let mut ds = f.debug_struct("StdinErrorEvent");
                 ds.field("task_name", &self.task_name());
                 ds.field("error", &self.error());
-                ds.finish()
-            }
-        }
-        pub enum TaskEventWrapperOffset {}
-        #[derive(Copy, Clone, PartialEq)]
-
-        pub struct TaskEventWrapper<'a> {
-            pub _tab: flatbuffers::Table<'a>,
-        }
-
-        impl<'a> flatbuffers::Follow<'a> for TaskEventWrapper<'a> {
-            type Inner = TaskEventWrapper<'a>;
-            #[inline]
-            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-                Self {
-                    _tab: unsafe { flatbuffers::Table::new(buf, loc) },
-                }
-            }
-        }
-
-        impl<'a> TaskEventWrapper<'a> {
-            pub const VT_EVENT_DATA: flatbuffers::VOffsetT = 4;
-
-            #[inline]
-            #[must_use]
-            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
-                TaskEventWrapper { _tab: table }
-            }
-            #[allow(unused_mut)]
-            pub fn create<
-                'bldr: 'args,
-                'args: 'mut_bldr,
-                'mut_bldr,
-                A: flatbuffers::Allocator + 'bldr,
-            >(
-                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
-                args: &'args TaskEventWrapperArgs<'args>,
-            ) -> flatbuffers::WIPOffset<TaskEventWrapper<'bldr>> {
-                let mut builder = TaskEventWrapperBuilder::new(_fbb);
-                if let Some(x) = args.event_data {
-                    builder.add_event_data(x);
-                }
-                builder.finish()
-            }
-
-            #[inline]
-            #[must_use]
-            pub fn event_data(&self) -> flatbuffers::Vector<'a, u8> {
-                // Safety:
-                // Created from valid Table for this object
-                // which contains a valid value in this slot
-                unsafe {
-                    self._tab
-                        .get::<flatbuffers::ForwardsUOffset<flatbuffers::Vector<'a, u8>>>(
-                            TaskEventWrapper::VT_EVENT_DATA,
-                            None,
-                        )
-                        .unwrap()
-                }
-            }
-        }
-
-        impl flatbuffers::Verifiable for TaskEventWrapper<'_> {
-            #[inline]
-            fn run_verifier(
-                v: &mut flatbuffers::Verifier,
-                pos: usize,
-            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
-                use self::flatbuffers::Verifiable;
-                v.visit_table(pos)?
-                    .visit_field::<flatbuffers::ForwardsUOffset<flatbuffers::Vector<'_, u8>>>(
-                        "event_data",
-                        Self::VT_EVENT_DATA,
-                        true,
-                    )?
-                    .finish();
-                Ok(())
-            }
-        }
-        pub struct TaskEventWrapperArgs<'a> {
-            pub event_data: Option<flatbuffers::WIPOffset<flatbuffers::Vector<'a, u8>>>,
-        }
-        impl Default for TaskEventWrapperArgs<'_> {
-            #[inline]
-            fn default() -> Self {
-                TaskEventWrapperArgs {
-                    event_data: None, // required field
-                }
-            }
-        }
-
-        pub struct TaskEventWrapperBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
-            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
-            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
-        }
-        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TaskEventWrapperBuilder<'a, 'b, A> {
-            #[inline]
-            pub fn add_event_data(
-                &mut self,
-                event_data: flatbuffers::WIPOffset<flatbuffers::Vector<'b, u8>>,
-            ) {
-                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                    TaskEventWrapper::VT_EVENT_DATA,
-                    event_data,
-                );
-            }
-            #[inline]
-            pub fn new(
-                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
-            ) -> TaskEventWrapperBuilder<'a, 'b, A> {
-                let start = _fbb.start_table();
-                TaskEventWrapperBuilder {
-                    fbb_: _fbb,
-                    start_: start,
-                }
-            }
-            #[inline]
-            #[must_use]
-            pub fn finish(self) -> flatbuffers::WIPOffset<TaskEventWrapper<'a>> {
-                let o = self.fbb_.end_table(self.start_);
-                self.fbb_
-                    .required(o, TaskEventWrapper::VT_EVENT_DATA, "event_data");
-                flatbuffers::WIPOffset::new(o.value())
-            }
-        }
-
-        impl core::fmt::Debug for TaskEventWrapper<'_> {
-            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                let mut ds = f.debug_struct("TaskEventWrapper");
-                ds.field("event_data", &self.event_data());
                 ds.finish()
             }
         }
@@ -2709,7 +2526,6 @@ pub mod tcrm {
 
         impl<'a> EmptyEvent<'a> {
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 EmptyEvent { _tab: table }
             }
@@ -2763,7 +2579,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<EmptyEvent<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 flatbuffers::WIPOffset::new(o.value())
@@ -2798,7 +2613,6 @@ pub mod tcrm {
             pub const VT_EVENT: flatbuffers::VOffsetT = 6;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 TaskMonitorEventMessage { _tab: table }
             }
@@ -2821,7 +2635,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn event_type(&self) -> TaskMonitorEvent {
                 // Safety:
                 // Created from valid Table for this object
@@ -2836,7 +2649,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn event(&self) -> flatbuffers::Table<'a> {
                 // Safety:
                 // Created from valid Table for this object
@@ -2852,7 +2664,6 @@ pub mod tcrm {
             }
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn event_as_execution_started(&self) -> Option<ExecutionStartedEvent<'a>> {
                 if self.event_type() == TaskMonitorEvent::ExecutionStarted {
                     let u = self.event();
@@ -2867,7 +2678,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn event_as_execution_completed(&self) -> Option<ExecutionCompletedEvent<'a>> {
                 if self.event_type() == TaskMonitorEvent::ExecutionCompleted {
                     let u = self.event();
@@ -2882,7 +2692,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn event_as_control_received(&self) -> Option<ControlReceivedEvent<'a>> {
                 if self.event_type() == TaskMonitorEvent::ControlReceived {
                     let u = self.event();
@@ -2897,7 +2706,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn event_as_control_processed(&self) -> Option<ControlProcessedEvent<'a>> {
                 if self.event_type() == TaskMonitorEvent::ControlProcessed {
                     let u = self.event();
@@ -2912,7 +2720,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn event_as_control_error(&self) -> Option<ControlErrorEvent<'a>> {
                 if self.event_type() == TaskMonitorEvent::ControlError {
                     let u = self.event();
@@ -2927,7 +2734,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn event_as_all_tasks_termination_requested(&self) -> Option<EmptyEvent<'a>> {
                 if self.event_type() == TaskMonitorEvent::AllTasksTerminationRequested {
                     let u = self.event();
@@ -2942,7 +2748,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn event_as_task_termination_requested(
                 &self,
             ) -> Option<TaskTerminationRequestedEvent<'a>> {
@@ -2959,7 +2764,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn event_as_stdin_sent(&self) -> Option<StdinSentEvent<'a>> {
                 if self.event_type() == TaskMonitorEvent::StdinSent {
                     let u = self.event();
@@ -2974,7 +2778,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn event_as_stdin_error(&self) -> Option<StdinErrorEvent<'a>> {
                 if self.event_type() == TaskMonitorEvent::StdinError {
                     let u = self.event();
@@ -2989,7 +2792,6 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            #[must_use]
             pub fn event_as_task(&self) -> Option<TaskEventWrapper<'a>> {
                 if self.event_type() == TaskMonitorEvent::Task {
                     let u = self.event();
@@ -3078,7 +2880,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<TaskMonitorEventMessage<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_
@@ -3225,7 +3026,6 @@ pub mod tcrm {
             pub const VT_IGNORE_DEPENDENCIES_ERROR: flatbuffers::VOffsetT = 12;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 TaskSpec { _tab: table }
             }
@@ -3255,7 +3055,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn config(&self) -> TaskConfig<'a> {
                 // Safety:
                 // Created from valid Table for this object
@@ -3267,7 +3066,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn shell(&self) -> TaskShell {
                 // Safety:
                 // Created from valid Table for this object
@@ -3279,7 +3077,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn dependencies(
                 &self,
             ) -> Option<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>>
@@ -3294,7 +3091,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn terminate_after_dependents_finished(&self) -> bool {
                 // Safety:
                 // Created from valid Table for this object
@@ -3309,7 +3105,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn ignore_dependencies_error(&self) -> bool {
                 // Safety:
                 // Created from valid Table for this object
@@ -3364,7 +3159,7 @@ pub mod tcrm {
             pub terminate_after_dependents_finished: bool,
             pub ignore_dependencies_error: bool,
         }
-        impl Default for TaskSpecArgs<'_> {
+        impl<'a> Default for TaskSpecArgs<'a> {
             #[inline]
             fn default() -> Self {
                 TaskSpecArgs {
@@ -3437,7 +3232,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<TaskSpec<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_.required(o, TaskSpec::VT_CONFIG, "config");
@@ -3484,7 +3278,6 @@ pub mod tcrm {
             pub const VT_SPEC: flatbuffers::VOffsetT = 6;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 TaskEntry { _tab: table }
             }
@@ -3509,7 +3302,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn name(&self) -> &'a str {
                 // Safety:
                 // Created from valid Table for this object
@@ -3521,7 +3313,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn spec(&self) -> TaskSpec<'a> {
                 // Safety:
                 // Created from valid Table for this object
@@ -3556,7 +3347,7 @@ pub mod tcrm {
             pub name: Option<flatbuffers::WIPOffset<&'a str>>,
             pub spec: Option<flatbuffers::WIPOffset<TaskSpec<'a>>>,
         }
-        impl Default for TaskEntryArgs<'_> {
+        impl<'a> Default for TaskEntryArgs<'a> {
             #[inline]
             fn default() -> Self {
                 TaskEntryArgs {
@@ -3592,7 +3383,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<TaskEntry<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_.required(o, TaskEntry::VT_NAME, "name");
@@ -3630,7 +3420,6 @@ pub mod tcrm {
             pub const VT_TASKS: flatbuffers::VOffsetT = 4;
 
             #[inline]
-            #[must_use]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 TcrmTasks { _tab: table }
             }
@@ -3652,7 +3441,6 @@ pub mod tcrm {
             }
 
             #[inline]
-            #[must_use]
             pub fn tasks(
                 &self,
             ) -> Option<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<TaskEntry<'a>>>>
@@ -3690,7 +3478,7 @@ pub mod tcrm {
                 >,
             >,
         }
-        impl Default for TcrmTasksArgs<'_> {
+        impl<'a> Default for TcrmTasksArgs<'a> {
             #[inline]
             fn default() -> Self {
                 TcrmTasksArgs { tasks: None }
@@ -3723,7 +3511,6 @@ pub mod tcrm {
                 }
             }
             #[inline]
-            #[must_use]
             pub fn finish(self) -> flatbuffers::WIPOffset<TcrmTasks<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 flatbuffers::WIPOffset::new(o.value())
@@ -3788,18 +3575,16 @@ pub mod tcrm {
             flatbuffers::size_prefixed_root_with_opts::<TcrmTasks<'b>>(opts, buf)
         }
         #[inline]
-        /// Assumes, without verification, that a buffer of bytes contains a `TcrmTasks` and returns it.
+        /// Assumes, without verification, that a buffer of bytes contains a TcrmTasks and returns it.
         /// # Safety
         /// Callers must trust the given bytes do indeed contain a valid `TcrmTasks`.
-        #[must_use]
         pub unsafe fn root_as_tcrm_tasks_unchecked(buf: &'_ [u8]) -> TcrmTasks<'_> {
             unsafe { flatbuffers::root_unchecked::<TcrmTasks>(buf) }
         }
         #[inline]
-        /// Assumes, without verification, that a buffer of bytes contains a size prefixed `TcrmTasks` and returns it.
+        /// Assumes, without verification, that a buffer of bytes contains a size prefixed TcrmTasks and returns it.
         /// # Safety
         /// Callers must trust the given bytes do indeed contain a valid size prefixed `TcrmTasks`.
-        #[must_use]
         pub unsafe fn size_prefixed_root_as_tcrm_tasks_unchecked(buf: &'_ [u8]) -> TcrmTasks<'_> {
             unsafe { flatbuffers::size_prefixed_root_unchecked::<TcrmTasks>(buf) }
         }
