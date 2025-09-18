@@ -250,7 +250,6 @@ impl TaskMonitor {
 
         // Keep track of active tasks
         let mut active_tasks: HashSet<String> = self.tasks_spawner.keys().cloned().collect();
-        let mut should_stop = false;
         let mut completed_tasks = 0;
         let mut failed_tasks = 0;
 
@@ -258,14 +257,14 @@ impl TaskMonitor {
             tokio::select! {
                 // Handle task events
                 event = task_event_rx.recv() => {
-                    let should_break = self.handle_task_event(event,&mut completed_tasks,&mut failed_tasks, &mut active_tasks, should_stop, &task_event_tx, &event_tx).await;
+                    let should_break = self.handle_task_event(event,&mut completed_tasks,&mut failed_tasks, &mut active_tasks, &task_event_tx, &event_tx).await;
                     if should_break {
                         break;
                     }
                 }
                 // Handle control messages
                 control = control_rx.recv() => {
-                    let should_break = self.handle_control_event(control, &event_tx, &mut should_stop).await;
+                    let should_break = self.handle_control_event(control, &event_tx).await;
                     if should_break {
                         break;
                     }
@@ -297,7 +296,6 @@ impl TaskMonitor {
         completed_tasks: &mut usize,
         failed_tasks: &mut usize,
         active_tasks: &mut HashSet<String>,
-        should_stop: bool,
         task_event_tx: &Sender<TaskEvent>,
         event_tx: &Option<Sender<TaskMonitorEvent>>,
     ) -> bool {
@@ -370,13 +368,9 @@ impl TaskMonitor {
         }
 
         // Exit when no tasks are active or stop was requested
-        if active_tasks.is_empty() || should_stop {
+        if active_tasks.is_empty() {
             #[cfg(feature = "tracing")]
-            tracing::debug!(
-                active_tasks = active_tasks.len(),
-                should_stop,
-                "Execution loop ending"
-            );
+            tracing::debug!(active_tasks = active_tasks.len(), "Execution loop ending");
             return true;
         }
         false
@@ -386,7 +380,6 @@ impl TaskMonitor {
         &mut self,
         control: Option<TaskMonitorControlCommand>,
         event_tx: &Option<Sender<TaskMonitorEvent>>,
-        should_stop: &mut bool,
     ) -> bool {
         let control = match control {
             Some(c) => c,
@@ -414,7 +407,6 @@ impl TaskMonitor {
                 #[cfg(feature = "tracing")]
                 tracing::debug!("Received TerminateAllTasks signal, terminating all tasks");
 
-                *should_stop = true;
                 self.terminate_all_tasks(TaskTerminateReason::UserRequested)
                     .await;
             }
@@ -481,20 +473,21 @@ impl TaskMonitor {
     async fn terminate_all_tasks(&mut self, reason: TaskTerminateReason) {
         for (task_name, spawner) in &mut self.tasks_spawner {
             let state = spawner.get_state().await;
-            if matches!(state, TaskState::Running | TaskState::Ready) {
-                #[allow(clippy::used_underscore_binding)]
-                if let Err(_e) = spawner.send_terminate_signal(reason.clone()).await {
-                    #[cfg(feature = "tracing")]
-                    tracing::warn!(
-                        task_name = %task_name,
-                        error = %_e,
-                        "Failed to terminate task"
-                    );
+            if !matches!(state, TaskState::Running | TaskState::Ready) {
+                continue;
+            }
+            #[allow(clippy::used_underscore_binding)]
+            if let Err(_e) = spawner.send_terminate_signal(reason.clone()).await {
+                #[cfg(feature = "tracing")]
+                tracing::warn!(
+                    task_name = %task_name,
+                    error = %_e,
+                    "Failed to terminate task"
+                );
 
-                    // Avoid unused variable warning when tracing is disabled
-                    #[cfg(not(feature = "tracing"))]
-                    let _ = task_name;
-                }
+                // Avoid unused variable warning when tracing is disabled
+                #[cfg(not(feature = "tracing"))]
+                let _ = task_name;
             }
         }
     }
