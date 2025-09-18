@@ -54,20 +54,7 @@ use crate::monitor::error::TaskMonitorError;
 /// });
 /// # }
 /// ```
-///
-/// ## Filtering Events by Task
-///
-/// ```rust
-/// use tcrm_monitor::monitor::event::TaskMonitorEvent;
-///
-/// fn handle_event(event: &TaskMonitorEvent) {
-///     if let Some(task_name) = event.task_name() {
-///         if task_name == "important_task" {
-///             println!("Event for important task: {:?}", event);
-///         }
-///     }
-/// }
-/// ```
+
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub enum TaskMonitorEvent {
