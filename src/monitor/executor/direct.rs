@@ -7,101 +7,16 @@
 use std::collections::HashSet;
 
 use tcrm_task::tasks::{
-    event::{TaskEvent, TaskEventStopReason},
-    state::{TaskState, TaskTerminateReason},
+    event::{TaskEvent, TaskEventStopReason, TaskTerminateReason},
+    state::TaskState,
 };
 use tokio::sync::mpsc::{self, Sender};
 
 use crate::monitor::{
-    error::{SendStdinErrorReason, TaskMonitorError},
-    event::{TaskMonitorControlType, TaskMonitorEvent},
+    error::{ControlCommandError, SendStdinErrorReason, TaskMonitorError},
+    event::{TaskMonitorControlCommand, TaskMonitorControlEvent, TaskMonitorEvent},
     tasks::TaskMonitor,
 };
-
-/// Control message for `TaskMonitor` execution.
-///
-/// These control messages allow runtime interaction with task execution,
-/// providing the ability to stop tasks, send input, or terminate specific tasks.
-///
-/// # Examples
-///
-/// ## Stopping All Tasks
-///
-/// ```rust
-/// use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
-///
-/// let control = TaskMonitorControl::Stop;
-/// ```
-///
-/// ## Sending Stdin to a Task
-///
-/// ```rust
-/// use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
-///
-/// let control = TaskMonitorControl::SendStdin {
-///     task_name: "interactive_task".to_string(),
-///     input: "y\n".to_string()
-/// };
-/// ```
-///
-/// ## Terminating a Specific Task
-///
-/// ```rust
-/// use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
-///
-/// let control = TaskMonitorControl::TerminateTask {
-///     task_name: "runaway_task".to_string()
-/// };
-/// ```
-#[derive(Debug, Clone)]
-pub enum TaskMonitorControl {
-    /// Stop all tasks gracefully and terminate execution.
-    ///
-    /// This will attempt to stop all running tasks in an orderly fashion,
-    /// waiting for them to complete their current operations before terminating.
-    Stop,
-
-    /// Terminate a specific task by name.
-    ///
-    /// This forcefully terminates the specified task without waiting for
-    /// it to complete naturally.
-    ///
-    /// # Fields
-    ///
-    /// * `task_name` - Name of the task to terminate
-    TerminateTask {
-        /// Name of the task to terminate
-        task_name: String,
-    },
-
-    /// Send stdin input to a specific task.
-    ///
-    /// Only works if the target task was configured with `enable_stdin(true)`.
-    /// The input will be delivered to the task's stdin stream.
-    ///
-    /// # Fields
-    ///
-    /// * `task_name` - Name of the target task
-    /// * `input` - String input to send to the task's stdin
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
-    ///
-    /// // Send "yes" followed by newline to a task
-    /// let control = TaskMonitorControl::SendStdin {
-    ///     task_name: "confirmation_task".to_string(),
-    ///     input: "yes\n".to_string()
-    /// };
-    /// ```
-    SendStdin {
-        /// Name of the target task
-        task_name: String,
-        /// Input string to send to stdin
-        input: String,
-    },
-}
 
 impl TaskMonitor {
     /// Execute all tasks using the direct execution strategy.
@@ -284,14 +199,14 @@ impl TaskMonitor {
     /// // Spawn control task
     /// let control_handle = tokio::spawn(async move {
     ///     // Send some input to the task
-    ///     control_tx.send(TaskMonitorControl::SendStdin {
+    ///     control_tx.send(TaskMonitorControlCommand::SendStdin {
     ///         task_name: "interactive_task".to_string(),
     ///         input: "Hello, World!\n".to_string(),
     ///     }).await.unwrap();
     ///
     ///     // Wait a bit then stop
     ///     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    ///     control_tx.send(TaskMonitorControl::Stop).await.unwrap();
+    ///     control_tx.send(TaskMonitorControlCommand::Stop).await.unwrap();
     /// });
     ///
     /// // Spawn event listener
@@ -314,18 +229,17 @@ impl TaskMonitor {
     /// # }
     /// ```
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
-    #[allow(clippy::too_many_lines)]
     pub async fn execute_all_direct_with_control(
         &mut self,
         event_tx: Option<Sender<TaskMonitorEvent>>,
-        mut control_rx: mpsc::Receiver<TaskMonitorControl>,
+        mut control_rx: mpsc::Receiver<TaskMonitorControlCommand>,
     ) {
         let total_tasks = self.tasks_spawner.len();
 
         // Send execution started event
         if let Some(ref tx) = event_tx
             && tx
-                .send(TaskMonitorEvent::ExecutionStarted { total_tasks })
+                .send(TaskMonitorEvent::Started { total_tasks })
                 .await
                 .is_err()
         {
@@ -345,233 +259,19 @@ impl TaskMonitor {
             tokio::select! {
                 // Handle task events
                 event = task_event_rx.recv() => {
-                    if let Some(event) = event {
-                        // Count completed/failed tasks
-                        if let TaskEvent::Stopped { reason, .. } = &event {
-                            completed_tasks += 1;
-                            if let TaskEventStopReason::Error(_) = reason { failed_tasks += 1 }
-                        }
-
-                        // Forward wrapped task event
-                        if let Some(ref tx) = event_tx
-                            && let Err(_e) = tx.send(TaskMonitorEvent::Task(event.clone())).await {
-                                #[cfg(feature = "tracing")]
-                                tracing::warn!(event = ?event, "Failed to forward task event");
-                            }
-                        match event {
-                            TaskEvent::Started { .. } | TaskEvent::Output { .. } => {}
-                            TaskEvent::Ready { task_name } => {
-                                self.start_ready_dependents_direct(
-                                    &mut active_tasks,
-                                    &task_name,
-                                    None,
-                                    &task_event_tx.clone(),
-                                )
-                                .await;
-                            }
-                            TaskEvent::Stopped {
-                                task_name,
-                                exit_code: _,
-                                reason,
-                            } => {
-                                active_tasks.remove(&task_name);
-
-                                self.terminate_dependencies_if_all_dependent_finished(&task_name)
-                                    .await;
-
-                                self.start_ready_dependents_direct(
-                                    &mut active_tasks,
-                                    &task_name,
-                                    Some(reason),
-                                    &task_event_tx.clone(),
-                                )
-                                .await;
-                            }
-                            TaskEvent::Error { task_name, error } => {
-                                active_tasks.remove(&task_name);
-
-                                self.terminate_dependencies_if_all_dependent_finished(&task_name)
-                                    .await;
-
-                                self.start_ready_dependents_direct(
-                                    &mut active_tasks,
-                                    &task_name,
-                                    Some(TaskEventStopReason::Error(error.to_string())),
-                                    &task_event_tx.clone(),
-                                )
-                                .await;
-                            }
-                        }
-
-                        // Exit when no tasks are active or stop was requested
-                        if active_tasks.is_empty() || should_stop {
-                            #[cfg(feature = "tracing")]
-                            tracing::debug!(
-                                active_tasks = active_tasks.len(),
-                                should_stop = should_stop,
-                                "Execution loop ending"
-                            );
-                            break;
-                        }
-                    } else {
-                        #[cfg(feature = "tracing")]
-                        tracing::debug!("Task event channel closed");
+                    let should_break = self.handle_task_event(event,&mut completed_tasks,&mut failed_tasks, &mut active_tasks, should_stop, &task_event_tx, &event_tx).await;
+                    if should_break {
                         break;
                     }
                 }
                 // Handle control messages
                 control = control_rx.recv() => {
-                    match control {
-                        Some(TaskMonitorControl::Stop) => {
-                            let control_type = TaskMonitorControlType::Stop;
-
-                            // Send control received event
-                            if let Some(ref tx) = event_tx
-                                && tx.send(TaskMonitorEvent::ControlReceived {
-                                    control_type: control_type.clone()
-                                }).await.is_err() {
-                                    #[cfg(feature = "tracing")]
-                                    tracing::warn!("Event channel closed while sending ControlReceived");
-                                }
-
-                            #[cfg(feature = "tracing")]
-                            tracing::info!("Received stop signal, terminating all tasks");
-
-                            // Send all tasks termination requested event
-                            if let Some(ref tx) = event_tx
-                                && tx.send(TaskMonitorEvent::AllTasksTerminationRequested).await.is_err() {
-                                    #[cfg(feature = "tracing")]
-                                    tracing::warn!("Event channel closed while sending AllTasksTerminationRequested");
-                                }
-
-                            should_stop = true;
-                            self.terminate_all_tasks(TaskTerminateReason::Custom("User requested".to_string())).await;
-
-                            // Send control processed event
-                            if let Some(ref tx) = event_tx
-                                && tx.send(TaskMonitorEvent::ControlProcessed {
-                                    control_type
-                                }).await.is_err() {
-                                    #[cfg(feature = "tracing")]
-                                    tracing::warn!("Event channel closed while sending ControlProcessed");
-                                }
-                        }
-                        Some(TaskMonitorControl::TerminateTask { task_name}) => {
-                            let control_type = TaskMonitorControlType::TerminateTask;
-
-                            // Send control received event
-                            if let Some(ref tx) = event_tx
-                                && tx.send(TaskMonitorEvent::ControlReceived {
-                                    control_type: control_type.clone()
-                                }).await.is_err() {
-                                    #[cfg(feature = "tracing")]
-                                    tracing::warn!("Event channel closed while sending ControlReceived");
-                                }
-
-                            #[cfg(feature = "tracing")]
-                            tracing::info!(task_name = %task_name, "Terminating specific task");
-
-                            // Send task termination requested event
-                            if let Some(ref tx) = event_tx
-                                && tx.send(TaskMonitorEvent::TaskTerminationRequested {
-                                    task_name: task_name.clone()
-                                }).await.is_err() {
-                                    #[cfg(feature = "tracing")]
-                                    tracing::warn!("Event channel closed while sending TaskTerminationRequested");
-                                }
-
-                            self.terminate_task(&task_name, TaskTerminateReason::Custom("User requested".to_string())).await;
-
-                            // Send control processed event
-                            if let Some(ref tx) = event_tx
-                                && tx.send(TaskMonitorEvent::ControlProcessed {
-                                    control_type
-                                }).await.is_err() {
-                                    #[cfg(feature = "tracing")]
-                                    tracing::warn!("Event channel closed while sending ControlProcessed");
-                                }
-                        }
-                        Some(TaskMonitorControl::SendStdin { task_name, input }) => {
-                            let control_type = TaskMonitorControlType::SendStdin;
-
-                            // Send control received event
-                            if let Some(ref tx) = event_tx
-                                && tx.send(TaskMonitorEvent::ControlReceived {
-                                    control_type: control_type.clone()
-                                }).await.is_err() {
-                                    #[cfg(feature = "tracing")]
-                                    tracing::warn!("Event channel closed while sending ControlReceived");
-                                }
-
-                            #[cfg(feature = "tracing")]
-                            tracing::debug!(task_name = %task_name, input_len = input.len(), "Sending stdin to task");
-
-                            match self.send_stdin_to_task(&task_name, &input).await {
-                                Ok(()) => {
-                                    // Send stdin success event
-                                    if let Some(ref tx) = event_tx
-                                        && tx.send(TaskMonitorEvent::StdinSent {
-                                            task_name: task_name.clone(),
-                                            input_length: input.len()
-                                        }).await.is_err() {
-                                            #[cfg(feature = "tracing")]
-                                            tracing::warn!("Event channel closed while sending StdinSent");
-                                        }
-
-                                    // Send control processed event
-                                    if let Some(ref tx) = event_tx
-                                        && tx.send(TaskMonitorEvent::ControlProcessed {
-                                            control_type
-                                        }).await.is_err() {
-                                            #[cfg(feature = "tracing")]
-                                            tracing::warn!("Event channel closed while sending ControlProcessed");
-                                        }
-                                }
-                                Err(TaskMonitorError::SendStdinError(error)) => {
-                                    #[cfg(feature = "tracing")]
-                                    tracing::error!(task_name = %task_name, error = %error, "Failed to send stdin to task");
-
-                                    // Send stdin error event
-                                    if let Some(ref tx) = event_tx
-                                        && tx.send(TaskMonitorEvent::StdinError {
-                                            task_name: task_name.clone(),
-                                            error: error.clone()
-                                        }).await.is_err() {
-                                            #[cfg(feature = "tracing")]
-                                            tracing::warn!("Event channel closed while sending StdinError");
-                                        }
-
-                                    // Send control error event
-                                    if let Some(ref tx) = event_tx
-                                        && tx.send(TaskMonitorEvent::ControlError {
-                                            control_type,
-                                            error: TaskMonitorError::SendStdinError(error)
-                                        }).await.is_err() {
-                                            #[cfg(feature = "tracing")]
-                                            tracing::warn!("Event channel closed while sending ControlError");
-                                        }
-                                }
-                                Err(other_error) => {
-                                    #[cfg(feature = "tracing")]
-                                    tracing::error!(task_name = %task_name, error = %other_error, "Unexpected error sending stdin to task");
-
-                                    // Send control error event for other errors
-                                    if let Some(ref tx) = event_tx
-                                        && tx.send(TaskMonitorEvent::ControlError {
-                                            control_type,
-                                            error: other_error
-                                        }).await.is_err() {
-                                            #[cfg(feature = "tracing")]
-                                            tracing::warn!("Event channel closed while sending ControlError");
-                                        }
-                                }
-                            }
-                        }
-                        None => {
-                            #[cfg(feature = "tracing")]
-                            tracing::debug!("Control channel closed");
-                        }
+                    let should_break = self.handle_control_event(control, &event_tx, &mut should_stop).await;
+                    if should_break {
+                        break;
                     }
+
+
                 }
             }
         }
@@ -579,7 +279,7 @@ impl TaskMonitor {
         // Send execution completed event
         if let Some(ref tx) = event_tx
             && tx
-                .send(TaskMonitorEvent::ExecutionCompleted {
+                .send(TaskMonitorEvent::Completed {
                     completed_tasks,
                     failed_tasks,
                 })
@@ -591,6 +291,189 @@ impl TaskMonitor {
         }
     }
 
+    // Return true to break the main loop
+    async fn handle_task_event(
+        &mut self,
+        event: Option<TaskEvent>,
+        completed_tasks: &mut usize,
+        failed_tasks: &mut usize,
+        active_tasks: &mut HashSet<String>,
+        should_stop: bool,
+        task_event_tx: &Sender<TaskEvent>,
+        event_tx: &Option<Sender<TaskMonitorEvent>>,
+    ) -> bool {
+        let event = match event {
+            Some(e) => e,
+            None => {
+                #[cfg(feature = "tracing")]
+                tracing::debug!("Task event channel closed");
+                return true;
+            }
+        };
+        // Count completed/failed tasks
+        if let TaskEvent::Stopped { reason, .. } = &event {
+            *completed_tasks += 1;
+            if let TaskEventStopReason::Error(_) = reason {
+                *failed_tasks += 1
+            }
+        }
+
+        // Forward wrapped task event
+        if let Some(tx) = event_tx
+            && let Err(_e) = tx.send(TaskMonitorEvent::Task(event.clone())).await
+        {
+            #[cfg(feature = "tracing")]
+            tracing::warn!(event = ?event, "Failed to forward task event");
+        }
+        match event {
+            TaskEvent::Started { .. } | TaskEvent::Output { .. } => {}
+            TaskEvent::Ready { task_name } => {
+                self.start_ready_dependents_direct(
+                    active_tasks,
+                    &task_name,
+                    None,
+                    &task_event_tx.clone(),
+                )
+                .await;
+            }
+            TaskEvent::Stopped {
+                task_name,
+                exit_code: _,
+                reason,
+            } => {
+                active_tasks.remove(&task_name);
+
+                self.terminate_dependencies_if_all_dependent_finished(&task_name)
+                    .await;
+
+                self.start_ready_dependents_direct(
+                    active_tasks,
+                    &task_name,
+                    Some(reason),
+                    &task_event_tx.clone(),
+                )
+                .await;
+            }
+            TaskEvent::Error { task_name, error } => {
+                active_tasks.remove(&task_name);
+
+                self.terminate_dependencies_if_all_dependent_finished(&task_name)
+                    .await;
+
+                self.start_ready_dependents_direct(
+                    active_tasks,
+                    &task_name,
+                    Some(TaskEventStopReason::Error(error.to_string())),
+                    &task_event_tx.clone(),
+                )
+                .await;
+            }
+        }
+
+        // Exit when no tasks are active or stop was requested
+        if active_tasks.is_empty() || should_stop {
+            #[cfg(feature = "tracing")]
+            tracing::debug!(
+                active_tasks = active_tasks.len(),
+                should_stop,
+                "Execution loop ending"
+            );
+            return true;
+        }
+        false
+    }
+
+    async fn handle_control_event(
+        &mut self,
+        control: Option<TaskMonitorControlCommand>,
+        event_tx: &Option<Sender<TaskMonitorEvent>>,
+        should_stop: &mut bool,
+    ) -> bool {
+        let control = match control {
+            Some(c) => c,
+            None => {
+                #[cfg(feature = "tracing")]
+                tracing::debug!("Control channel closed");
+                return false;
+            }
+        };
+        // Send control received event
+        let control_event = TaskMonitorControlEvent::ControlReceived {
+            control: control.clone(),
+        };
+        if let Some(tx) = event_tx
+            && tx
+                .send(TaskMonitorEvent::Control(control_event))
+                .await
+                .is_err()
+        {
+            #[cfg(feature = "tracing")]
+            tracing::warn!("Event channel closed while sending ControlReceived");
+        }
+        match control {
+            TaskMonitorControlCommand::TerminateAllTasks => {
+                #[cfg(feature = "tracing")]
+                tracing::debug!("Received TerminateAllTasks signal, terminating all tasks");
+
+                *should_stop = true;
+                self.terminate_all_tasks(TaskTerminateReason::UserRequested)
+                    .await;
+            }
+            TaskMonitorControlCommand::TerminateTask { ref task_name } => {
+                #[cfg(feature = "tracing")]
+                tracing::debug!(task_name = %task_name, "Terminating specific task");
+
+                self.terminate_task(&task_name, TaskTerminateReason::UserRequested)
+                    .await;
+            }
+            TaskMonitorControlCommand::SendStdin {
+                ref task_name,
+                ref input,
+            } => {
+                #[cfg(feature = "tracing")]
+                tracing::debug!(task_name = %task_name, input_len = input.len(), "Sending stdin to task");
+
+                match self.send_stdin_to_task(&task_name, &input).await {
+                    Ok(()) => {}
+                    Err(e) => {
+                        #[cfg(feature = "tracing")]
+                        tracing::warn!(task_name = %task_name, error = %e, "Failed to send stdin to task");
+                        // Send stdin error event
+                        let control_command = ControlCommandError::SendStdin {
+                            task_name: task_name.clone(),
+                            input: input.clone(),
+                            reason: e,
+                        };
+                        if let Some(tx) = event_tx
+                            && tx
+                                .send(TaskMonitorEvent::Error(TaskMonitorError::ControlError(
+                                    control_command,
+                                )))
+                                .await
+                                .is_err()
+                        {
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!(
+                                "Event channel closed while sending TaskMonitorError::ControlError"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        let control_event = TaskMonitorControlEvent::ControlProcessed { control };
+        if let Some(tx) = event_tx
+            && tx
+                .send(TaskMonitorEvent::Control(control_event))
+                .await
+                .is_err()
+        {
+            #[cfg(feature = "tracing")]
+            tracing::warn!("Event channel closed while sending ControlProcessed");
+        }
+        false
+    }
     /// Terminate all running tasks with the specified reason.
     ///
     /// Sends termination signals to all tasks that are currently in Running or Ready state.
@@ -621,29 +504,32 @@ impl TaskMonitor {
     /// Sends a termination signal to the named task if it exists and is in Running or Ready state.
     /// Logs a warning if the task fails to receive the termination signal.
     async fn terminate_task(&mut self, task_name: &str, reason: TaskTerminateReason) {
-        if let Some(spawner) = self.tasks_spawner.get_mut(task_name) {
-            let state = spawner.get_state().await;
-            if matches!(state, TaskState::Running | TaskState::Ready) {
-                #[allow(clippy::used_underscore_binding)]
-                if let Err(_e) = spawner.send_terminate_signal(reason).await {
-                    #[cfg(feature = "tracing")]
-                    tracing::warn!(
-                        task_name = %task_name,
-                        error = %_e,
-                        "Failed to terminate task"
-                    );
-                }
-            } else {
+        let spawner = match self.tasks_spawner.get_mut(task_name) {
+            Some(s) => s,
+            None => {
+                #[cfg(feature = "tracing")]
+                tracing::warn!(task_name = %task_name, "Task not found");
+                return;
+            }
+        };
+        let state = spawner.get_state().await;
+        if matches!(state, TaskState::Running | TaskState::Ready) {
+            #[allow(clippy::used_underscore_binding)]
+            if let Err(_e) = spawner.send_terminate_signal(reason).await {
                 #[cfg(feature = "tracing")]
                 tracing::warn!(
                     task_name = %task_name,
-                    state = ?state,
-                    "Task is not in a state that can be terminated"
+                    error = %_e,
+                    "Failed to terminate task"
                 );
             }
         } else {
             #[cfg(feature = "tracing")]
-            tracing::warn!(task_name = %task_name, "Task not found");
+            tracing::warn!(
+                task_name = %task_name,
+                state = ?state,
+                "Task is not in a state that can be terminated"
+            );
         }
     }
 
@@ -656,7 +542,7 @@ impl TaskMonitor {
         &mut self,
         task_name: &str,
         input: &str,
-    ) -> Result<(), TaskMonitorError> {
+    ) -> Result<(), SendStdinErrorReason> {
         // First check if the task has stdin enabled in configuration
         let has_stdin_enabled = self
             .tasks
@@ -670,7 +556,7 @@ impl TaskMonitor {
                 task_name = %task_name,
                 "Task does not have stdin enabled in configuration"
             );
-            return Err(SendStdinErrorReason::StdinNotEnabled(task_name.to_string()).into());
+            return Err(SendStdinErrorReason::StdinNotEnabled);
         }
 
         // Check if we have a stdin sender for this task
@@ -680,14 +566,14 @@ impl TaskMonitor {
                 task_name = %task_name,
                 "Task does not have a stdin sender (stdin might not be enabled)"
             );
-            return Err(SendStdinErrorReason::TaskNotFound(task_name.to_string()).into());
+            return Err(SendStdinErrorReason::TaskNotFound);
         };
 
         // Verify the task spawner exists
         let Some(spawner) = self.tasks_spawner.get(task_name) else {
             #[cfg(feature = "tracing")]
             tracing::warn!(task_name = %task_name, "Task spawner not found");
-            return Err(SendStdinErrorReason::TaskNotFound(task_name.to_string()).into());
+            return Err(SendStdinErrorReason::TaskNotFound);
         };
 
         // Verify the task is in a state that can receive input
@@ -699,7 +585,7 @@ impl TaskMonitor {
                 state = ?state,
                 "Task is not in a state that can receive stdin input"
             );
-            return Err(SendStdinErrorReason::TaskNotReady(task_name.to_string()).into());
+            return Err(SendStdinErrorReason::TaskNotActive);
         }
 
         // Send the input to the task's stdin channel
@@ -722,7 +608,7 @@ impl TaskMonitor {
                     error = %_e,
                     "Failed to send stdin to task"
                 );
-                Err(SendStdinErrorReason::ChannelClosed(task_name.to_string()).into())
+                Err(SendStdinErrorReason::ChannelClosed)
             }
         }
     }
@@ -850,7 +736,7 @@ mod tests {
 
     use crate::monitor::{
         config::{TaskShell, TaskSpec},
-        error::{SendStdinErrorReason, TaskMonitorError},
+        error::SendStdinErrorReason,
         tasks::TaskMonitor,
     };
 
@@ -1505,39 +1391,17 @@ mod tests {
         // Test TaskNotReady error (task exists with stdin but not running)
         let result = monitor.send_stdin_to_task("stdin_task", "input").await;
         assert!(result.is_err());
-        if let Err(TaskMonitorError::SendStdinError(SendStdinErrorReason::TaskNotReady(
-            task_name,
-        ))) = result
-        {
-            assert_eq!(task_name, "stdin_task");
-        } else {
-            panic!("Expected TaskNotReady error");
-        }
+        assert_eq!(result, Err(SendStdinErrorReason::TaskNotActive));
 
         // Test StdinNotEnabled error
         let result = monitor.send_stdin_to_task("no_stdin_task", "input").await;
         assert!(result.is_err());
-        if let Err(TaskMonitorError::SendStdinError(SendStdinErrorReason::StdinNotEnabled(
-            task_name,
-        ))) = result
-        {
-            assert_eq!(task_name, "no_stdin_task");
-        } else {
-            panic!("Expected StdinNotEnabled error");
-        }
+        assert_eq!(result, Err(SendStdinErrorReason::StdinNotEnabled));
 
         // Test TaskNotFound error (task doesn't exist at all)
         let result = monitor.send_stdin_to_task("nonexistent", "input").await;
         assert!(result.is_err());
-        if let Err(TaskMonitorError::SendStdinError(SendStdinErrorReason::StdinNotEnabled(
-            task_name,
-        ))) = result
-        {
-            // The current implementation checks config first, so nonexistent tasks return StdinNotEnabled
-            assert_eq!(task_name, "nonexistent");
-        } else {
-            panic!("Expected StdinNotEnabled error for nonexistent task");
-        }
+        assert_eq!(result, Err(SendStdinErrorReason::TaskNotFound));
     }
 
     #[tokio::test]

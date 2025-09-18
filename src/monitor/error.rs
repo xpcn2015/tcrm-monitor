@@ -5,81 +5,6 @@
 
 use thiserror::Error;
 
-/// Reasons why sending stdin to a task might fail.
-///
-/// These errors provide specific context about stdin operation failures,
-/// helping users understand why their stdin input couldn't be delivered.
-///
-/// # Examples
-///
-/// ```rust
-/// use tcrm_monitor::monitor::error::SendStdinErrorReason;
-///
-/// let error = SendStdinErrorReason::TaskNotFound("nonexistent".to_string());
-/// println!("Error: {}", error);
-/// ```
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Error, Debug, Clone)]
-pub enum SendStdinErrorReason {
-    /// The specified task does not exist in the task collection.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
-    ///
-    /// let error = SendStdinErrorReason::TaskNotFound("missing_task".to_string());
-    /// assert!(error.to_string().contains("missing_task"));
-    /// ```
-    #[error("Task '{0}' not found")]
-    TaskNotFound(String),
-
-    /// The task exists but does not have stdin enabled.
-    ///
-    /// Tasks must be configured with `enable_stdin(true)` to receive input.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
-    ///
-    /// let error = SendStdinErrorReason::StdinNotEnabled("readonly_task".to_string());
-    /// assert!(error.to_string().contains("does not have stdin enabled"));
-    /// ```
-    #[error("Task '{0}' does not have stdin enabled")]
-    StdinNotEnabled(String),
-
-    /// The task is not in a state that can receive stdin input.
-    ///
-    /// For example, the task might not be running yet or has already finished.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
-    ///
-    /// let error = SendStdinErrorReason::TaskNotReady("finished_task".to_string());
-    /// assert!(error.to_string().contains("not in a state"));
-    /// ```
-    #[error("Task '{0}' is not in a state that can receive stdin")]
-    TaskNotReady(String),
-
-    /// The stdin channel for the task is closed or unavailable.
-    ///
-    /// This typically happens when the task has terminated or crashed.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
-    ///
-    /// let error = SendStdinErrorReason::ChannelClosed("crashed_task".to_string());
-    /// assert!(error.to_string().contains("channel closed"));
-    /// ```
-    #[error("Failed to send stdin to task '{0}': channel closed")]
-    ChannelClosed(String),
-}
-
 /// Main error type for task monitoring operations.
 ///
 /// Covers various error conditions that can occur during task monitoring setup and execution,
@@ -138,7 +63,7 @@ pub enum SendStdinErrorReason {
 /// }
 /// ```
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum TaskMonitorError {
     /// Configuration parsing failed.
     ///
@@ -186,28 +111,104 @@ pub enum TaskMonitorError {
     /// };
     /// assert!(error.to_string().contains("not found"));
     /// ```
-    #[error("Dependency '{dep}' not found for task '{task}'")]
+    #[error("Dependency '{dependency_task_name}' not found for task '{task_name}'")]
     DependencyNotFound {
         /// Name of the missing dependency task
-        dep: String,
+        dependency_task_name: String,
         /// Name of the task that has the missing dependency
-        task: String,
+        task_name: String,
     },
 
-    /// Failed to send stdin input to a task.
-    ///
-    /// This error wraps a [`SendStdinErrorReason`] with additional context about
-    /// the stdin operation failure.
+    #[error("Control error: {0}")]
+    ControlError(ControlCommandError),
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Error, Debug, Clone, PartialEq)]
+pub enum ControlCommandError {
+    #[error("Failed to terminate all tasks: {reason}")]
+    TerminateAllTasks { reason: String },
+    #[error("Failed to terminate task '{task_name}': {reason}")]
+    TerminateTask { task_name: String, reason: String },
+    #[error("Failed to send stdin to task '{task_name}': {reason}")]
+    SendStdin {
+        task_name: String,
+        input: String,
+        reason: SendStdinErrorReason,
+    },
+}
+
+/// Reasons why sending stdin to a task might fail.
+///
+/// These errors provide specific context about stdin operation failures,
+/// helping users understand why their stdin input couldn't be delivered.
+///
+/// # Examples
+///
+/// ```rust
+/// use tcrm_monitor::monitor::error::SendStdinErrorReason;
+///
+/// let error = SendStdinErrorReason::TaskNotFound("nonexistent".to_string());
+/// println!("Error: {}", error);
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Error, Debug, Clone, PartialEq)]
+pub enum SendStdinErrorReason {
+    /// The specified task does not exist in the task collection.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use tcrm_monitor::monitor::error::{TaskMonitorError, SendStdinErrorReason};
+    /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
     ///
-    /// let stdin_error = SendStdinErrorReason::TaskNotFound("missing".to_string());
-    /// let error = TaskMonitorError::SendStdinError(stdin_error);
-    /// assert!(error.to_string().contains("Send stdin error"));
+    /// let error = SendStdinErrorReason::TaskNotFound("missing_task".to_string());
+    /// assert!(error.to_string().contains("missing_task"));
     /// ```
-    #[error("Send stdin error: {0}")]
-    SendStdinError(#[from] SendStdinErrorReason),
+    #[error("Task not found")]
+    TaskNotFound,
+
+    /// The task exists but does not have stdin enabled.
+    ///
+    /// Tasks must be configured with `enable_stdin(true)` to receive input.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
+    ///
+    /// let error = SendStdinErrorReason::StdinNotEnabled("readonly_task".to_string());
+    /// assert!(error.to_string().contains("does not have stdin enabled"));
+    /// ```
+    #[error("Task does not have stdin enabled")]
+    StdinNotEnabled,
+
+    /// The task is not in a state that can receive stdin input.
+    ///
+    /// For example, the task might not be running yet or has already finished.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
+    ///
+    /// let error = SendStdinErrorReason::TaskNotReady("finished_task".to_string());
+    /// assert!(error.to_string().contains("not in a state"));
+    /// ```
+    #[error("Task is not in a state that can receive stdin")]
+    TaskNotActive,
+
+    /// The stdin channel for the task is closed or unavailable.
+    ///
+    /// This typically happens when the task has terminated or crashed.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
+    ///
+    /// let error = SendStdinErrorReason::ChannelClosed("crashed_task".to_string());
+    /// assert!(error.to_string().contains("channel closed"));
+    /// ```
+    #[error("Failed to send stdin to task: channel closed")]
+    ChannelClosed,
 }
