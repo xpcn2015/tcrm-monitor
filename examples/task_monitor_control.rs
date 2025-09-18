@@ -9,7 +9,11 @@ use tokio::time::{Duration, sleep};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("TaskMonitor Control Example");
+    // Initialize tracing subscriber to print logs to terminal
+    #[cfg(feature = "tracing")]
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::TRACE)
+        .init();
 
     // Create tasks with different configurations
     let mut tasks = HashMap::new();
@@ -18,15 +22,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(windows)]
     tasks.insert(
         "long_task".to_string(),
-        TaskSpec::new(TaskConfig::new("ping").args(["127.0.0.1", "-n", "100"]))
-            .shell(TaskShell::Auto),
+        TaskSpec::new(TaskConfig::new("ping").args(["127.0.0.1", "-n", "15"])),
     );
 
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     tasks.insert(
         "long_task".to_string(),
-        TaskSpec::new(TaskConfig::new("ping").args(["127.0.0.1", "-c", "100"]))
-            .shell(TaskShell::Auto),
+        TaskSpec::new(TaskConfig::new("ping").args(["-c", "15", "127.0.0.1"])),
+    );
+
+    // Another long-running task that should be terminated by TerminateAllTasks command
+    #[cfg(windows)]
+    tasks.insert(
+        "long_task_2".to_string(),
+        TaskSpec::new(TaskConfig::new("ping").args(["127.0.0.1", "-n", "15"])),
+    );
+
+    #[cfg(unix)]
+    tasks.insert(
+        "long_task_2".to_string(),
+        TaskSpec::new(TaskConfig::new("ping").args(["-c", "15", "127.0.0.1"])),
     );
 
     // A task with stdin enabled - use the proper commands for stdin interaction
@@ -39,8 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .enable_stdin(true)
                 .ready_indicator("ready")
                 .timeout_ms(5000),
-        )
-        .shell(TaskShell::Auto),
+        ),
     );
 
     #[cfg(not(windows))]
@@ -52,8 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .enable_stdin(true)
                 .ready_indicator("ready")
                 .timeout_ms(5000),
-        )
-        .shell(TaskShell::Auto),
+        ),
     );
 
     // A simple task
@@ -65,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut monitor = TaskMonitor::new(tasks)?;
 
     // Create channels for events and control
-    let (event_tx, mut event_rx) = mpsc::channel(1024);
+    let (event_tx, mut event_rx) = mpsc::channel(100);
     let (control_tx, control_rx) = mpsc::channel(32);
 
     // Start the monitor in a separate task
@@ -75,37 +88,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await;
     });
 
-    // Handle events and demonstrate control
-    let mut events_received = 0;
-    let max_events = 10; // Limit events to prevent infinite output
+    let event_handle = tokio::spawn(async move {
+        let mut events_received = 0;
+        let max_events = 100; // Limit events received
 
-    tokio::spawn(async move {
         while let Some(event) = event_rx.recv().await {
             events_received += 1;
             println!("Event {}: {:?}", events_received, event);
 
-            // Stop after receiving some events to demonstrate control
             if events_received >= max_events {
                 break;
             }
         }
     });
 
-    // Demonstrate various control commands
     println!("\n--- Demonstrating Task Control ---");
 
     // Wait a bit for tasks to start
     sleep(Duration::from_secs(2)).await;
 
-    // 1. Send stdin to a task (demonstrates validation)
+    // 1. Send stdin to a task
     println!("1. Sending stdin to stdin_task...");
     let stdin_control = TaskMonitorControlCommand::SendStdin {
         task_name: "stdin_task".to_string(),
         input: "Hello from stdin!\n".to_string(),
     };
     control_tx.send(stdin_control).await?;
-
-    sleep(Duration::from_millis(500)).await;
 
     // 2. Try to send stdin to a task without stdin enabled (will be rejected)
     println!("2. Trying to send stdin to long_task (should be rejected)...");
@@ -115,8 +123,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     control_tx.send(invalid_stdin_control).await?;
 
-    sleep(Duration::from_millis(500)).await;
-
     // 3. Terminate a specific task
     println!("3. Terminating long_task...");
     let terminate_control = TaskMonitorControlCommand::TerminateTask {
@@ -124,21 +130,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     control_tx.send(terminate_control).await?;
 
-    sleep(Duration::from_secs(1)).await;
-
     // 4. Stop all tasks
     println!("4. Stopping all remaining tasks...");
     let stop_control = TaskMonitorControlCommand::TerminateAllTasks;
     control_tx.send(stop_control).await?;
 
-    // Wait for the monitor to finish
-    sleep(Duration::from_secs(2)).await;
+    // Clean up
+    let _ = monitor_handle.await;
+    let _ = event_handle.await;
 
     println!("\n--- Control Example Complete ---");
     println!("The monitor should have stopped all tasks gracefully.");
-
-    // Clean up
-    monitor_handle.abort();
 
     Ok(())
 }
