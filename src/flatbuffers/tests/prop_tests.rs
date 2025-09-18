@@ -5,7 +5,7 @@ use tcrm_task::tasks::config::{StreamSource, TaskConfig};
 
 use crate::{
     flatbuffers::{
-        conversion::{ToFlatbuffers, error::ConversionError},
+        conversion::{ToFlatbuffers, error::ConversionError, tcrm_tasks_to_flatbuffers},
         tcrm_monitor_generated::tcrm::monitor,
     },
     monitor::config::{TaskShell, TaskSpec, TcrmTasks},
@@ -126,9 +126,7 @@ proptest! {
         let mut fbb = FlatBufferBuilder::new();
         let fb_spec_offset = spec.to_flatbuffers(&mut fbb);
 
-        prop_assert!(fb_spec_offset.is_ok(), "TaskSpec to_flatbuffers should succeed");
-
-        let fb_spec_offset = fb_spec_offset.unwrap();
+        // No need to check is_ok() since to_flatbuffers returns WIPOffset directly
         fbb.finish(fb_spec_offset, None);
 
         let buf = fbb.finished_data();
@@ -180,11 +178,9 @@ proptest! {
         use flatbuffers::FlatBufferBuilder;
 
         let mut fbb = FlatBufferBuilder::new();
-        let fb_tasks_offset = tasks.to_flatbuffers( &mut fbb);
+        let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
 
-        prop_assert!(fb_tasks_offset.is_ok(), "TcrmTasks to_flatbuffers should succeed");
-
-        let fb_tasks_offset = fb_tasks_offset.unwrap();
+        // No need to check is_ok() since the helper function returns WIPOffset directly
         fbb.finish(fb_tasks_offset, None);
 
         let buf = fbb.finished_data();
@@ -221,7 +217,7 @@ proptest! {
 
         for _iteration in 0..3 {
             let mut fbb = FlatBufferBuilder::new();
-            let fb_spec_offset = current_spec.to_flatbuffers(&mut fbb).unwrap();
+            let fb_spec_offset = current_spec.to_flatbuffers(&mut fbb);
             fbb.finish(fb_spec_offset, None);
 
             let buf = fbb.finished_data();
@@ -262,7 +258,7 @@ proptest! {
         };
 
         let mut fbb = FlatBufferBuilder::new();
-        let fb_spec_offset = minimal_spec.to_flatbuffers(&mut fbb).unwrap();
+        let fb_spec_offset = minimal_spec.to_flatbuffers(&mut fbb);
         fbb.finish(fb_spec_offset, None);
 
         let buf = fbb.finished_data();
@@ -311,7 +307,7 @@ proptest! {
         };
 
         let mut fbb = FlatBufferBuilder::new();
-        let fb_spec_offset = large_spec.to_flatbuffers(&mut fbb).unwrap();
+        let fb_spec_offset = large_spec.to_flatbuffers(&mut fbb);
         fbb.finish(fb_spec_offset, None);
 
         let buf = fbb.finished_data();
@@ -354,8 +350,8 @@ mod deterministic_tests {
 
         use flatbuffers::FlatBufferBuilder;
         let mut fbb = FlatBufferBuilder::new();
-        let result = spec.to_flatbuffers(&mut fbb);
-        assert!(result.is_ok(), "Empty command should be handled gracefully");
+        let _result = spec.to_flatbuffers(&mut fbb);
+        // Empty command should be handled gracefully - no need to check is_ok()
     }
 
     #[test]
@@ -389,7 +385,7 @@ mod deterministic_tests {
 
         use flatbuffers::FlatBufferBuilder;
         let mut fbb = FlatBufferBuilder::new();
-        let fb_spec_offset = spec.to_flatbuffers(&mut fbb).unwrap();
+        let fb_spec_offset = spec.to_flatbuffers(&mut fbb);
         fbb.finish(fb_spec_offset, None);
 
         let buf = fbb.finished_data();
@@ -433,7 +429,7 @@ mod deterministic_tests {
 
         use flatbuffers::FlatBufferBuilder;
         let mut fbb = FlatBufferBuilder::new();
-        let fb_spec_offset = spec.to_flatbuffers(&mut fbb).unwrap();
+        let fb_spec_offset = spec.to_flatbuffers(&mut fbb);
         fbb.finish(fb_spec_offset, None);
 
         let buf = fbb.finished_data();

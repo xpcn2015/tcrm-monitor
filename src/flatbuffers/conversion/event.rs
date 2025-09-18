@@ -1,801 +1,545 @@
-use super::FromFlatbuffers;
-use super::error::ConversionError;
-use crate::flatbuffers::conversion::ToFlatbuffers;
-use crate::flatbuffers::tcrm_monitor_generated::tcrm::monitor as fb;
-use crate::monitor::error::SendStdinErrorReason;
-use crate::monitor::event::{TaskMonitorControlType, TaskMonitorEvent};
 use flatbuffers::{FlatBufferBuilder, WIPOffset};
+use tcrm_task::flatbuffers::conversion::{ToFlatbuffers, ToFlatbuffersUnion};
 
-// Convert TaskMonitorControlType to FlatBuffers
-impl From<TaskMonitorControlType> for fb::TaskMonitorControlType {
-    fn from(control_type: TaskMonitorControlType) -> Self {
-        match control_type {
-            TaskMonitorControlType::Stop => fb::TaskMonitorControlType::Stop,
-            TaskMonitorControlType::TerminateTask => fb::TaskMonitorControlType::TerminateTask,
-            TaskMonitorControlType::SendStdin => fb::TaskMonitorControlType::SendStdin,
-        }
-    }
-}
+use crate::flatbuffers::conversion::error::ConversionError;
+use crate::flatbuffers::conversion::FromFlatbuffers;
+use crate::flatbuffers::tcrm_monitor_generated::tcrm::monitor as fb;
+use crate::monitor::error::{TaskMonitorError, ControlCommandError};
+use crate::monitor::event::{TaskMonitorControlEvent, TaskMonitorEvent, TaskMonitorControlCommand};
 
-// Convert FlatBuffers TaskMonitorControlType to our type
-impl TryFrom<fb::TaskMonitorControlType> for TaskMonitorControlType {
-    type Error = ConversionError;
-
-    fn try_from(fb_control_type: fb::TaskMonitorControlType) -> Result<Self, Self::Error> {
-        match fb_control_type {
-            fb::TaskMonitorControlType::Stop => Ok(TaskMonitorControlType::Stop),
-            fb::TaskMonitorControlType::TerminateTask => Ok(TaskMonitorControlType::TerminateTask),
-            fb::TaskMonitorControlType::SendStdin => Ok(TaskMonitorControlType::SendStdin),
-            _ => Err(ConversionError::InvalidEnumValue(format!(
-                "Invalid TaskMonitorControlType: {fb_control_type:?}"
-            ))),
-        }
-    }
-}
-
-// Convert SendStdinErrorReason to FlatBuffers
-impl From<SendStdinErrorReason> for fb::SendStdinErrorReason {
-    fn from(reason: SendStdinErrorReason) -> Self {
-        match reason {
-            SendStdinErrorReason::TaskNotFound(_) => fb::SendStdinErrorReason::TaskNotFound,
-            SendStdinErrorReason::StdinNotEnabled(_) => fb::SendStdinErrorReason::StdinNotEnabled,
-            SendStdinErrorReason::TaskNotReady(_) => fb::SendStdinErrorReason::TaskNotReady,
-            SendStdinErrorReason::ChannelClosed(_) => fb::SendStdinErrorReason::ChannelClosed,
-        }
-    }
-}
-
-// Convert FlatBuffers SendStdinErrorReason to our type
-impl TryFrom<fb::SendStdinErrorReason> for SendStdinErrorReason {
-    type Error = ConversionError;
-
-    fn try_from(fb_reason: fb::SendStdinErrorReason) -> Result<Self, Self::Error> {
-        match fb_reason {
-            fb::SendStdinErrorReason::TaskNotFound => {
-                Ok(SendStdinErrorReason::TaskNotFound(String::new()))
-            }
-            fb::SendStdinErrorReason::StdinNotEnabled => {
-                Ok(SendStdinErrorReason::StdinNotEnabled(String::new()))
-            }
-            fb::SendStdinErrorReason::TaskNotReady => {
-                Ok(SendStdinErrorReason::TaskNotReady(String::new()))
-            }
-            fb::SendStdinErrorReason::ChannelClosed => {
-                Ok(SendStdinErrorReason::ChannelClosed(String::new()))
-            }
-            _ => Err(ConversionError::InvalidEnumValue(format!(
-                "Invalid SendStdinErrorReason: {fb_reason:?}"
-            ))),
-        }
-    }
-}
-
-/// Convert a `TaskMonitorEvent` to `FlatBuffers` format.
-///
-/// Serializes task monitor events into `FlatBuffers` binary representation
-/// for efficient storage and transmission. Handles all event types including
-/// execution events, task events, and control events.
-///
-/// # Errors
-///
-/// Returns [`ConversionError`] if the conversion to `FlatBuffers` format fails.
-#[allow(clippy::too_many_lines)]
-#[allow(clippy::cast_possible_truncation)]
 impl<'a> ToFlatbuffers<'a> for TaskMonitorEvent {
     type Output = WIPOffset<fb::TaskMonitorEventMessage<'a>>;
 
-    fn to_flatbuffers(
-        &self,
-        fbb: &mut FlatBufferBuilder<'a>,
-    ) -> Result<Self::Output, ConversionError> {
-        match self {
-            TaskMonitorEvent::ExecutionStarted { total_tasks } => {
-                let exec_started = fb::ExecutionStartedEvent::create(
+    fn to_flatbuffers(&self, fbb: &mut FlatBufferBuilder<'a>) -> Self::Output {
+        let (event_type, event_offset) = match self {
+            TaskMonitorEvent::Task(task_event) => {
+                let task_event_offset = task_event.to_flatbuffers(fbb);
+                (
+                    fb::TaskMonitorEvent::Task,
+                    task_event_offset.as_union_value(),
+                )
+            }
+            TaskMonitorEvent::Started { total_tasks } => {
+                let started_event = fb::ExecutionStartedEvent::create(
                     fbb,
                     &fb::ExecutionStartedEventArgs {
-                        total_tasks: *total_tasks as u32,
+                        total_tasks: *total_tasks as u64,
                     },
                 );
-
-                let event_message = fb::TaskMonitorEventMessage::create(
-                    fbb,
-                    &fb::TaskMonitorEventMessageArgs {
-                        event_type: fb::TaskMonitorEvent::ExecutionStarted,
-                        event: Some(exec_started.as_union_value()),
-                    },
-                );
-
-                Ok(event_message)
+                (
+                    fb::TaskMonitorEvent::Started,
+                    started_event.as_union_value(),
+                )
             }
-            TaskMonitorEvent::ExecutionCompleted {
+            TaskMonitorEvent::Completed {
                 completed_tasks,
                 failed_tasks,
             } => {
-                let exec_completed = fb::ExecutionCompletedEvent::create(
+                let completed_event = fb::ExecutionCompletedEvent::create(
                     fbb,
                     &fb::ExecutionCompletedEventArgs {
-                        completed_tasks: *completed_tasks as u32,
-                        failed_tasks: *failed_tasks as u32,
+                        completed_tasks: *completed_tasks as u64,
+                        failed_tasks: *failed_tasks as u64,
                     },
                 );
-
-                let event_message = fb::TaskMonitorEventMessage::create(
-                    fbb,
-                    &fb::TaskMonitorEventMessageArgs {
-                        event_type: fb::TaskMonitorEvent::ExecutionCompleted,
-                        event: Some(exec_completed.as_union_value()),
-                    },
-                );
-
-                Ok(event_message)
+                (
+                    fb::TaskMonitorEvent::Completed,
+                    completed_event.as_union_value(),
+                )
             }
-            TaskMonitorEvent::ControlReceived { control_type } => {
-                let control_received = fb::ControlReceivedEvent::create(
-                    fbb,
-                    &fb::ControlReceivedEventArgs {
-                        control_type: control_type.clone().into(),
-                    },
-                );
-
-                let event_message = fb::TaskMonitorEventMessage::create(
-                    fbb,
-                    &fb::TaskMonitorEventMessageArgs {
-                        event_type: fb::TaskMonitorEvent::ControlReceived,
-                        event: Some(control_received.as_union_value()),
-                    },
-                );
-
-                Ok(event_message)
+            TaskMonitorEvent::Control(control_event) => {
+                let control_wrapper = control_event.to_flatbuffers(fbb);
+                (
+                    fb::TaskMonitorEvent::Control,
+                    control_wrapper.as_union_value(),
+                )
             }
-            TaskMonitorEvent::ControlProcessed { control_type } => {
-                let control_processed = fb::ControlProcessedEvent::create(
-                    fbb,
-                    &fb::ControlProcessedEventArgs {
-                        control_type: control_type.clone().into(),
-                    },
-                );
-
-                let event_message = fb::TaskMonitorEventMessage::create(
-                    fbb,
-                    &fb::TaskMonitorEventMessageArgs {
-                        event_type: fb::TaskMonitorEvent::ControlProcessed,
-                        event: Some(control_processed.as_union_value()),
-                    },
-                );
-
-                Ok(event_message)
+            TaskMonitorEvent::Error(error) => {
+                let error_wrapper = error.to_flatbuffers(fbb);
+                (
+                    fb::TaskMonitorEvent::Error,
+                    error_wrapper.as_union_value(),
+                )
             }
-            TaskMonitorEvent::ControlError {
-                control_type,
-                error,
-            } => {
-                // For now, we'll convert the error to a string representation
-                // This is simplified - in a full implementation you'd want proper error conversion
-                let error_message = format!("{error}");
-                let error_str = fbb.create_string(&error_message);
+        };
 
-                // Create a placeholder error wrapper for now
-                let task_error = fb::TaskErrorWrapper::create(
-                    fbb,
-                    &fb::TaskErrorWrapperArgs {
-                        error_message: Some(error_str),
-                    },
-                );
-
-                let error_union = fb::TaskMonitorError::TaskError;
-
-                let control_error = fb::ControlErrorEvent::create(
-                    fbb,
-                    &fb::ControlErrorEventArgs {
-                        control_type: control_type.clone().into(),
-                        error_type: error_union,
-                        error: Some(task_error.as_union_value()),
-                    },
-                );
-
-                let event_message = fb::TaskMonitorEventMessage::create(
-                    fbb,
-                    &fb::TaskMonitorEventMessageArgs {
-                        event_type: fb::TaskMonitorEvent::ControlError,
-                        event: Some(control_error.as_union_value()),
-                    },
-                );
-
-                Ok(event_message)
-            }
-            TaskMonitorEvent::AllTasksTerminationRequested => {
-                let empty_event = fb::EmptyEvent::create(fbb, &fb::EmptyEventArgs {});
-
-                let event_message = fb::TaskMonitorEventMessage::create(
-                    fbb,
-                    &fb::TaskMonitorEventMessageArgs {
-                        event_type: fb::TaskMonitorEvent::AllTasksTerminationRequested,
-                        event: Some(empty_event.as_union_value()),
-                    },
-                );
-
-                Ok(event_message)
-            }
-            TaskMonitorEvent::TaskTerminationRequested { task_name } => {
-                let task_name_str = fbb.create_string(task_name);
-                let task_termination = fb::TaskTerminationRequestedEvent::create(
-                    fbb,
-                    &fb::TaskTerminationRequestedEventArgs {
-                        task_name: Some(task_name_str),
-                    },
-                );
-
-                let event_message = fb::TaskMonitorEventMessage::create(
-                    fbb,
-                    &fb::TaskMonitorEventMessageArgs {
-                        event_type: fb::TaskMonitorEvent::TaskTerminationRequested,
-                        event: Some(task_termination.as_union_value()),
-                    },
-                );
-
-                Ok(event_message)
-            }
-            TaskMonitorEvent::StdinSent {
-                task_name,
-                input_length,
-            } => {
-                let task_name_str = fbb.create_string(task_name);
-                let stdin_sent = fb::StdinSentEvent::create(
-                    fbb,
-                    &fb::StdinSentEventArgs {
-                        task_name: Some(task_name_str),
-                        input_length: *input_length as u32,
-                    },
-                );
-
-                let event_message = fb::TaskMonitorEventMessage::create(
-                    fbb,
-                    &fb::TaskMonitorEventMessageArgs {
-                        event_type: fb::TaskMonitorEvent::StdinSent,
-                        event: Some(stdin_sent.as_union_value()),
-                    },
-                );
-
-                Ok(event_message)
-            }
-            TaskMonitorEvent::StdinError { task_name, error } => {
-                let task_name_str = fbb.create_string(task_name);
-                let stdin_error = fb::StdinErrorEvent::create(
-                    fbb,
-                    &fb::StdinErrorEventArgs {
-                        task_name: Some(task_name_str),
-                        error: error.clone().into(),
-                    },
-                );
-
-                let event_message = fb::TaskMonitorEventMessage::create(
-                    fbb,
-                    &fb::TaskMonitorEventMessageArgs {
-                        event_type: fb::TaskMonitorEvent::StdinError,
-                        event: Some(stdin_error.as_union_value()),
-                    },
-                );
-
-                Ok(event_message)
-            }
-            TaskMonitorEvent::Task(task_event) => {
-                // Use tcrm_task's to_flatbuffers method to get the (TaskEvent, union) tuple
-                let (task_event_type, task_event_union) = task_event.to_flatbuffers(fbb);
-
-                // Create a TaskEventWrapper using the tcrm_task namespace
-                let task_wrapper = tcrm_task::flatbuffers::tcrm_task_generated::tcrm::task::TaskEventWrapper::create(
-                    fbb,
-                    &tcrm_task::flatbuffers::tcrm_task_generated::tcrm::task::TaskEventWrapperArgs {
-                        event_type: task_event_type,
-                        event: Some(task_event_union),
-                    },
-                );
-
-                let event_message = fb::TaskMonitorEventMessage::create(
-                    fbb,
-                    &fb::TaskMonitorEventMessageArgs {
-                        event_type: fb::TaskMonitorEvent::Task,
-                        event: Some(task_wrapper.as_union_value()),
-                    },
-                );
-
-                Ok(event_message)
-            }
-        }
+        fb::TaskMonitorEventMessage::create(
+            fbb,
+            &fb::TaskMonitorEventMessageArgs {
+                event_type,
+                event: Some(event_offset),
+            },
+        )
     }
 }
 
-/// Convert from `FlatBuffers` format to `TaskMonitorEvent`.
-///
-/// Deserializes `FlatBuffers` binary data back into `TaskMonitorEvent` instances.
-/// Handles all event types and validates the data during conversion.
-/// Returns conversion errors for invalid or corrupted data.
-///
-/// # Errors
-///
-/// Returns [`ConversionError`] if the `FlatBuffers` data is invalid or corrupted.
 impl FromFlatbuffers<fb::TaskMonitorEventMessage<'_>> for TaskMonitorEvent {
-    #[allow(clippy::too_many_lines)]
     fn from_flatbuffers(
-        fb_event_message: fb::TaskMonitorEventMessage<'_>,
+        fb_event_message: fb::TaskMonitorEventMessage,
     ) -> Result<Self, ConversionError> {
-        match fb_event_message.event_type() {
-            fb::TaskMonitorEvent::ExecutionStarted => {
-                let exec_started =
-                    fb_event_message
-                        .event_as_execution_started()
-                        .ok_or_else(|| {
-                            ConversionError::MissingField("ExecutionStarted event data".to_string())
-                        })?;
+        let event_type = fb_event_message.event_type();
 
-                Ok(TaskMonitorEvent::ExecutionStarted {
-                    total_tasks: exec_started.total_tasks() as usize,
-                })
-            }
-            fb::TaskMonitorEvent::ExecutionCompleted => {
-                let exec_completed =
-                    fb_event_message
-                        .event_as_execution_completed()
-                        .ok_or_else(|| {
-                            ConversionError::MissingField(
-                                "ExecutionCompleted event data".to_string(),
-                            )
-                        })?;
-
-                Ok(TaskMonitorEvent::ExecutionCompleted {
-                    completed_tasks: exec_completed.completed_tasks() as usize,
-                    failed_tasks: exec_completed.failed_tasks() as usize,
-                })
-            }
-            fb::TaskMonitorEvent::ControlReceived => {
-                let control_received =
-                    fb_event_message
-                        .event_as_control_received()
-                        .ok_or_else(|| {
-                            ConversionError::MissingField("ControlReceived event data".to_string())
-                        })?;
-
-                Ok(TaskMonitorEvent::ControlReceived {
-                    control_type: control_received.control_type().try_into()?,
-                })
-            }
-            fb::TaskMonitorEvent::ControlProcessed => {
-                let control_processed =
-                    fb_event_message
-                        .event_as_control_processed()
-                        .ok_or_else(|| {
-                            ConversionError::MissingField("ControlProcessed event data".to_string())
-                        })?;
-
-                Ok(TaskMonitorEvent::ControlProcessed {
-                    control_type: control_processed.control_type().try_into()?,
-                })
-            }
-            fb::TaskMonitorEvent::AllTasksTerminationRequested => {
-                Ok(TaskMonitorEvent::AllTasksTerminationRequested)
-            }
-            fb::TaskMonitorEvent::TaskTerminationRequested => {
-                let task_termination = fb_event_message
-                    .event_as_task_termination_requested()
-                    .ok_or_else(|| {
-                        ConversionError::MissingField(
-                            "TaskTerminationRequested event data".to_string(),
-                        )
-                    })?;
-
-                let task_name = task_termination.task_name().to_string();
-
-                Ok(TaskMonitorEvent::TaskTerminationRequested { task_name })
-            }
-            fb::TaskMonitorEvent::StdinSent => {
-                let stdin_sent = fb_event_message.event_as_stdin_sent().ok_or_else(|| {
-                    ConversionError::MissingField("StdinSent event data".to_string())
-                })?;
-
-                let task_name = stdin_sent.task_name().to_string();
-
-                Ok(TaskMonitorEvent::StdinSent {
-                    task_name,
-                    input_length: stdin_sent.input_length() as usize,
-                })
-            }
-            fb::TaskMonitorEvent::StdinError => {
-                let stdin_error = fb_event_message.event_as_stdin_error().ok_or_else(|| {
-                    ConversionError::MissingField("StdinError event data".to_string())
-                })?;
-
-                let task_name = stdin_error.task_name().to_string();
-
-                let error_reason: SendStdinErrorReason = stdin_error.error().try_into()?;
-
-                // Update the error reason with the actual task name
-                let updated_error = match error_reason {
-                    SendStdinErrorReason::TaskNotFound(_) => {
-                        SendStdinErrorReason::TaskNotFound(task_name.clone())
-                    }
-                    SendStdinErrorReason::StdinNotEnabled(_) => {
-                        SendStdinErrorReason::StdinNotEnabled(task_name.clone())
-                    }
-                    SendStdinErrorReason::TaskNotReady(_) => {
-                        SendStdinErrorReason::TaskNotReady(task_name.clone())
-                    }
-                    SendStdinErrorReason::ChannelClosed(_) => {
-                        SendStdinErrorReason::ChannelClosed(task_name.clone())
-                    }
-                };
-
-                Ok(TaskMonitorEvent::StdinError {
-                    task_name,
-                    error: updated_error,
-                })
-            }
+        match event_type {
             fb::TaskMonitorEvent::Task => {
-                let task_wrapper = fb_event_message
-                    .event_as_task()
-                    .ok_or_else(|| ConversionError::MissingField("Task event data".to_string()))?;
-
-                let task_event = tcrm_task::tasks::event::TaskEvent::from_flatbuffers(task_wrapper)
-                    .map_err(|e| {
-                        ConversionError::TaskConfigConversion(format!(
-                            "TaskEvent conversion failed: {}",
-                            e
-                        ))
-                    })?;
-
-                Ok(TaskMonitorEvent::Task(task_event))
+                if let Some(task_event) = fb_event_message.event_as_task() {
+                    // Convert FlatBuffers TaskEvent to tcrm_task TaskEvent
+                    let task_event = convert_flatbuffers_to_task_event(task_event)?;
+                    Ok(TaskMonitorEvent::Task(task_event))
+                } else {
+                    Err(ConversionError::MissingRequiredField("task event"))
+                }
+            }
+            fb::TaskMonitorEvent::Started => {
+                if let Some(started_event) = fb_event_message.event_as_started() {
+                    Ok(TaskMonitorEvent::Started {
+                        total_tasks: started_event.total_tasks() as usize,
+                    })
+                } else {
+                    Err(ConversionError::MissingRequiredField("started event"))
+                }
+            }
+            fb::TaskMonitorEvent::Completed => {
+                if let Some(completed_event) = fb_event_message.event_as_completed() {
+                    Ok(TaskMonitorEvent::Completed {
+                        completed_tasks: completed_event.completed_tasks() as usize,
+                        failed_tasks: completed_event.failed_tasks() as usize,
+                    })
+                } else {
+                    Err(ConversionError::MissingRequiredField("completed event"))
+                }
+            }
+            fb::TaskMonitorEvent::Control => {
+                if let Some(control_wrapper) = fb_event_message.event_as_control() {
+                    let control_event = TaskMonitorControlEvent::from_flatbuffers(control_wrapper)?;
+                    Ok(TaskMonitorEvent::Control(control_event))
+                } else {
+                    Err(ConversionError::MissingRequiredField("control event"))
+                }
+            }
+            fb::TaskMonitorEvent::Error => {
+                if let Some(error_wrapper) = fb_event_message.event_as_error() {
+                    let error = TaskMonitorError::from_flatbuffers(error_wrapper)?;
+                    Ok(TaskMonitorEvent::Error(error))
+                } else {
+                    Err(ConversionError::MissingRequiredField("error event"))
+                }
             }
             _ => Err(ConversionError::UnsupportedEventType(format!(
-                "Unsupported TaskMonitorEvent type: {:?}",
-                fb_event_message.event_type()
+                "Unsupported TaskMonitorEvent variant: {:?}",
+                event_type
             ))),
         }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use flatbuffers::FlatBufferBuilder;
-
-    #[test]
-    fn test_task_monitor_control_type_conversion() {
-        // Test conversion to FlatBuffers
-        assert_eq!(
-            fb::TaskMonitorControlType::Stop,
-            TaskMonitorControlType::Stop.into()
-        );
-        assert_eq!(
-            fb::TaskMonitorControlType::TerminateTask,
-            TaskMonitorControlType::TerminateTask.into()
-        );
-        assert_eq!(
-            fb::TaskMonitorControlType::SendStdin,
-            TaskMonitorControlType::SendStdin.into()
-        );
-
-        // Test conversion from FlatBuffers
-        assert_eq!(
-            TaskMonitorControlType::Stop,
-            fb::TaskMonitorControlType::Stop.try_into().unwrap()
-        );
-        assert_eq!(
-            TaskMonitorControlType::TerminateTask,
-            fb::TaskMonitorControlType::TerminateTask
-                .try_into()
-                .unwrap()
-        );
-        assert_eq!(
-            TaskMonitorControlType::SendStdin,
-            fb::TaskMonitorControlType::SendStdin.try_into().unwrap()
-        );
-    }
-
-    #[test]
-    fn test_send_stdin_error_reason_conversion() {
-        // Test conversion to FlatBuffers
-        assert_eq!(
-            fb::SendStdinErrorReason::TaskNotFound,
-            SendStdinErrorReason::TaskNotFound("test".to_string()).into()
-        );
-        assert_eq!(
-            fb::SendStdinErrorReason::StdinNotEnabled,
-            SendStdinErrorReason::StdinNotEnabled("test".to_string()).into()
-        );
-    }
-
-    #[test]
-    fn test_execution_started_event_conversion() {
-        let mut fbb = FlatBufferBuilder::new();
-
-        let event = TaskMonitorEvent::ExecutionStarted { total_tasks: 5 };
-
-        // Convert to FlatBuffers
-        let fb_event = event.to_flatbuffers(&mut fbb).unwrap();
-        fbb.finish(fb_event, None);
-
-        // Convert back from FlatBuffers
-        let buffer = fbb.finished_data();
-        let fb_event_message = flatbuffers::root::<fb::TaskMonitorEventMessage>(&buffer).unwrap();
-        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message).unwrap();
-
-        match converted_event {
-            TaskMonitorEvent::ExecutionStarted { total_tasks } => {
-                assert_eq!(total_tasks, 5);
+impl<'a> ToFlatbuffersUnion<'a, fb::TaskMonitorControlCommand> for TaskMonitorControlCommand {
+    fn to_flatbuffers_union(
+        &self,
+        fbb: &mut FlatBufferBuilder<'a>,
+    ) -> (fb::TaskMonitorControlCommand, WIPOffset<flatbuffers::UnionWIPOffset>) {
+        match self {
+            TaskMonitorControlCommand::TerminateAllTasks => {
+                let reason_offset = fbb.create_string("User requested termination");
+                let terminate_all_command = fb::TerminateAllTasksCommand::create(
+                    fbb,
+                    &fb::TerminateAllTasksCommandArgs {
+                        reason: Some(reason_offset),
+                    },
+                );
+                (
+                    fb::TaskMonitorControlCommand::TerminateAllTasks,
+                    terminate_all_command.as_union_value(),
+                )
             }
-            _ => panic!("Expected ExecutionStarted event"),
+            TaskMonitorControlCommand::TerminateTask { task_name } => {
+                let task_name_offset = fbb.create_string(task_name);
+                let reason_offset = fbb.create_string("User requested termination");
+                let terminate_task_command = fb::TerminateTaskCommand::create(
+                    fbb,
+                    &fb::TerminateTaskCommandArgs {
+                        task_name: Some(task_name_offset),
+                        reason: Some(reason_offset),
+                    },
+                );
+                (
+                    fb::TaskMonitorControlCommand::TerminateTask,
+                    terminate_task_command.as_union_value(),
+                )
+            }
+            TaskMonitorControlCommand::SendStdin { task_name, input } => {
+                let task_name_offset = fbb.create_string(task_name);
+                let input_offset = fbb.create_string(input);
+                let send_stdin_command = fb::SendStdinCommand::create(
+                    fbb,
+                    &fb::SendStdinCommandArgs {
+                        task_name: Some(task_name_offset),
+                        input: Some(input_offset),
+                    },
+                );
+                (
+                    fb::TaskMonitorControlCommand::SendStdin,
+                    send_stdin_command.as_union_value(),
+                )
+            }
         }
     }
+}
 
-    #[test]
-    fn test_stdin_sent_event_conversion() {
-        let mut fbb = FlatBufferBuilder::new();
+impl<'a> ToFlatbuffers<'a> for TaskMonitorControlCommand {
+    type Output = WIPOffset<flatbuffers::UnionWIPOffset>;
 
-        let event = TaskMonitorEvent::StdinSent {
-            task_name: "test_task".to_string(),
-            input_length: 42,
-        };
+    fn to_flatbuffers(&self, fbb: &mut FlatBufferBuilder<'a>) -> Self::Output {
+        let (_discriminant, offset) = self.to_flatbuffers_union(fbb);
+        offset
+    }
+}
 
-        // Convert to FlatBuffers
-        let fb_event = event.to_flatbuffers(&mut fbb).unwrap();
-        fbb.finish(fb_event, None);
+impl<'a> ToFlatbuffers<'a> for TaskMonitorControlEvent {
+    type Output = WIPOffset<fb::TaskMonitorControlEventWrapper<'a>>;
 
-        // Convert back from FlatBuffers
-        let buffer = fbb.finished_data();
-        let fb_event_message = flatbuffers::root::<fb::TaskMonitorEventMessage>(&buffer).unwrap();
-        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message).unwrap();
+    fn to_flatbuffers(&self, fbb: &mut FlatBufferBuilder<'a>) -> Self::Output {
+        match self {
+            TaskMonitorControlEvent::ControlReceived { control } => {
+                let (control_type, control_union) = control.to_flatbuffers_union(fbb);
+                let control_received_event = fb::ControlReceivedEvent::create(
+                    fbb,
+                    &fb::ControlReceivedEventArgs {
+                        control_type,
+                        control: Some(control_union),
+                    },
+                );
 
-        match converted_event {
-            TaskMonitorEvent::StdinSent {
+                fb::TaskMonitorControlEventWrapper::create(
+                    fbb,
+                    &fb::TaskMonitorControlEventWrapperArgs {
+                        control_event_type: fb::TaskMonitorControlEvent::ControlReceived,
+                        control_event: Some(control_received_event.as_union_value()),
+                    },
+                )
+            }
+            TaskMonitorControlEvent::ControlProcessed { control } => {
+                let (control_type, control_union) = control.to_flatbuffers_union(fbb);
+                let control_processed_event = fb::ControlProcessedEvent::create(
+                    fbb,
+                    &fb::ControlProcessedEventArgs {
+                        control_type,
+                        control: Some(control_union),
+                    },
+                );
+
+                fb::TaskMonitorControlEventWrapper::create(
+                    fbb,
+                    &fb::TaskMonitorControlEventWrapperArgs {
+                        control_event_type: fb::TaskMonitorControlEvent::ControlProcessed,
+                        control_event: Some(control_processed_event.as_union_value()),
+                    },
+                )
+            }
+        }
+    }
+}
+
+impl FromFlatbuffers<fb::TaskMonitorControlEventWrapper<'_>> for TaskMonitorControlEvent {
+    fn from_flatbuffers(wrapper: fb::TaskMonitorControlEventWrapper) -> Result<Self, ConversionError> {
+        match wrapper.control_event_type() {
+            fb::TaskMonitorControlEvent::ControlReceived => {
+                if let Some(control_received_event) = wrapper.control_event_as_control_received() {
+                    let control = convert_control_command_from_flatbuffers(
+                        control_received_event.control_type(),
+                        control_received_event.control()
+                    )?;
+                    Ok(TaskMonitorControlEvent::ControlReceived { control })
+                } else {
+                    Err(ConversionError::InvalidEnumValue("ControlReceived event variant mismatch".to_string()))
+                }
+            }
+            fb::TaskMonitorControlEvent::ControlProcessed => {
+                if let Some(control_processed_event) = wrapper.control_event_as_control_processed() {
+                    let control = convert_control_command_from_flatbuffers(
+                        control_processed_event.control_type(),
+                        control_processed_event.control()
+                    )?;
+                    Ok(TaskMonitorControlEvent::ControlProcessed { control })
+                } else {
+                    Err(ConversionError::InvalidEnumValue("ControlProcessed event variant mismatch".to_string()))
+                }
+            }
+            _ => Err(ConversionError::InvalidEnumValue(format!("Unknown TaskMonitorControlEvent variant: {:?}", wrapper.control_event_type()))),
+        }
+    }
+}
+
+impl<'a> ToFlatbuffers<'a> for TaskMonitorError {
+    type Output = WIPOffset<fb::TaskMonitorErrorWrapper<'a>>;
+
+    fn to_flatbuffers(&self, fbb: &mut FlatBufferBuilder<'a>) -> Self::Output {
+        match self {
+            TaskMonitorError::ConfigParse(message) => {
+                let message_offset = fbb.create_string(message);
+                let config_parse_error = fb::ConfigParseError::create(
+                    fbb,
+                    &fb::ConfigParseErrorArgs {
+                        message: Some(message_offset),
+                    },
+                );
+                
+                fb::TaskMonitorErrorWrapper::create(
+                    fbb,
+                    &fb::TaskMonitorErrorWrapperArgs {
+                        error_type: fb::TaskMonitorError::ConfigParse,
+                        error: Some(config_parse_error.as_union_value()),
+                    },
+                )
+            }
+            TaskMonitorError::CircularDependency(task_name) => {
+                let task_name_offset = fbb.create_string(task_name);
+                let circular_dependency_error = fb::CircularDependencyError::create(
+                    fbb,
+                    &fb::CircularDependencyErrorArgs {
+                        task_name: Some(task_name_offset),
+                    },
+                );
+                
+                fb::TaskMonitorErrorWrapper::create(
+                    fbb,
+                    &fb::TaskMonitorErrorWrapperArgs {
+                        error_type: fb::TaskMonitorError::CircularDependency,
+                        error: Some(circular_dependency_error.as_union_value()),
+                    },
+                )
+            }
+            TaskMonitorError::DependencyNotFound { dependency_task_name, task_name } => {
+                let dependency_task_name_offset = fbb.create_string(dependency_task_name);
+                let task_name_offset = fbb.create_string(task_name);
+                let dependency_not_found_error = fb::DependencyNotFoundError::create(
+                    fbb,
+                    &fb::DependencyNotFoundErrorArgs {
+                        dependency_task_name: Some(dependency_task_name_offset),
+                        task_name: Some(task_name_offset),
+                    },
+                );
+                
+                fb::TaskMonitorErrorWrapper::create(
+                    fbb,
+                    &fb::TaskMonitorErrorWrapperArgs {
+                        error_type: fb::TaskMonitorError::DependencyNotFound,
+                        error: Some(dependency_not_found_error.as_union_value()),
+                    },
+                )
+            }
+            TaskMonitorError::ControlError(control_error) => {
+                let control_command_error = control_error.to_flatbuffers(fbb);
+                
+                fb::TaskMonitorErrorWrapper::create(
+                    fbb,
+                    &fb::TaskMonitorErrorWrapperArgs {
+                        error_type: fb::TaskMonitorError::ControlError,
+                        error: Some(control_command_error.as_union_value()),
+                    },
+                )
+            }
+        }
+    }
+}
+
+impl FromFlatbuffers<fb::TaskMonitorErrorWrapper<'_>> for TaskMonitorError {
+    fn from_flatbuffers(wrapper: fb::TaskMonitorErrorWrapper) -> Result<Self, ConversionError> {
+        match wrapper.error_type() {
+            fb::TaskMonitorError::ConfigParse => {
+                if let Some(config_parse_error) = wrapper.error_as_config_parse() {
+                    let message = config_parse_error.message().to_string();
+                    Ok(TaskMonitorError::ConfigParse(message))
+                } else {
+                    Err(ConversionError::InvalidEnumValue("ConfigParse error variant mismatch".to_string()))
+                }
+            }
+            fb::TaskMonitorError::CircularDependency => {
+                if let Some(circular_dependency_error) = wrapper.error_as_circular_dependency() {
+                    let task_name = circular_dependency_error.task_name().to_string();
+                    Ok(TaskMonitorError::CircularDependency(task_name))
+                } else {
+                    Err(ConversionError::InvalidEnumValue("CircularDependency error variant mismatch".to_string()))
+                }
+            }
+            fb::TaskMonitorError::DependencyNotFound => {
+                if let Some(dependency_not_found_error) = wrapper.error_as_dependency_not_found() {
+                    let dependency_task_name = dependency_not_found_error.dependency_task_name().to_string();
+                    let task_name = dependency_not_found_error.task_name().to_string();
+                    Ok(TaskMonitorError::DependencyNotFound { dependency_task_name, task_name })
+                } else {
+                    Err(ConversionError::InvalidEnumValue("DependencyNotFound error variant mismatch".to_string()))
+                }
+            }
+            fb::TaskMonitorError::ControlError => {
+                if let Some(control_command_error) = wrapper.error_as_control_error() {
+                    let control_error = ControlCommandError::try_from(control_command_error)?;
+                    Ok(TaskMonitorError::ControlError(control_error))
+                } else {
+                    Err(ConversionError::InvalidEnumValue("ControlError error variant mismatch".to_string()))
+                }
+            }
+            _ => Err(ConversionError::InvalidEnumValue(format!("Unknown TaskMonitorError variant: {:?}", wrapper.error_type()))),
+        }
+    }
+}
+
+/// Converts a FlatBuffers TaskEvent to tcrm_task TaskEvent
+fn convert_flatbuffers_to_task_event(
+    fb_task_event: tcrm_task::flatbuffers::tcrm_task_generated::tcrm::task::TaskEvent,
+) -> Result<tcrm_task::tasks::event::TaskEvent, ConversionError> {
+    use tcrm_task::flatbuffers::tcrm_task_generated::tcrm::task as tcrm_task_fb;
+    use tcrm_task::tasks::config::StreamSource;
+    use tcrm_task::tasks::event::{TaskEvent, TaskEventStopReason, TaskTerminateReason};
+
+    // Get the event type and event union
+    let event_type = fb_task_event.event_type();
+    let event = fb_task_event.event().ok_or(ConversionError::MissingRequiredField("event"))?;
+
+    match event_type {
+        tcrm_task_fb::TaskEventUnion::Started => {
+            let started_event = unsafe { tcrm_task_fb::StartedEvent::init_from_table(event) };
+            let task_name = started_event.task_name().to_string();
+            Ok(TaskEvent::Started { task_name })
+        }
+        tcrm_task_fb::TaskEventUnion::Output => {
+            let output_event = unsafe { tcrm_task_fb::OutputEvent::init_from_table(event) };
+            let task_name = output_event.task_name().to_string();
+            let line = output_event.line().to_string();
+            let src = match output_event.src() {
+                tcrm_task_fb::StreamSource::Stdout => StreamSource::Stdout,
+                tcrm_task_fb::StreamSource::Stderr => StreamSource::Stderr,
+                _ => {
+                    return Err(ConversionError::InvalidEnumValue(format!(
+                        "Invalid StreamSource: {:?}",
+                        output_event.src()
+                    )))
+                }
+            };
+            Ok(TaskEvent::Output {
                 task_name,
-                input_length,
-            } => {
-                assert_eq!(task_name, "test_task");
-                assert_eq!(input_length, 42);
+                line,
+                src,
+            })
+        }
+        tcrm_task_fb::TaskEventUnion::Ready => {
+            let ready_event = unsafe { tcrm_task_fb::ReadyEvent::init_from_table(event) };
+            let task_name = ready_event.task_name().to_string();
+            Ok(TaskEvent::Ready { task_name })
+        }
+        tcrm_task_fb::TaskEventUnion::Stopped => {
+            let stopped_event = unsafe { tcrm_task_fb::StoppedEvent::init_from_table(event) };
+            let task_name = stopped_event.task_name().to_string();
+            let exit_code = if stopped_event.exit_code() == 0 {
+                None
+            } else {
+                Some(stopped_event.exit_code())
+            };
+
+            // Convert the stop reason
+            let reason_type = stopped_event.reason_type();
+            let reason = match reason_type {
+                tcrm_task_fb::TaskEventStopReason::Finished => TaskEventStopReason::Finished,
+                tcrm_task_fb::TaskEventStopReason::TerminatedTimeout => {
+                    TaskEventStopReason::Terminated(TaskTerminateReason::Timeout)
+                }
+                tcrm_task_fb::TaskEventStopReason::TerminatedCleanup => {
+                    TaskEventStopReason::Terminated(TaskTerminateReason::Cleanup)
+                }
+                tcrm_task_fb::TaskEventStopReason::TerminatedDependenciesFinished => {
+                    TaskEventStopReason::Terminated(TaskTerminateReason::DependenciesFinished)
+                }
+                tcrm_task_fb::TaskEventStopReason::TerminatedUserRequested => {
+                    TaskEventStopReason::Terminated(TaskTerminateReason::UserRequested)
+                }
+                tcrm_task_fb::TaskEventStopReason::Error => {
+                    let reason_table = stopped_event.reason();
+                    let error_reason = unsafe { tcrm_task_fb::ErrorStopReason::init_from_table(reason_table) };
+                    let message = error_reason.message().to_string();
+                    TaskEventStopReason::Error(message)
+                }
+                _ => {
+                    return Err(ConversionError::InvalidEnumValue(format!(
+                        "Invalid TaskEventStopReason: {:?}",
+                        reason_type
+                    )))
+                }
+            };
+
+            Ok(TaskEvent::Stopped {
+                task_name,
+                exit_code,
+                reason,
+            })
+        }
+        tcrm_task_fb::TaskEventUnion::Error => {
+            let error_event = unsafe { tcrm_task_fb::ErrorEvent::init_from_table(event) };
+            let task_name = error_event.task_name().to_string();
+
+            let fb_error = error_event.error();
+
+            let message = fb_error.message().unwrap_or("").to_string();
+
+            // For now, create a simple error - TaskError construction needs investigation
+            match fb_error.kind() {
+                tcrm_task_fb::TaskErrorType::IO => {
+                    Ok(TaskEvent::Error { 
+                        task_name, 
+                        error: tcrm_task::tasks::error::TaskError::IO(message) 
+                    })
+                }
+                tcrm_task_fb::TaskErrorType::Handle => {
+                    Ok(TaskEvent::Error { 
+                        task_name, 
+                        error: tcrm_task::tasks::error::TaskError::Handle(message) 
+                    })
+                }
+                tcrm_task_fb::TaskErrorType::Channel => {
+                    Ok(TaskEvent::Error { 
+                        task_name, 
+                        error: tcrm_task::tasks::error::TaskError::Channel(message) 
+                    })
+                }
+                tcrm_task_fb::TaskErrorType::InvalidConfiguration => {
+                    Ok(TaskEvent::Error { 
+                        task_name, 
+                        error: tcrm_task::tasks::error::TaskError::InvalidConfiguration(message) 
+                    })
+                }
+                _ => {
+                    Err(ConversionError::InvalidEnumValue(format!(
+                        "Invalid TaskErrorType: {:?}",
+                        fb_error.kind()
+                    )))
+                }
             }
-            _ => panic!("Expected StdinSent event"),
         }
+        _ => Err(ConversionError::InvalidEnumValue(format!(
+            "Invalid TaskEventUnion: {:?}",
+            event_type
+        ))),
     }
+}
 
-    #[test]
-    fn test_all_tasks_termination_requested_event_conversion() {
-        let mut fbb = FlatBufferBuilder::new();
-
-        let event = TaskMonitorEvent::AllTasksTerminationRequested;
-
-        // Convert to FlatBuffers
-        let fb_event = event.to_flatbuffers(&mut fbb).unwrap();
-        fbb.finish(fb_event, None);
-
-        // Convert back from FlatBuffers
-        let buffer = fbb.finished_data();
-        let fb_event_message = flatbuffers::root::<fb::TaskMonitorEventMessage>(&buffer).unwrap();
-        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message).unwrap();
-
-        match converted_event {
-            TaskMonitorEvent::AllTasksTerminationRequested => {
-                // Success
-            }
-            _ => panic!("Expected AllTasksTerminationRequested event"),
+/// Helper function to convert FlatBuffers control command to TaskMonitorControlCommand
+fn convert_control_command_from_flatbuffers(
+    control_type: fb::TaskMonitorControlCommand,
+    control_table: flatbuffers::Table,
+) -> Result<TaskMonitorControlCommand, ConversionError> {
+    match control_type {
+        fb::TaskMonitorControlCommand::TerminateAllTasks => {
+            Ok(TaskMonitorControlCommand::TerminateAllTasks)
         }
-    }
-
-    #[test]
-    fn test_task_event_started_conversion() {
-        let mut fbb = FlatBufferBuilder::new();
-
-        // Create a TaskEvent::Started
-        let task_event = tcrm_task::tasks::event::TaskEvent::Started {
-            task_name: "test_task".to_string(),
-        };
-
-        let event = TaskMonitorEvent::Task(task_event);
-
-        // Convert to FlatBuffers
-        let fb_event = event.to_flatbuffers(&mut fbb).unwrap();
-        fbb.finish(fb_event, None);
-
-        // Convert back from FlatBuffers
-        let buffer = fbb.finished_data();
-        let fb_event_message = flatbuffers::root::<fb::TaskMonitorEventMessage>(&buffer).unwrap();
-        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message).unwrap();
-
-        match converted_event {
-            TaskMonitorEvent::Task(converted_task_event) => match converted_task_event {
-                tcrm_task::tasks::event::TaskEvent::Started { task_name } => {
-                    assert_eq!(task_name, "test_task");
-                }
-                _ => panic!("Expected Started task event"),
-            },
-            _ => panic!("Expected Task event"),
+        fb::TaskMonitorControlCommand::TerminateTask => {
+            let terminate_task_command = unsafe { fb::TerminateTaskCommand::init_from_table(control_table) };
+            let task_name = terminate_task_command.task_name().to_string();
+            Ok(TaskMonitorControlCommand::TerminateTask { task_name })
         }
-    }
-
-    #[test]
-    fn test_task_event_output_conversion() {
-        let mut fbb = FlatBufferBuilder::new();
-
-        // Create a TaskEvent::Output
-        let task_event = tcrm_task::tasks::event::TaskEvent::Output {
-            task_name: "test_task".to_string(),
-            line: "Hello, World!".to_string(),
-            src: tcrm_task::tasks::config::StreamSource::Stdout,
-        };
-
-        let event = TaskMonitorEvent::Task(task_event);
-
-        // Convert to FlatBuffers
-        let fb_event = event.to_flatbuffers(&mut fbb).unwrap();
-        fbb.finish(fb_event, None);
-
-        // Convert back from FlatBuffers
-        let buffer = fbb.finished_data();
-        let fb_event_message = flatbuffers::root::<fb::TaskMonitorEventMessage>(&buffer).unwrap();
-        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message).unwrap();
-
-        match converted_event {
-            TaskMonitorEvent::Task(converted_task_event) => match converted_task_event {
-                tcrm_task::tasks::event::TaskEvent::Output {
-                    task_name,
-                    line,
-                    src,
-                } => {
-                    assert_eq!(task_name, "test_task");
-                    assert_eq!(line, "Hello, World!");
-                    assert_eq!(src, tcrm_task::tasks::config::StreamSource::Stdout);
-                }
-                _ => panic!("Expected Output task event"),
-            },
-            _ => panic!("Expected Task event"),
+        fb::TaskMonitorControlCommand::SendStdin => {
+            let send_stdin_command = unsafe { fb::SendStdinCommand::init_from_table(control_table) };
+            let task_name = send_stdin_command.task_name().to_string();
+            let input = send_stdin_command.input().to_string();
+            Ok(TaskMonitorControlCommand::SendStdin { task_name, input })
         }
-    }
-
-    #[test]
-    fn test_task_event_ready_conversion() {
-        let mut fbb = FlatBufferBuilder::new();
-
-        // Create a TaskEvent::Ready
-        let task_event = tcrm_task::tasks::event::TaskEvent::Ready {
-            task_name: "test_task".to_string(),
-        };
-
-        let event = TaskMonitorEvent::Task(task_event);
-
-        // Convert to FlatBuffers
-        let fb_event = event.to_flatbuffers(&mut fbb).unwrap();
-        fbb.finish(fb_event, None);
-
-        // Convert back from FlatBuffers
-        let buffer = fbb.finished_data();
-        let fb_event_message = flatbuffers::root::<fb::TaskMonitorEventMessage>(&buffer).unwrap();
-        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message).unwrap();
-
-        match converted_event {
-            TaskMonitorEvent::Task(converted_task_event) => match converted_task_event {
-                tcrm_task::tasks::event::TaskEvent::Ready { task_name } => {
-                    assert_eq!(task_name, "test_task");
-                }
-                _ => panic!("Expected Ready task event"),
-            },
-            _ => panic!("Expected Task event"),
-        }
-    }
-
-    #[test]
-    fn test_task_event_stopped_conversion() {
-        let mut fbb = FlatBufferBuilder::new();
-
-        // Create a TaskEvent::Stopped
-        let task_event = tcrm_task::tasks::event::TaskEvent::Stopped {
-            task_name: "test_task".to_string(),
-            exit_code: Some(0),
-            reason: tcrm_task::tasks::event::TaskEventStopReason::Finished,
-        };
-
-        let event = TaskMonitorEvent::Task(task_event);
-
-        // Convert to FlatBuffers
-        let fb_event = event.to_flatbuffers(&mut fbb).unwrap();
-        fbb.finish(fb_event, None);
-
-        // Convert back from FlatBuffers
-        let buffer = fbb.finished_data();
-        let fb_event_message = flatbuffers::root::<fb::TaskMonitorEventMessage>(&buffer).unwrap();
-        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message).unwrap();
-
-        match converted_event {
-            TaskMonitorEvent::Task(converted_task_event) => match converted_task_event {
-                tcrm_task::tasks::event::TaskEvent::Stopped {
-                    task_name,
-                    exit_code,
-                    reason,
-                } => {
-                    assert_eq!(task_name, "test_task");
-                    assert_eq!(exit_code, Some(0));
-                    assert_eq!(
-                        reason,
-                        tcrm_task::tasks::event::TaskEventStopReason::Finished
-                    );
-                }
-                _ => panic!("Expected Stopped task event"),
-            },
-            _ => panic!("Expected Task event"),
-        }
-    }
-
-    #[test]
-    fn test_task_event_error_conversion() {
-        let mut fbb = FlatBufferBuilder::new();
-
-        // Create a TaskEvent::Error
-        let task_event = tcrm_task::tasks::event::TaskEvent::Error {
-            task_name: "test_task".to_string(),
-            error: tcrm_task::tasks::error::TaskError::Custom("Test error".to_string()),
-        };
-
-        let event = TaskMonitorEvent::Task(task_event);
-
-        // Convert to FlatBuffers
-        let fb_event = event.to_flatbuffers(&mut fbb).unwrap();
-        fbb.finish(fb_event, None);
-
-        // Convert back from FlatBuffers
-        let buffer = fbb.finished_data();
-        let fb_event_message = flatbuffers::root::<fb::TaskMonitorEventMessage>(&buffer).unwrap();
-        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message).unwrap();
-
-        match converted_event {
-            TaskMonitorEvent::Task(converted_task_event) => match converted_task_event {
-                tcrm_task::tasks::event::TaskEvent::Error { task_name, error } => {
-                    assert_eq!(task_name, "test_task");
-                    match error {
-                        tcrm_task::tasks::error::TaskError::Custom(msg) => {
-                            assert_eq!(msg, "Test error");
-                        }
-                        _ => panic!("Expected Custom error"),
-                    }
-                }
-                _ => panic!("Expected Error task event"),
-            },
-            _ => panic!("Expected Task event"),
-        }
-    }
-
-    #[test]
-    fn test_task_event_stderr_output_conversion() {
-        let mut fbb = FlatBufferBuilder::new();
-
-        // Create a TaskEvent::Output with stderr
-        let task_event = tcrm_task::tasks::event::TaskEvent::Output {
-            task_name: "test_task".to_string(),
-            line: "Error message".to_string(),
-            src: tcrm_task::tasks::config::StreamSource::Stderr,
-        };
-
-        let event = TaskMonitorEvent::Task(task_event);
-
-        // Convert to FlatBuffers
-        let fb_event = event.to_flatbuffers(&mut fbb).unwrap();
-        fbb.finish(fb_event, None);
-
-        // Convert back from FlatBuffers
-        let buffer = fbb.finished_data();
-        let fb_event_message = flatbuffers::root::<fb::TaskMonitorEventMessage>(&buffer).unwrap();
-        let converted_event = TaskMonitorEvent::from_flatbuffers(fb_event_message).unwrap();
-
-        match converted_event {
-            TaskMonitorEvent::Task(converted_task_event) => match converted_task_event {
-                tcrm_task::tasks::event::TaskEvent::Output {
-                    task_name,
-                    line,
-                    src,
-                } => {
-                    assert_eq!(task_name, "test_task");
-                    assert_eq!(line, "Error message");
-                    assert_eq!(src, tcrm_task::tasks::config::StreamSource::Stderr);
-                }
-                _ => panic!("Expected Output task event"),
-            },
-            _ => panic!("Expected Task event"),
-        }
+        _ => Err(ConversionError::InvalidEnumValue(format!("Unknown TaskMonitorControlCommand variant: {:?}", control_type))),
     }
 }

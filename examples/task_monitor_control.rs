@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use tcrm_monitor::monitor::config::TaskShell;
 use tcrm_monitor::monitor::{
-    config::TaskSpec, executor::direct::TaskMonitorControl, tasks::TaskMonitor,
+    config::TaskSpec, event::TaskMonitorControlCommand, tasks::TaskMonitor,
 };
 use tcrm_task::tasks::config::TaskConfig;
 use tokio::sync::mpsc;
@@ -99,7 +99,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 1. Send stdin to a task (demonstrates validation)
     println!("1. Sending stdin to stdin_task...");
-    let stdin_control = TaskMonitorControl::SendStdin {
+    let stdin_control = TaskMonitorControlCommand::SendStdin {
         task_name: "stdin_task".to_string(),
         input: "Hello from stdin!\n".to_string(),
     };
@@ -109,7 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 2. Try to send stdin to a task without stdin enabled (will be rejected)
     println!("2. Trying to send stdin to long_task (should be rejected)...");
-    let invalid_stdin_control = TaskMonitorControl::SendStdin {
+    let invalid_stdin_control = TaskMonitorControlCommand::SendStdin {
         task_name: "long_task".to_string(),
         input: "This should be rejected\n".to_string(),
     };
@@ -119,7 +119,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Terminate a specific task
     println!("3. Terminating long_task...");
-    let terminate_control = TaskMonitorControl::TerminateTask {
+    let terminate_control = TaskMonitorControlCommand::TerminateTask {
         task_name: "long_task".to_string(),
     };
     control_tx.send(terminate_control).await?;
@@ -128,7 +128,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 4. Stop all tasks
     println!("4. Stopping all remaining tasks...");
-    let stop_control = TaskMonitorControl::Stop;
+    let stop_control = TaskMonitorControlCommand::TerminateAllTasks;
     control_tx.send(stop_control).await?;
 
     // Wait for the monitor to finish

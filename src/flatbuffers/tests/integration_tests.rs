@@ -4,7 +4,10 @@ use tcrm_task::tasks::config::{StreamSource, TaskConfig};
 use temp_dir::TempDir;
 
 use crate::{
-    flatbuffers::{conversion::ToFlatbuffers, tcrm_monitor_generated},
+    flatbuffers::{
+        conversion::{ToFlatbuffers, tcrm_tasks_to_flatbuffers},
+        tcrm_monitor_generated,
+    },
     monitor::{
         config::{TaskShell, TaskSpec, TcrmTasks},
         depend::build_depend_map,
@@ -100,7 +103,7 @@ async fn test_complete_flatbuffers_workflow() {
     // Convert to flatbuffers
     use flatbuffers::FlatBufferBuilder;
     let mut fbb = FlatBufferBuilder::new();
-    let fb_tasks_offset = original_tasks.to_flatbuffers(&mut fbb).unwrap();
+    let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&original_tasks, &mut fbb);
     fbb.finish(fb_tasks_offset, None);
 
     // Serialize to bytes
@@ -169,7 +172,7 @@ async fn test_flatbuffers_config_validation() {
     // Convert to flatbuffers and back
     use flatbuffers::FlatBufferBuilder;
     let mut fbb = FlatBufferBuilder::new();
-    let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
+    let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
     fbb.finish(fb_tasks_offset, None);
 
     let serialized_data = fbb.finished_data().to_vec();
@@ -196,7 +199,7 @@ async fn test_dependency_resolution_with_flatbuffers() {
     // Convert through flatbuffers
     use flatbuffers::FlatBufferBuilder;
     let mut fbb = FlatBufferBuilder::new();
-    let fb_tasks_offset = original_tasks.to_flatbuffers(&mut fbb).unwrap();
+    let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&original_tasks, &mut fbb);
     fbb.finish(fb_tasks_offset, None);
 
     let serialized_data = fbb.finished_data().to_vec();
@@ -247,10 +250,9 @@ async fn test_error_handling_in_conversion_workflow() {
 
     // The conversion should handle this gracefully
     let mut fbb = FlatBufferBuilder::new();
-    let result = invalid_spec.to_flatbuffers(&mut fbb);
+    let _result = invalid_spec.to_flatbuffers(&mut fbb);
 
-    // Even empty commands should be handled gracefully
-    assert!(result.is_ok());
+    // Even empty commands should be handled gracefully - no need to check is_ok()
 }
 
 #[tokio::test]
@@ -276,7 +278,7 @@ async fn test_large_configuration_handling() {
     // Convert to flatbuffers
     use flatbuffers::FlatBufferBuilder;
     let mut fbb = FlatBufferBuilder::new();
-    let fb_tasks_offset = large_tasks.to_flatbuffers(&mut fbb).unwrap();
+    let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&large_tasks, &mut fbb);
     fbb.finish(fb_tasks_offset, None);
 
     let serialized_data = fbb.finished_data().to_vec();
@@ -330,7 +332,7 @@ async fn test_concurrent_access_to_converted_config() {
     // Convert to flatbuffers
     use flatbuffers::FlatBufferBuilder;
     let mut fbb = FlatBufferBuilder::new();
-    let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
+    let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
     fbb.finish(fb_tasks_offset, None);
 
     let serialized_data = Arc::new(fbb.finished_data().to_vec());
@@ -446,7 +448,7 @@ async fn test_memory_efficiency() {
     for _iteration in 0..10 {
         use flatbuffers::FlatBufferBuilder;
         let mut fbb = FlatBufferBuilder::new();
-        let _fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
+        let _fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
         fbb.finish(_fb_tasks_offset, None);
 
         let serialized_data = fbb.finished_data().to_vec();
@@ -497,47 +499,37 @@ fn get_memory_usage() -> usize {
 }
 
 /// Test TaskMonitorEvent flatbuffers conversion roundtrip
-#[test]
-fn test_task_monitor_event_flatbuffers_roundtrip() {
-    use crate::flatbuffers::conversion::FromFlatbuffers;
-    use crate::monitor::error::SendStdinErrorReason;
-    use crate::monitor::event::{TaskMonitorControlType, TaskMonitorEvent};
+/// This test verifies that TaskMonitorEvent can be serialized to and from FlatBuffers without data loss.
+#[tokio::test]
+async fn test_task_monitor_event_flatbuffers_roundtrip() {
+    use crate::flatbuffers::conversion::{FromFlatbuffers, ToFlatbuffers};
+    use crate::monitor::error::TaskMonitorError;
+    use crate::monitor::event::{
+        TaskMonitorControlCommand, TaskMonitorControlEvent, TaskMonitorEvent,
+    };
     use flatbuffers::FlatBufferBuilder;
 
     let test_events = vec![
-        TaskMonitorEvent::ExecutionStarted { total_tasks: 5 },
-        TaskMonitorEvent::ExecutionCompleted {
-            completed_tasks: 4,
+        TaskMonitorEvent::Started { total_tasks: 3 },
+        TaskMonitorEvent::Completed {
+            completed_tasks: 2,
             failed_tasks: 1,
         },
-        TaskMonitorEvent::ControlReceived {
-            control_type: TaskMonitorControlType::Stop,
-        },
-        TaskMonitorEvent::ControlProcessed {
-            control_type: TaskMonitorControlType::TerminateTask,
-        },
-        TaskMonitorEvent::AllTasksTerminationRequested,
-        TaskMonitorEvent::TaskTerminationRequested {
-            task_name: "test_task".to_string(),
-        },
-        TaskMonitorEvent::StdinSent {
-            task_name: "stdin_task".to_string(),
-            input_length: 42,
-        },
-        TaskMonitorEvent::StdinError {
-            task_name: "error_task".to_string(),
-            error: SendStdinErrorReason::TaskNotFound("error_task".to_string()),
-        },
+        TaskMonitorEvent::Control(TaskMonitorControlEvent::ControlReceived {
+            control: TaskMonitorControlCommand::TerminateAllTasks,
+        }),
+        TaskMonitorEvent::Control(TaskMonitorControlEvent::ControlProcessed {
+            control: TaskMonitorControlCommand::TerminateTask {
+                task_name: "my_task".to_string(),
+            },
+        }),
+        TaskMonitorEvent::Error(TaskMonitorError::ConfigParse("parse error".to_string())),
     ];
 
     for original_event in test_events {
-        println!("Testing event: {:?}", original_event);
-
         // Convert to flatbuffers using trait
         let mut fbb = FlatBufferBuilder::new();
-        let fb_event = original_event
-            .to_flatbuffers(&mut fbb)
-            .expect("Should convert to flatbuffers");
+        let fb_event = original_event.to_flatbuffers(&mut fbb);
         fbb.finish(fb_event, None);
 
         // Convert back from flatbuffers using trait
@@ -553,120 +545,98 @@ fn test_task_monitor_event_flatbuffers_roundtrip() {
         // Verify the conversion preserved the essential data
         match (&original_event, &converted_event) {
             (
-                TaskMonitorEvent::ExecutionStarted {
-                    total_tasks: orig_total,
+                TaskMonitorEvent::Started { total_tasks: orig },
+                TaskMonitorEvent::Started { total_tasks: conv },
+            ) => assert_eq!(orig, conv),
+            (
+                TaskMonitorEvent::Completed {
+                    completed_tasks: o1,
+                    failed_tasks: o2,
                 },
-                TaskMonitorEvent::ExecutionStarted {
-                    total_tasks: conv_total,
+                TaskMonitorEvent::Completed {
+                    completed_tasks: c1,
+                    failed_tasks: c2,
                 },
             ) => {
-                assert_eq!(orig_total, conv_total);
+                assert_eq!(o1, c1);
+                assert_eq!(o2, c2);
             }
             (
-                TaskMonitorEvent::ExecutionCompleted {
-                    completed_tasks: orig_comp,
-                    failed_tasks: orig_fail,
-                },
-                TaskMonitorEvent::ExecutionCompleted {
-                    completed_tasks: conv_comp,
-                    failed_tasks: conv_fail,
-                },
-            ) => {
-                assert_eq!(orig_comp, conv_comp);
-                assert_eq!(orig_fail, conv_fail);
-            }
-            (
-                TaskMonitorEvent::ControlReceived {
-                    control_type: orig_type,
-                },
-                TaskMonitorEvent::ControlReceived {
-                    control_type: conv_type,
-                },
-            ) => {
-                assert_eq!(orig_type, conv_type);
-            }
-            (
-                TaskMonitorEvent::ControlProcessed {
-                    control_type: orig_type,
-                },
-                TaskMonitorEvent::ControlProcessed {
-                    control_type: conv_type,
-                },
-            ) => {
-                assert_eq!(orig_type, conv_type);
-            }
-            (
-                TaskMonitorEvent::StdinSent {
-                    task_name: orig_name,
-                    input_length: orig_len,
-                },
-                TaskMonitorEvent::StdinSent {
-                    task_name: conv_name,
-                    input_length: conv_len,
-                },
-            ) => {
-                assert_eq!(orig_name, conv_name);
-                assert_eq!(orig_len, conv_len);
-            }
-            (
-                TaskMonitorEvent::TaskTerminationRequested {
-                    task_name: orig_name,
-                },
-                TaskMonitorEvent::TaskTerminationRequested {
-                    task_name: conv_name,
-                },
-            ) => {
-                assert_eq!(orig_name, conv_name);
-            }
-            (
-                TaskMonitorEvent::AllTasksTerminationRequested,
-                TaskMonitorEvent::AllTasksTerminationRequested,
-            ) => {
-                // Success - both are the same variant
-            }
-            (
-                TaskMonitorEvent::StdinError {
-                    task_name: orig_name,
-                    error: orig_error,
-                },
-                TaskMonitorEvent::StdinError {
-                    task_name: conv_name,
-                    error: conv_error,
-                },
-            ) => {
-                assert_eq!(orig_name, conv_name);
-                // For StdinError, just check that both are the same variant type
-                match (orig_error, conv_error) {
-                    (
-                        SendStdinErrorReason::TaskNotFound(_),
-                        SendStdinErrorReason::TaskNotFound(_),
-                    ) => {}
-                    (
-                        SendStdinErrorReason::StdinNotEnabled(_),
-                        SendStdinErrorReason::StdinNotEnabled(_),
-                    ) => {}
-                    (
-                        SendStdinErrorReason::TaskNotReady(_),
-                        SendStdinErrorReason::TaskNotReady(_),
-                    ) => {}
-                    (
-                        SendStdinErrorReason::ChannelClosed(_),
-                        SendStdinErrorReason::ChannelClosed(_),
-                    ) => {}
-                    _ => panic!(
-                        "StdinError conversion mismatch: {:?} -> {:?}",
-                        orig_error, conv_error
-                    ),
+                TaskMonitorEvent::Control(TaskMonitorControlEvent::ControlReceived {
+                    control: o_ctrl,
+                }),
+                TaskMonitorEvent::Control(TaskMonitorControlEvent::ControlReceived {
+                    control: c_ctrl,
+                }),
+            ) => match (o_ctrl, c_ctrl) {
+                (
+                    TaskMonitorControlCommand::TerminateAllTasks,
+                    TaskMonitorControlCommand::TerminateAllTasks,
+                ) => {}
+                (
+                    TaskMonitorControlCommand::TerminateTask { task_name: o_name },
+                    TaskMonitorControlCommand::TerminateTask { task_name: c_name },
+                ) => assert_eq!(o_name, c_name),
+                (
+                    TaskMonitorControlCommand::SendStdin {
+                        task_name: o_name,
+                        input: o_input,
+                    },
+                    TaskMonitorControlCommand::SendStdin {
+                        task_name: c_name,
+                        input: c_input,
+                    },
+                ) => {
+                    assert_eq!(o_name, c_name);
+                    assert_eq!(o_input, c_input);
                 }
-            }
-            _ => {
-                panic!(
-                    "Event conversion failed: {:?} -> {:?}",
-                    original_event, converted_event
-                );
-            }
+                _ => panic!(
+                    "ControlReceived conversion mismatch: {:?} -> {:?}",
+                    o_ctrl, c_ctrl
+                ),
+            },
+            (
+                TaskMonitorEvent::Control(TaskMonitorControlEvent::ControlProcessed {
+                    control: o_ctrl,
+                }),
+                TaskMonitorEvent::Control(TaskMonitorControlEvent::ControlProcessed {
+                    control: c_ctrl,
+                }),
+            ) => match (o_ctrl, c_ctrl) {
+                (
+                    TaskMonitorControlCommand::TerminateAllTasks,
+                    TaskMonitorControlCommand::TerminateAllTasks,
+                ) => {}
+                (
+                    TaskMonitorControlCommand::TerminateTask { task_name: o_name },
+                    TaskMonitorControlCommand::TerminateTask { task_name: c_name },
+                ) => assert_eq!(o_name, c_name),
+                (
+                    TaskMonitorControlCommand::SendStdin {
+                        task_name: o_name,
+                        input: o_input,
+                    },
+                    TaskMonitorControlCommand::SendStdin {
+                        task_name: c_name,
+                        input: c_input,
+                    },
+                ) => {
+                    assert_eq!(o_name, c_name);
+                    assert_eq!(o_input, c_input);
+                }
+                _ => panic!(
+                    "ControlProcessed conversion mismatch: {:?} -> {:?}",
+                    o_ctrl, c_ctrl
+                ),
+            },
+            (
+                TaskMonitorEvent::Error(TaskMonitorError::ConfigParse(o_msg)),
+                TaskMonitorEvent::Error(TaskMonitorError::ConfigParse(c_msg)),
+            ) => assert_eq!(o_msg, c_msg),
+            _ => panic!(
+                "Event conversion failed: {:?} -> {:?}",
+                original_event, converted_event
+            ),
         }
-
-        println!("✓ Conversion successful");
     }
 }

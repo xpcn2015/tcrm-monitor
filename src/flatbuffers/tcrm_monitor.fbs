@@ -25,11 +25,6 @@ enum SendStdinErrorReason: byte {
   ChannelClosed = 3
 }
 
-table SendStdinError {
-  reason: SendStdinErrorReason;
-  task_name: string (required);
-}
-
 table ControlCommandError {
   terminate_all_tasks_reason: string;
   terminate_task_name: string;
@@ -43,26 +38,32 @@ union TaskMonitorError {
   ConfigParse: ConfigParseError,
   CircularDependency: CircularDependencyError,
   DependencyNotFound: DependencyNotFoundError,
-  ControlError: ControlCommandError,
-  TaskError: TCRM.Task.TaskError
+  ControlError: ControlCommandError
 }
 
-// Event types
+// Control Command Types
 
-enum TaskMonitorControlType: byte {
-  TerminateAllTasks = 0,
-  TerminateTask = 1,
-  SendStdin = 2
+table TerminateAllTasksCommand {
+  reason: string (required);
 }
 
-table ExecutionStartedEvent {
-  total_tasks: uint32;
+table TerminateTaskCommand {
+  task_name: string (required);
+  reason: string (required);
 }
 
-table ExecutionCompletedEvent {
-  completed_tasks: uint32;
-  failed_tasks: uint32;
+table SendStdinCommand {
+  task_name: string (required);
+  input: string (required);
 }
+
+union TaskMonitorControlCommand {
+  TerminateAllTasks: TerminateAllTasksCommand,
+  TerminateTask: TerminateTaskCommand,
+  SendStdin: SendStdinCommand
+}
+
+// Control Event Types
 
 table ControlReceivedEvent {
   control: TaskMonitorControlCommand (required);
@@ -72,43 +73,35 @@ table ControlProcessedEvent {
   control: TaskMonitorControlCommand (required);
 }
 
-table TaskMonitorControlCommand {
-  command_type: TaskMonitorControlType;
-  task_name: string; // Used for TerminateTask and SendStdin
-  input: string; // Used for SendStdin
+union TaskMonitorControlEvent {
+  ControlReceived: ControlReceivedEvent,
+  ControlProcessed: ControlProcessedEvent
 }
 
-table TaskTerminationRequestedEvent {
-  task_name: string (required);
+table TaskMonitorControlEventWrapper {
+  control_event: TaskMonitorControlEvent (required);
 }
 
-table StdinSentEvent {
-  task_name: string (required);
-  input_length: uint32;
+// Monitor Events
+
+table ExecutionStartedEvent {
+  total_tasks: uint64;
 }
 
-table StdinErrorEvent {
-  task_name: string (required);
-  error: SendStdinErrorReason;
-}
-enum TaskMonitorControlEventType: byte {
-  ControlReceived = 0,
-  ControlProcessed = 1
-}
-
-table TaskMonitorControlEvent {
-  event_type: TaskMonitorControlEventType;
-  control: TaskMonitorControlCommand;
+table ExecutionCompletedEvent {
+  completed_tasks: uint64;
+  failed_tasks: uint64;
 }
 
 table TaskMonitorErrorWrapper {
-  error: TaskMonitorError;
+  error: TaskMonitorError (required);
 }
+
 union TaskMonitorEvent {
   Task: TCRM.Task.TaskEvent,
-  ExecutionStarted: ExecutionStartedEvent,
-  ExecutionCompleted: ExecutionCompletedEvent,
-  Control: TaskMonitorControlEvent,
+  Started: ExecutionStartedEvent,
+  Completed: ExecutionCompletedEvent,
+  Control: TaskMonitorControlEventWrapper,
   Error: TaskMonitorErrorWrapper
 }
 
@@ -146,6 +139,5 @@ table TaskEntry {
 table TcrmTasks {
   tasks: [TaskEntry];
 }
-
 
 root_type TcrmTasks;

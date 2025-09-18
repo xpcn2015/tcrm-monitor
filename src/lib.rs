@@ -12,7 +12,7 @@
 //!
 //! - **Dependency Management**: Define task graphs with automatic dependency validation and circular dependency detection
 //! - **Parallel Execution**: Execute independent tasks concurrently while respecting dependency order
-//! - **Shell Integration**: Support for running tasks from various shells (Bash, Zsh, Fish, Sh, `PowerShell`, CMD) based on OS
+//! - **Shell Integration**: Support for running tasks from various shells (Bash, Sh, PowerShell, CMD) based on OS
 //! - **Real-time Events**: Monitor task execution with detailed event streams
 //! - **Runtime Control**: Stop tasks, send stdin input, and terminate specific tasks during execution
 //! - **Serialization**: Optional flatbuffers and serde support for task configuration
@@ -57,8 +57,7 @@
 //! ```rust
 //! use tokio::sync::mpsc;
 //! use std::collections::HashMap;
-//! use tcrm_monitor::monitor::{tasks::TaskMonitor, config::{TaskSpec, TaskShell}, event::TaskMonitorEvent};
-//! use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
+//! use tcrm_monitor::monitor::{tasks::TaskMonitor, config::{TaskSpec, TaskShell}, event::{TaskMonitorEvent, TaskMonitorControlCommand}};
 //! use tcrm_task::tasks::config::TaskConfig;
 //!
 //! # #[tokio::main]
@@ -77,16 +76,16 @@
 //! let event_handler = tokio::spawn(async move {
 //!     while let Some(event) = event_rx.recv().await {
 //!         match event {
-//!             TaskMonitorEvent::ExecutionStarted { total_tasks } => {
+//!             TaskMonitorEvent::Started { total_tasks } => {
 //!                 println!("Started execution of {} tasks", total_tasks);
 //!             }
 //!             TaskMonitorEvent::Task(task_event) => {
 //!                 println!("Task event: {:?}", task_event);
 //!             }
-//!             TaskMonitorEvent::StdinSent { task_name, input_length } => {
-//!                 println!("Sent {} bytes to task {}", input_length, task_name);
+//!             TaskMonitorEvent::Control(control_event) => {
+//!                 println!("Control event: {:?}", control_event);
 //!             }
-//!             TaskMonitorEvent::ExecutionCompleted { .. } => {
+//!             TaskMonitorEvent::Completed { .. } => {
 //!                 break; // Exit when execution completes
 //!             }
 //!             _ => {}

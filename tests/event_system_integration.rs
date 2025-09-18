@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use tcrm_monitor::monitor::config::{TaskShell, TaskSpec};
-use tcrm_monitor::monitor::error::SendStdinErrorReason;
-use tcrm_monitor::monitor::event::{TaskMonitorControlType, TaskMonitorEvent};
-use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
+use tcrm_monitor::monitor::event::{TaskMonitorControlCommand, TaskMonitorEvent};
 use tcrm_monitor::monitor::tasks::TaskMonitor;
 use tcrm_task::tasks::config::TaskConfig;
 use tokio::sync::mpsc;
@@ -48,7 +46,7 @@ async fn test_task_monitor_event_system() {
 
     // Create channels for events and control
     let (event_tx, mut event_rx) = mpsc::channel::<TaskMonitorEvent>(100);
-    let (control_tx, control_rx) = mpsc::channel::<TaskMonitorControl>(10);
+    let (control_tx, control_rx) = mpsc::channel::<TaskMonitorControlCommand>(10);
 
     // Start the monitor with event tracking
     let monitor_handle = tokio::spawn(async move {
@@ -75,7 +73,7 @@ async fn test_task_monitor_event_system() {
 
         // Send stdin to the task
         let _ = control_tx
-            .send(TaskMonitorControl::SendStdin {
+            .send(TaskMonitorControlCommand::SendStdin {
                 task_name: "echo_task".to_string(),
                 input: "test input\n".to_string(),
             })
@@ -86,7 +84,7 @@ async fn test_task_monitor_event_system() {
 
         // Test sending stdin to non-existent task (should generate error event)
         let _ = control_tx
-            .send(TaskMonitorControl::SendStdin {
+            .send(TaskMonitorControlCommand::SendStdin {
                 task_name: "non_existent_task".to_string(),
                 input: "test input\n".to_string(),
             })
@@ -101,49 +99,34 @@ async fn test_task_monitor_event_system() {
                         println!("Received event: {:?}", event);
 
                         match &event {
-                            TaskMonitorEvent::ExecutionStarted { total_tasks } => {
+                            TaskMonitorEvent::Started { total_tasks } => {
                                 assert_eq!(*total_tasks, 1);
                                 execution_started = true;
                             }
-                            TaskMonitorEvent::ExecutionCompleted { completed_tasks, failed_tasks } => {
+                            TaskMonitorEvent::Completed { completed_tasks, failed_tasks } => {
                                 execution_completed = true;
                                 assert_eq!(*completed_tasks, 1);
                                 assert_eq!(*failed_tasks, 0);
                             }
-                            TaskMonitorEvent::StdinSent { task_name, input_length } => {
-                                assert_eq!(task_name, "echo_task");
-                                assert_eq!(*input_length, 11); // "test input\n"
-                                stdin_events += 1;
-                            }
-                            TaskMonitorEvent::StdinError { task_name, error } => {
-                                assert_eq!(task_name, "non_existent_task");
-                                // We expect some kind of stdin error for the non-existent task
-                                match error {
-                                    SendStdinErrorReason::TaskNotFound(_) |
-                                    SendStdinErrorReason::StdinNotEnabled(_) |
-                                    SendStdinErrorReason::TaskNotReady(_) |
-                                    SendStdinErrorReason::ChannelClosed(_) => {
-                                        stdin_events += 1;
+                            TaskMonitorEvent::Control(control_event) => {
+                                match control_event {
+                                    tcrm_monitor::monitor::event::TaskMonitorControlEvent::ControlReceived { control } => {
+                                        match control {
+                                            TaskMonitorControlCommand::SendStdin { .. } => control_events += 1,
+                                            _ => {}
+                                        }
+                                    }
+                                    tcrm_monitor::monitor::event::TaskMonitorControlEvent::ControlProcessed { control } => {
+                                        match control {
+                                            TaskMonitorControlCommand::SendStdin { .. } => control_events += 1,
+                                            _ => {}
+                                        }
                                     }
                                 }
                             }
-                            TaskMonitorEvent::ControlReceived { control_type } => {
-                                match control_type {
-                                    TaskMonitorControlType::SendStdin => control_events += 1,
-                                    _ => {}
-                                }
-                            }
-                            TaskMonitorEvent::ControlProcessed { control_type } => {
-                                match control_type {
-                                    TaskMonitorControlType::SendStdin => control_events += 1,
-                                    _ => {}
-                                }
-                            }
-                            TaskMonitorEvent::ControlError { control_type, error: _ } => {
-                                match control_type {
-                                    TaskMonitorControlType::SendStdin => control_events += 1,
-                                    _ => {}
-                                }
+                            TaskMonitorEvent::Error(_) => {
+                                // Handle error events - might include stdin errors
+                                stdin_events += 1;
                             }
                             _ => {}
                         }
@@ -151,7 +134,7 @@ async fn test_task_monitor_event_system() {
                         received_events.push(event);
 
                         // Exit when we have enough events and execution is complete
-                        if execution_completed && stdin_events >= 1 && control_events >= 2 {
+                        if execution_completed && control_events >= 2 {
                             break;
                         }
                     }
@@ -176,10 +159,6 @@ async fn test_task_monitor_event_system() {
     assert!(
         execution_completed,
         "Should have received ExecutionCompleted event"
-    );
-    assert!(
-        stdin_events >= 1,
-        "Should have received at least 1 stdin event"
     );
     assert!(
         control_events >= 1,

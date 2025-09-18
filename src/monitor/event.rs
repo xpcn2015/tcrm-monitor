@@ -37,13 +37,13 @@ use crate::monitor::error::TaskMonitorError;
 /// tokio::spawn(async move {
 ///     while let Some(event) = event_rx.recv().await {
 ///         match event {
-///             TaskMonitorEvent::ExecutionStarted { total_tasks } => {
+///             TaskMonitorEvent::Started { total_tasks } => {
 ///                 println!("Starting execution of {} tasks", total_tasks);
 ///             }
 ///             TaskMonitorEvent::Task(task_event) => {
 ///                 println!("Task event: {:?}", task_event);
 ///             }
-///             TaskMonitorEvent::ExecutionCompleted { completed_tasks, failed_tasks } => {
+///             TaskMonitorEvent::Completed { completed_tasks, failed_tasks } => {
 ///                 println!("Execution complete: {} completed, {} failed",
 ///                          completed_tasks, failed_tasks);
 ///                 break;
@@ -105,7 +105,7 @@ pub enum TaskMonitorEvent {
     /// ```rust
     /// use tcrm_monitor::monitor::event::TaskMonitorEvent;
     ///
-    /// let event = TaskMonitorEvent::ExecutionStarted { total_tasks: 5 };
+    /// let event = TaskMonitorEvent::Started { total_tasks: 5 };
     /// ```
     Started {
         /// Total number of tasks to execute
@@ -126,7 +126,7 @@ pub enum TaskMonitorEvent {
     /// ```rust
     /// use tcrm_monitor::monitor::event::TaskMonitorEvent;
     ///
-    /// let event = TaskMonitorEvent::ExecutionCompleted {
+    /// let event = TaskMonitorEvent::Completed {
     ///     completed_tasks: 3,
     ///     failed_tasks: 1
     /// };
@@ -157,20 +157,20 @@ pub enum TaskMonitorControlEvent {
 ///
 /// # Examples
 ///
-/// ## Stopping All Tasks
+/// ## Terminating All Tasks
 ///
 /// ```rust
-/// use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
+/// use tcrm_monitor::monitor::event::TaskMonitorControlCommand;
 ///
-/// let control = TaskMonitorControl::Stop;
+/// let control = TaskMonitorControlCommand::TerminateAllTasks;
 /// ```
 ///
 /// ## Sending Stdin to a Task
 ///
 /// ```rust
-/// use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
+/// use tcrm_monitor::monitor::event::TaskMonitorControlCommand;
 ///
-/// let control = TaskMonitorControl::SendStdin {
+/// let control = TaskMonitorControlCommand::SendStdin {
 ///     task_name: "interactive_task".to_string(),
 ///     input: "y\n".to_string()
 /// };
@@ -179,9 +179,9 @@ pub enum TaskMonitorControlEvent {
 /// ## Terminating a Specific Task
 ///
 /// ```rust
-/// use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
+/// use tcrm_monitor::monitor::event::TaskMonitorControlCommand;
 ///
-/// let control = TaskMonitorControl::TerminateTask {
+/// let control = TaskMonitorControlCommand::TerminateTask {
 ///     task_name: "runaway_task".to_string()
 /// };
 /// ```
@@ -220,10 +220,10 @@ pub enum TaskMonitorControlCommand {
     /// # Examples
     ///
     /// ```rust
-    /// use tcrm_monitor::monitor::executor::direct::TaskMonitorControl;
+    /// use tcrm_monitor::monitor::event::TaskMonitorControlCommand;
     ///
     /// // Send "yes" followed by newline to a task
-    /// let control = TaskMonitorControl::SendStdin {
+    /// let control = TaskMonitorControlCommand::SendStdin {
     ///     task_name: "confirmation_task".to_string(),
     ///     input: "yes\n".to_string()
     /// };

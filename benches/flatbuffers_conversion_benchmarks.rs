@@ -122,7 +122,7 @@ fn bench_taskspec_conversions(c: &mut Criterion) {
 
         // Pre-convert for from_flatbuffers benchmark
         let mut fbb = FlatBufferBuilder::new();
-        let fb_spec_offset = spec.to_flatbuffers(&mut fbb).unwrap();
+        let fb_spec_offset = spec.to_flatbuffers(&mut fbb);
         fbb.finish(fb_spec_offset, None);
         let buf = fbb.finished_data();
         let fb_spec = flatbuffers::root::<
@@ -160,7 +160,7 @@ fn bench_tasks_conversions(c: &mut Criterion) {
             |b, tasks| {
                 b.iter(|| {
                     let mut fbb = FlatBufferBuilder::new();
-                    let result = black_box(tasks).to_flatbuffers( &mut fbb);
+                    let result = tcrm_monitor::flatbuffers::conversion::tcrm_tasks_to_flatbuffers(black_box(tasks), &mut fbb);
                     black_box(result)
                 });
             },
@@ -168,7 +168,7 @@ fn bench_tasks_conversions(c: &mut Criterion) {
 
         // Pre-convert for from_flatbuffers benchmark
         let mut fbb = FlatBufferBuilder::new();
-        let fb_tasks_offset = tasks.to_flatbuffers( &mut fbb).unwrap();
+        let fb_tasks_offset = tcrm_monitor::flatbuffers::conversion::tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
         fbb.finish(fb_tasks_offset, None);
         let buf = fbb.finished_data();
         let fb_tasks = flatbuffers::root::<
@@ -207,15 +207,13 @@ fn bench_roundtrip_conversions(c: &mut Criterion) {
                 b.iter(|| {
                     // To flatbuffers
                     let mut fbb = FlatBufferBuilder::new();
-                    let fb_offset = black_box(tasks).to_flatbuffers( &mut fbb).unwrap();
+                    let fb_offset = tcrm_monitor::flatbuffers::conversion::tcrm_tasks_to_flatbuffers(black_box(tasks), &mut fbb);
                     fbb.finish(fb_offset, None);
-                    
                     // Parse back
                     let buf = fbb.finished_data();
                     let fb_tasks = flatbuffers::root::<
                         tcrm_monitor::flatbuffers::tcrm_monitor_generated::tcrm::monitor::TcrmTasks
                     >(buf).unwrap();
-                    
                     // From flatbuffers
                     let result = TcrmTasks::try_from(fb_tasks);
                     black_box(result)
@@ -241,7 +239,7 @@ fn bench_memory_usage(c: &mut Criterion) {
             |b, tasks| {
                 b.iter(|| {
                     let mut fbb = FlatBufferBuilder::new();
-                    let fb_offset = black_box(tasks).to_flatbuffers( &mut fbb).unwrap();
+                    let fb_offset = tcrm_monitor::flatbuffers::conversion::tcrm_tasks_to_flatbuffers(black_box(tasks), &mut fbb);
                     fbb.finish(fb_offset, None);
                     let buf = fbb.finished_data();
                     black_box(buf.len()) // Measure serialized size

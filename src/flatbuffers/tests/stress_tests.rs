@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use tcrm_task::tasks::config::{StreamSource, TaskConfig};
 
 use crate::{
-    flatbuffers::{conversion::ToFlatbuffers, tcrm_monitor_generated},
+    flatbuffers::{conversion::tcrm_tasks_to_flatbuffers, tcrm_monitor_generated},
     monitor::config::{TaskShell, TaskSpec, TcrmTasks},
 };
 
@@ -73,7 +73,7 @@ fn test_conversion_scalability(#[case] task_count: usize) {
     use flatbuffers::FlatBufferBuilder;
     let mut fbb = FlatBufferBuilder::new();
     let start_time = std::time::Instant::now();
-    let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
+    let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
     fbb.finish(fb_tasks_offset, None);
     let conversion_time = start_time.elapsed();
 
@@ -176,7 +176,7 @@ fn test_task_name_handling(#[case] task_name: &str) {
     // Convert to flatbuffers and back
     use flatbuffers::FlatBufferBuilder;
     let mut fbb = FlatBufferBuilder::new();
-    let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
+    let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
     fbb.finish(fb_tasks_offset, None);
 
     let serialized_data = fbb.finished_data().to_vec();
@@ -228,7 +228,7 @@ fn test_deeply_nested_dependencies() {
     // Convert to flatbuffers
     use flatbuffers::FlatBufferBuilder;
     let mut fbb = FlatBufferBuilder::new();
-    let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
+    let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
     fbb.finish(fb_tasks_offset, None);
 
     let serialized_data = fbb.finished_data().to_vec();
@@ -306,7 +306,7 @@ fn test_complex_dependency_graph() {
     // Convert to flatbuffers and back
     use flatbuffers::FlatBufferBuilder;
     let mut fbb = FlatBufferBuilder::new();
-    let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
+    let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
     fbb.finish(fb_tasks_offset, None);
 
     let serialized_data = fbb.finished_data().to_vec();
@@ -372,7 +372,7 @@ fn test_maximum_environment_variables() {
     use flatbuffers::FlatBufferBuilder;
     let mut fbb = FlatBufferBuilder::new();
     let conversion_start = std::time::Instant::now();
-    let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
+    let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
     fbb.finish(fb_tasks_offset, None);
     let conversion_time = conversion_start.elapsed();
 
@@ -453,7 +453,7 @@ fn test_concurrent_conversions() {
 
                 for _iteration in 0..5 {
                     let mut fbb = FlatBufferBuilder::new();
-                    let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
+                    let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
                     fbb.finish(fb_tasks_offset, None);
 
                     let serialized_data = fbb.finished_data().to_vec();
@@ -530,7 +530,7 @@ fn test_error_resilience() {
     // Convert and verify it handles edge cases gracefully
     use flatbuffers::FlatBufferBuilder;
     let mut fbb = FlatBufferBuilder::new();
-    let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
+    let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
     fbb.finish(fb_tasks_offset, None);
 
     let serialized_data = fbb.finished_data().to_vec();

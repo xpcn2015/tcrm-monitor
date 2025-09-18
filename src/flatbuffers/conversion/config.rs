@@ -1,5 +1,6 @@
 use flatbuffers::{FlatBufferBuilder, WIPOffset};
 use std::collections::HashMap;
+use tcrm_task::flatbuffers::conversion::ToFlatbuffers as TcrmToFlatbuffers;
 use tcrm_task::tasks::config::TaskConfig;
 
 use crate::flatbuffers::conversion::ToFlatbuffers;
@@ -69,11 +70,8 @@ impl TryFrom<FbTaskShell> for ConfigTaskShell {
 impl<'a> ToFlatbuffers<'a> for ConfigTaskSpec {
     type Output = WIPOffset<FbTaskSpec<'a>>;
 
-    fn to_flatbuffers(
-        &self,
-        fbb: &mut FlatBufferBuilder<'a>,
-    ) -> Result<Self::Output, ConversionError> {
-        // Convert TaskConfig to flatbuffers
+    fn to_flatbuffers(&self, fbb: &mut FlatBufferBuilder<'a>) -> Self::Output {
+        // Use tcrm_task's to_flatbuffers for TaskConfig
         let config_offset = self.config.to_flatbuffers(fbb);
 
         // Convert dependencies to string vector
@@ -93,7 +91,7 @@ impl<'a> ToFlatbuffers<'a> for ConfigTaskSpec {
             ignore_dependencies_error: self.ignore_dependencies_error.unwrap_or(false),
         };
 
-        Ok(FbTaskSpec::create(fbb, &args))
+        FbTaskSpec::create(fbb, &args)
     }
 }
 
@@ -144,37 +142,68 @@ impl TryFrom<FbTcrmTasks<'_>> for ConfigTcrmTasks {
     }
 }
 
-impl<'a> ToFlatbuffers<'a> for ConfigTcrmTasks {
-    type Output = WIPOffset<FbTcrmTasks<'a>>;
+// Helper function for converting TcrmTasks to FlatBuffers since we can't implement
+// ToFlatbuffers for HashMap due to orphan rules
 
-    fn to_flatbuffers(
-        &self,
-        fbb: &mut FlatBufferBuilder<'a>,
-    ) -> Result<Self::Output, ConversionError> {
-        // Convert each task entry
-        let entries: Result<Vec<_>, ConversionError> = self
-            .iter()
-            .map(|(name, spec)| {
-                let name_str = fbb.create_string(name);
-                let spec_offset = spec.to_flatbuffers(fbb)?;
+/// Convert a `TcrmTasks` (HashMap of task specs) to FlatBuffers.
+///
+/// This helper function serializes a `TcrmTasks` (HashMap<String, TaskSpec>)
+/// into a FlatBuffers binary representation, producing a `WIPOffset<FbTcrmTasks>`.
+/// It is required because Rust's orphan rules prevent implementing the `ToFlatbuffers`
+/// trait directly for `HashMap` types from external crates.
+///
+/// # Parameters
+/// - `tasks`: The map of task names to task specifications to serialize.
+/// - `fbb`: The FlatBufferBuilder used to build the FlatBuffers data.
+///
+/// # Returns
+/// A FlatBuffers offset to the serialized `TcrmTasks` table.
+///
+/// # Example
+/// ```rust
+/// use tcrm_monitor::flatbuffers::conversion::tcrm_tasks_to_flatbuffers;
+/// use tcrm_monitor::monitor::config::{TaskSpec, TaskShell, TcrmTasks};
+/// use tcrm_task::tasks::config::TaskConfig;
+/// use flatbuffers::FlatBufferBuilder;
+///
+/// let mut tasks = TcrmTasks::new();
+/// tasks.insert(
+///     "build".to_string(),
+///     TaskSpec::new(TaskConfig::new("cargo").args(["build"]))
+///         .shell(TaskShell::Auto)
+/// );
+/// let mut fbb = FlatBufferBuilder::new();
+/// let fb_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
+/// fbb.finish(fb_offset, None);
+/// let data = fbb.finished_data();
+/// // ...
+/// ```
+pub fn tcrm_tasks_to_flatbuffers<'a>(
+    tasks: &ConfigTcrmTasks,
+    fbb: &mut FlatBufferBuilder<'a>,
+) -> WIPOffset<FbTcrmTasks<'a>> {
+    // Convert each task entry
+    let entries: Vec<_> = tasks
+        .iter()
+        .map(|(name, spec)| {
+            let name_str = fbb.create_string(name);
+            let spec_offset = spec.to_flatbuffers(fbb);
 
-                let entry_args = TaskEntryArgs {
-                    name: Some(name_str),
-                    spec: Some(spec_offset),
-                };
-                Ok(FbTaskEntry::create(fbb, &entry_args))
-            })
-            .collect();
+            let entry_args = TaskEntryArgs {
+                name: Some(name_str),
+                spec: Some(spec_offset),
+            };
+            FbTaskEntry::create(fbb, &entry_args)
+        })
+        .collect();
 
-        let entries = entries?;
-        let tasks_vector = fbb.create_vector(&entries);
+    let tasks_vector = fbb.create_vector(&entries);
 
-        let args = TcrmTasksArgs {
-            tasks: Some(tasks_vector),
-        };
+    let args = TcrmTasksArgs {
+        tasks: Some(tasks_vector),
+    };
 
-        Ok(FbTcrmTasks::create(fbb, &args))
-    }
+    FbTcrmTasks::create(fbb, &args)
 }
 
 #[cfg(test)]
@@ -288,7 +317,7 @@ mod tests {
 
         // Test conversion to flatbuffers and back
         let mut fbb = FlatBufferBuilder::new();
-        let fb_spec_offset = spec.to_flatbuffers(&mut fbb).unwrap();
+        let fb_spec_offset = spec.to_flatbuffers(&mut fbb);
         fbb.finish(fb_spec_offset, None);
 
         let buf = fbb.finished_data();
@@ -441,7 +470,7 @@ mod tests {
 
         // Test conversion
         let mut fbb = FlatBufferBuilder::new();
-        let fb_spec_offset = spec.to_flatbuffers(&mut fbb).unwrap();
+        let fb_spec_offset = spec.to_flatbuffers(&mut fbb);
         fbb.finish(fb_spec_offset, None);
 
         let buf = fbb.finished_data();
@@ -506,7 +535,7 @@ mod tests {
 
         // Test conversion to flatbuffers and back
         let mut fbb = FlatBufferBuilder::new();
-        let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
+        let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
         fbb.finish(fb_tasks_offset, None);
 
         let buf = fbb.finished_data();
@@ -545,7 +574,7 @@ mod tests {
 
         // Test conversion of empty tasks
         let mut fbb = FlatBufferBuilder::new();
-        let fb_tasks_offset = tasks.to_flatbuffers(&mut fbb).unwrap();
+        let fb_tasks_offset = tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
         fbb.finish(fb_tasks_offset, None);
 
         let buf = fbb.finished_data();

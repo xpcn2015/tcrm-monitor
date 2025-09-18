@@ -55,8 +55,8 @@ use thiserror::Error;
 /// );
 ///
 /// match TaskMonitor::new(tasks) {
-///     Err(TaskMonitorError::DependencyNotFound { task, dep }) => {
-///         println!("Task '{}' depends on missing task '{}'", task, dep);
+///     Err(TaskMonitorError::DependencyNotFound { task_name, dependency_task_name }) => {
+///         println!("Task '{}' depends on missing task '{}'", task_name, dependency_task_name);
 ///         panic!("Expected missing dependency error");
 ///     }
 ///     _ => panic!("Expected error"),
@@ -106,8 +106,8 @@ pub enum TaskMonitorError {
     /// use tcrm_monitor::monitor::error::TaskMonitorError;
     ///
     /// let error = TaskMonitorError::DependencyNotFound {
-    ///     task: "build".to_string(),
-    ///     dep: "nonexistent".to_string()
+    ///     task_name: "build".to_string(),
+    ///     dependency_task_name: "nonexistent".to_string()
     /// };
     /// assert!(error.to_string().contains("not found"));
     /// ```
@@ -148,7 +148,7 @@ pub enum ControlCommandError {
 /// ```rust
 /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
 ///
-/// let error = SendStdinErrorReason::TaskNotFound("nonexistent".to_string());
+/// let error = SendStdinErrorReason::TaskNotFound;
 /// println!("Error: {}", error);
 /// ```
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -161,8 +161,8 @@ pub enum SendStdinErrorReason {
     /// ```rust
     /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
     ///
-    /// let error = SendStdinErrorReason::TaskNotFound("missing_task".to_string());
-    /// assert!(error.to_string().contains("missing_task"));
+    /// let error = SendStdinErrorReason::TaskNotFound;
+    /// assert!(error.to_string().contains("Task not found"));
     /// ```
     #[error("Task not found")]
     TaskNotFound,
@@ -176,7 +176,7 @@ pub enum SendStdinErrorReason {
     /// ```rust
     /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
     ///
-    /// let error = SendStdinErrorReason::StdinNotEnabled("readonly_task".to_string());
+    /// let error = SendStdinErrorReason::StdinNotEnabled;
     /// assert!(error.to_string().contains("does not have stdin enabled"));
     /// ```
     #[error("Task does not have stdin enabled")]
@@ -191,7 +191,7 @@ pub enum SendStdinErrorReason {
     /// ```rust
     /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
     ///
-    /// let error = SendStdinErrorReason::TaskNotReady("finished_task".to_string());
+    /// let error = SendStdinErrorReason::TaskNotActive;
     /// assert!(error.to_string().contains("not in a state"));
     /// ```
     #[error("Task is not in a state that can receive stdin")]
@@ -206,7 +206,7 @@ pub enum SendStdinErrorReason {
     /// ```rust
     /// use tcrm_monitor::monitor::error::SendStdinErrorReason;
     ///
-    /// let error = SendStdinErrorReason::ChannelClosed("crashed_task".to_string());
+    /// let error = SendStdinErrorReason::ChannelClosed;
     /// assert!(error.to_string().contains("channel closed"));
     /// ```
     #[error("Failed to send stdin to task: channel closed")]

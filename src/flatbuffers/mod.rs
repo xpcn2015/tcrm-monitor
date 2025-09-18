@@ -38,7 +38,7 @@
 //! );
 //!
 //! let mut fbb = FlatBufferBuilder::new();
-//! let fb_tasks = tasks.to_flatbuffers(&mut fbb)?;
+//! let fb_tasks = tcrm_monitor::flatbuffers::conversion::tcrm_tasks_to_flatbuffers(&tasks, &mut fbb);
 //! fbb.finish(fb_tasks, None);
 //! let flatbuffer_data = fbb.finished_data().to_vec();
 //!

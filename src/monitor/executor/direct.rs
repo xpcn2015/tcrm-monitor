@@ -165,7 +165,7 @@ impl TaskMonitor {
     ///
     /// # Control Commands
     ///
-    /// The control channel accepts [`TaskMonitorControl`] commands:
+    /// The control channel accepts [`TaskMonitorControlCommand`] commands:
     /// - `SendStdin { task_name, data }` - Send input to a specific task's stdin
     /// - `TerminateTask { task_name }` - Request termination of a specific task
     /// - `TerminateAll` - Request termination of all running tasks
@@ -178,8 +178,7 @@ impl TaskMonitor {
     /// use tcrm_monitor::monitor::{
     ///     tasks::TaskMonitor,
     ///     config::{TaskSpec, TaskShell},
-    ///     executor::direct::TaskMonitorControl,
-    ///     event::TaskMonitorEvent
+    ///     event::{TaskMonitorControlCommand, TaskMonitorEvent}
     /// };
     /// use tcrm_task::tasks::config::TaskConfig;
     ///
@@ -206,14 +205,14 @@ impl TaskMonitor {
     ///
     ///     // Wait a bit then stop
     ///     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    ///     control_tx.send(TaskMonitorControlCommand::Stop).await.unwrap();
+    ///     control_tx.send(TaskMonitorControlCommand::TerminateAllTasks).await.unwrap();
     /// });
     ///
     /// // Spawn event listener
     /// let event_handle = tokio::spawn(async move {
     ///     while let Some(event) = event_rx.recv().await {
     ///         match event {
-    ///             TaskMonitorEvent::ExecutionCompleted { .. } => break,
+    ///             TaskMonitorEvent::Completed { .. } => break,
     ///             _ => {}
     ///         }
     ///     }
@@ -543,12 +542,18 @@ impl TaskMonitor {
         task_name: &str,
         input: &str,
     ) -> Result<(), SendStdinErrorReason> {
-        // First check if the task has stdin enabled in configuration
-        let has_stdin_enabled = self
-            .tasks
-            .get(task_name)
-            .and_then(|task| task.config.enable_stdin)
-            .unwrap_or(false);
+        // First check if the task exists
+        let Some(task_spec) = self.tasks.get(task_name) else {
+            #[cfg(feature = "tracing")]
+            tracing::warn!(
+                task_name = %task_name,
+                "Task not found"
+            );
+            return Err(SendStdinErrorReason::TaskNotFound);
+        };
+
+        // Check if the task has stdin enabled in configuration
+        let has_stdin_enabled = task_spec.config.enable_stdin.unwrap_or(false);
 
         if !has_stdin_enabled {
             #[cfg(feature = "tracing")]

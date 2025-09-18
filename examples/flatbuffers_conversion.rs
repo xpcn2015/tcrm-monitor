@@ -110,64 +110,58 @@ fn spec_conversions() {
     };
 
     let mut fbb = flatbuffers::FlatBufferBuilder::new();
-    match spec.to_flatbuffers(&mut fbb) {
-        Ok(fb_spec_offset) => {
-            fbb.finish(fb_spec_offset, None);
-            let fb_data = fbb.finished_data();
+    let fb_spec_offset = spec.to_flatbuffers(&mut fbb);
+    fbb.finish(fb_spec_offset, None);
+    let fb_data = fbb.finished_data();
 
-            match flatbuffers::root::<
-                tcrm_monitor::flatbuffers::tcrm_monitor_generated::tcrm::monitor::TaskSpec,
-            >(fb_data)
-            {
-                Ok(fb_spec) => {
-                    match TaskSpec::try_from(fb_spec) {
-                        Ok(converted_spec) => {
-                            println!(
-                                "Converted TaskSpec roundtrip: original command='{}', shell={:?}, dependencies={:?}",
-                                spec.config.command, spec.shell, spec.dependencies
-                            );
-                            println!(
-                                "Restored command='{}', shell={:?}, dependencies={:?}",
-                                converted_spec.config.command,
-                                converted_spec.shell,
-                                converted_spec.dependencies
-                            );
-                            if converted_spec.config.command == spec.config.command {
-                                println!("Result: Command matches after roundtrip.");
-                            } else {
-                                println!("Result: Command does not match after roundtrip!");
-                            }
-                        }
-                        Err(e) => {
-                            println!("Error: TaskSpec from_flatbuffers failed: {}", e);
-                        }
-                    }
-                    // Direct read: access fields directly from fb_spec
-                    let config = fb_spec.config();
-                    let direct_command = config.command().to_string();
-                    let direct_shell_val = match fb_spec.shell() {
-                        FbTaskShell::None => 0,
-                        FbTaskShell::Auto => 1,
-                        #[cfg(windows)]
-                        FbTaskShell::Cmd => 2,
-                        #[cfg(windows)]
-                        FbTaskShell::Powershell => 3,
-                        #[cfg(unix)]
-                        FbTaskShell::Bash => 2,
-                        _ => -1,
-                    };
+    match flatbuffers::root::<
+        tcrm_monitor::flatbuffers::tcrm_monitor_generated::tcrm::monitor::TaskSpec,
+    >(fb_data)
+    {
+        Ok(fb_spec) => {
+            match TaskSpec::try_from(fb_spec) {
+                Ok(converted_spec) => {
                     println!(
-                        "Direct FlatBuffer read: command='{}', shell_val={}",
-                        direct_command, direct_shell_val
+                        "Converted TaskSpec roundtrip: original command='{}', shell={:?}, dependencies={:?}",
+                        spec.config.command, spec.shell, spec.dependencies
                     );
+                    println!(
+                        "Restored command='{}', shell={:?}, dependencies={:?}",
+                        converted_spec.config.command,
+                        converted_spec.shell,
+                        converted_spec.dependencies
+                    );
+                    if converted_spec.config.command == spec.config.command {
+                        println!("Result: Command matches after roundtrip.");
+                    } else {
+                        println!("Result: Command does not match after roundtrip!");
+                    }
                 }
                 Err(e) => {
-                    println!("Error: Failed to parse flatbuffer: {:?}", e);
+                    println!("Error: TaskSpec from_flatbuffers failed: {}", e);
                 }
             }
+            // Direct read: access fields directly from fb_spec
+            let config = fb_spec.config();
+            let direct_command = config.command().to_string();
+            let direct_shell_val = match fb_spec.shell() {
+                FbTaskShell::None => 0,
+                FbTaskShell::Auto => 1,
+                #[cfg(windows)]
+                FbTaskShell::Cmd => 2,
+                #[cfg(windows)]
+                FbTaskShell::Powershell => 3,
+                #[cfg(unix)]
+                FbTaskShell::Bash => 2,
+                _ => -1,
+            };
+            println!(
+                "Direct FlatBuffer read: command='{}', shell_val={}",
+                direct_command, direct_shell_val
+            );
         }
         Err(e) => {
-            println!("Error: TaskSpec to_flatbuffers failed: {}", e);
+            println!("Error: Failed to parse flatbuffer: {:?}", e);
         }
     }
 }
@@ -199,56 +193,51 @@ fn tasks_conversions() {
     tasks.insert("test_task".to_string(), spec);
 
     let mut fbb2 = flatbuffers::FlatBufferBuilder::new();
-    match tasks.to_flatbuffers(&mut fbb2) {
-        Ok(fb_tasks_offset) => {
-            fbb2.finish(fb_tasks_offset, None);
-            let fb_data = fbb2.finished_data();
+    let fb_tasks_offset =
+        tcrm_monitor::flatbuffers::conversion::tcrm_tasks_to_flatbuffers(&tasks, &mut fbb2);
+    fbb2.finish(fb_tasks_offset, None);
+    let fb_data = fbb2.finished_data();
 
-            match flatbuffers::root::<
-                tcrm_monitor::flatbuffers::tcrm_monitor_generated::tcrm::monitor::TcrmTasks,
-            >(fb_data)
-            {
-                Ok(fb_tasks) => {
-                    let converted_tasks: Result<TcrmTasks, _> = fb_tasks.try_into();
-                    match converted_tasks {
-                        Ok(converted_tasks) => {
-                            println!(
-                                "Converted TcrmTasks roundtrip: original len={}, restored len={}",
-                                tasks.len(),
-                                converted_tasks.len()
-                            );
-                            if converted_tasks.contains_key("test_task") {
-                                println!("Result: Restored tasks contain 'test_task'.");
-                            } else {
-                                println!("Result: Restored tasks do NOT contain 'test_task'!");
-                            }
-                        }
-                        Err(e) => {
-                            println!("Error: TcrmTasks from_flatbuffers failed: {}", e);
-                        }
-                    }
-                    // Direct read: access entries directly from fb_tasks
-                    if let Some(entries) = fb_tasks.tasks() {
-                        for i in 0..entries.len() {
-                            let entry = entries.get(i);
-                            let name = entry.name();
-                            let spec = entry.spec();
-                            let config = spec.config();
-                            let command = config.command();
-                            println!(
-                                "Direct FlatBuffer read: entry '{}' command='{}'",
-                                name, command
-                            );
-                        }
+    match flatbuffers::root::<
+        tcrm_monitor::flatbuffers::tcrm_monitor_generated::tcrm::monitor::TcrmTasks,
+    >(fb_data)
+    {
+        Ok(fb_tasks) => {
+            let converted_tasks: Result<TcrmTasks, _> = fb_tasks.try_into();
+            match converted_tasks {
+                Ok(converted_tasks) => {
+                    println!(
+                        "Converted TcrmTasks roundtrip: original len={}, restored len={}",
+                        tasks.len(),
+                        converted_tasks.len()
+                    );
+                    if converted_tasks.contains_key("test_task") {
+                        println!("Result: Restored tasks contain 'test_task'.");
+                    } else {
+                        println!("Result: Restored tasks do NOT contain 'test_task'!");
                     }
                 }
                 Err(e) => {
-                    println!("Error: Failed to parse TcrmTasks flatbuffer: {:?}", e);
+                    println!("Error: TcrmTasks from_flatbuffers failed: {}", e);
+                }
+            }
+            // Direct read: access entries directly from fb_tasks
+            if let Some(entries) = fb_tasks.tasks() {
+                for i in 0..entries.len() {
+                    let entry = entries.get(i);
+                    let name = entry.name();
+                    let spec = entry.spec();
+                    let config = spec.config();
+                    let command = config.command();
+                    println!(
+                        "Direct FlatBuffer read: entry '{}' command='{}'",
+                        name, command
+                    );
                 }
             }
         }
         Err(e) => {
-            println!("Error: TcrmTasks to_flatbuffers failed: {}", e);
+            println!("Error: Failed to parse TcrmTasks flatbuffer: {:?}", e);
         }
     }
 }
