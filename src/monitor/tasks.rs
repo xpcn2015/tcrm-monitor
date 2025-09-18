@@ -6,8 +6,7 @@
 use std::collections::HashMap;
 
 use tcrm_task::tasks::{
-    async_tokio::spawner::TaskSpawner,
-    state::{TaskState, TaskTerminateReason},
+    async_tokio::spawner::TaskSpawner, event::TaskTerminateReason, state::TaskState,
 };
 use tokio::sync::mpsc;
 
@@ -495,9 +494,12 @@ mod tests {
             assert!(monitor.is_err());
 
             match monitor.unwrap_err() {
-                TaskMonitorError::DependencyNotFound { dep, task } => {
-                    assert_eq!(dep, "nonexistent_task");
-                    assert_eq!(task, "taskC");
+                TaskMonitorError::DependencyNotFound {
+                    dependency_task_name,
+                    task_name,
+                } => {
+                    assert_eq!(dependency_task_name, "nonexistent_task");
+                    assert_eq!(task_name, "taskC");
                 }
                 _ => panic!("Expected DependencyNotFound error"),
             }

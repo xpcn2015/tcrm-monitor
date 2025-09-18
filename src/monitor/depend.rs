@@ -125,8 +125,8 @@ pub fn build_depend_map(tasks: &TcrmTasks) -> Result<TaskMonitorDependMap, TaskM
         while let Some(dep) = stack.pop() {
             if !tasks.contains_key(&dep) {
                 return Err(TaskMonitorError::DependencyNotFound {
-                    dep: dep.clone(),
-                    task: name.clone(),
+                    dependency_task_name: dep.clone(),
+                    task_name: name.clone(),
                 });
             }
             if all_deps.insert(dep.clone()) {
@@ -323,9 +323,12 @@ mod tests {
 
         assert!(result.is_err());
         match result.unwrap_err() {
-            TaskMonitorError::DependencyNotFound { dep, task } => {
-                assert_eq!(dep, "missing_task");
-                assert_eq!(task, "task1");
+            TaskMonitorError::DependencyNotFound {
+                dependency_task_name,
+                task_name,
+            } => {
+                assert_eq!(dependency_task_name, "missing_task");
+                assert_eq!(task_name, "task1");
             }
             _ => panic!("Expected DependencyNotFound error"),
         }
