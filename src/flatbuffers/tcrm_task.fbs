@@ -35,19 +35,6 @@ enum TaskState: byte {
   Finished = 4
 }
 
-union TaskTerminateReason {
-  Timeout: TimeoutReason,
-  Cleanup: CleanupReason,
-  DependenciesFinished: DependenciesFinishedReason,
-  Custom: CustomReason
-}
-
-table TimeoutReason {}
-table CleanupReason {}
-table DependenciesFinishedReason {}
-table CustomReason {
-  message: string (required);
-}
 
 // Error
 
@@ -56,7 +43,6 @@ enum TaskErrorType: byte {
   Handle = 1,
   Channel = 2,
   InvalidConfiguration = 3,
-  Custom = 4
 }
 
 table TaskError {
@@ -66,23 +52,35 @@ table TaskError {
 
 // Event
 
-union TaskEvent {
+enum TaskTerminateReason: byte {
+  Timeout = 0,
+  Cleanup = 1,
+  DependenciesFinished = 2,
+  UserRequested = 3,
+}
+
+union TaskEventStopReason {
+  Finished: DummyTable,
+  TerminatedTimeout: DummyTable,
+  TerminatedCleanup: DummyTable,
+  TerminatedDependenciesFinished: DummyTable,
+  TerminatedUserRequested: DummyTable,
+  Error: ErrorStopReason
+}
+table DummyTable {}
+
+table ErrorStopReason {
+  message: string (required);
+}
+
+
+union TaskEventUnion {
   Started: StartedEvent,
   Output: OutputEvent,
   Ready: ReadyEvent,
   Stopped: StoppedEvent,
   Error: ErrorEvent
 }
-
-union TaskEventStopReason {
-  Finished: FinishedReason,
-  TerminatedTimeout: TimeoutReason,
-  TerminatedCleanup: CleanupReason,
-  TerminatedDependenciesFinished: DependenciesFinishedReason,
-  TerminatedCustom: CustomReason,
-  Error: ErrorStopReason
-}
-
 table StartedEvent {
   task_name: string (required);
 }
@@ -108,14 +106,9 @@ table ErrorEvent {
   error: TaskError (required);
 }
 
-table FinishedReason {}
 
-table ErrorStopReason {
-  message: string (required);
+table TaskEvent {
+  event: TaskEventUnion;
 }
 
-table TaskEventWrapper {
-  event: TaskEvent;
-}
-
-root_type TaskEventWrapper;
+root_type TaskEvent;
