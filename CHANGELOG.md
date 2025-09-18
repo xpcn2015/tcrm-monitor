@@ -1,5 +1,7 @@
 # Changelog
-
+## 0.1.3 (2025/09/18)
+### Fix
+- incorrect `completed_tasks` report in event `Completed` [[commit](https://github.com/xpcn2015/tcrm-monitor/commit/3f62f38eb211971cbc02b38f733c5d91e1e73a68)]
 
 ## 0.1.2 (2025/09/14)
 ### Changed
