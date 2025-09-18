@@ -724,6 +724,88 @@ impl TaskMonitor {
 
 #[cfg(test)]
 mod tests {
+
+    #[tokio::test]
+    async fn test_terminate_task_sends_user_requested_stop_event() {
+        use crate::monitor::event::TaskMonitorControlCommand;
+        use tcrm_task::tasks::event::{TaskEventStopReason, TaskTerminateReason};
+
+        let mut tasks = HashMap::new();
+        // Use a long-running command for cross-platform compatibility
+        #[cfg(windows)]
+        let cmd = TaskConfig::new("ping").args(["127.0.0.1", "-n", "10"]);
+        #[cfg(not(windows))]
+        let cmd = TaskConfig::new("sh").args(["-c", "sleep 10"]);
+        tasks.insert(
+            "long_task".to_string(),
+            TaskSpec::new(cmd).shell(TaskShell::Auto),
+        );
+
+        let mut monitor = TaskMonitor::new(tasks).unwrap();
+        let (event_tx, mut event_rx) = mpsc::channel(100);
+        let (control_tx, control_rx) = mpsc::channel(10);
+
+        // Spawn monitor execution
+        let monitor_handle = tokio::spawn(async move {
+            monitor
+                .execute_all_direct_with_control(Some(event_tx), control_rx)
+                .await;
+        });
+
+        // Wait for the task to start
+        let mut started = false;
+        while let Some(event) = event_rx.recv().await {
+            if let crate::monitor::event::TaskMonitorEvent::Task(TaskEvent::Started { task_name }) =
+                &event
+            {
+                if task_name == "long_task" {
+                    started = true;
+                    break;
+                }
+            }
+        }
+        assert!(started, "Task should have started");
+
+        // Send terminate command
+        control_tx
+            .send(TaskMonitorControlCommand::TerminateTask {
+                task_name: "long_task".to_string(),
+            })
+            .await
+            .unwrap();
+
+        // Look for the stopped event with the correct reason
+        let mut found = false;
+        for _ in 0..10 {
+            if let Some(event) = event_rx.recv().await {
+                if let crate::monitor::event::TaskMonitorEvent::Task(TaskEvent::Stopped {
+                    task_name,
+                    reason,
+                    ..
+                }) = event
+                {
+                    if task_name == "long_task" {
+                        if let TaskEventStopReason::Terminated(TaskTerminateReason::UserRequested) =
+                            reason
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+        assert!(
+            found,
+            "Should receive Stopped event with Terminated(UserRequested) reason"
+        );
+
+        // Clean up
+        // drop(control_tx);
+        let _ = monitor_handle.await;
+    }
     use std::{collections::HashMap, time::Duration};
 
     use tcrm_task::tasks::{
