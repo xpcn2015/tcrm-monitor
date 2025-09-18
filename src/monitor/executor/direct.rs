@@ -456,6 +456,7 @@ impl TaskMonitor {
                                 "Event channel closed while sending TaskMonitorError::ControlError"
                             );
                         }
+                        return false;
                     }
                 }
             }
