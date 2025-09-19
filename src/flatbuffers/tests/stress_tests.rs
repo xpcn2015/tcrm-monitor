@@ -27,24 +27,21 @@ fn test_conversion_scalability(#[case] task_count: usize) {
             env.insert(format!("VAR_{}_{}", i, j), format!("value_{}_{}", i, j));
         }
 
-        let config = TaskConfig {
-            command: format!("command_{}", i),
-            args: Some((0..20).map(|j| format!("arg_{}_{}", i, j)).collect()),
-            working_dir: Some(format!("/tmp/workspace_{}", i)),
-            env: Some(env),
-            timeout_ms: Some(30000 + i as u64),
-            enable_stdin: Some(i % 2 == 0),
-            ready_indicator: Some(format!("ready_indicator_{}", i)),
-            ready_indicator_source: Some(if i % 2 == 0 {
+        let config = TaskConfig::new(format!("command_{}", i))
+            .args((0..20).map(|j| format!("arg_{}_{}", i, j)))
+            .working_dir(format!("/tmp/workspace_{}", i))
+            .env(env)
+            .timeout_ms(30000 + i as u64)
+            .enable_stdin(i % 2 == 0)
+            .ready_indicator(format!("ready_indicator_{}", i))
+            .ready_indicator_source(if i % 2 == 0 {
                 StreamSource::Stdout
             } else {
                 StreamSource::Stderr
-            }),
-        };
+            });
 
-        let spec = TaskSpec {
-            config,
-            shell: Some(match i % 4 {
+        let mut spec = TaskSpec::new(config)
+            .shell(match i % 4 {
                 0 => TaskShell::Auto,
                 1 => TaskShell::None,
                 #[cfg(windows)]
@@ -56,15 +53,13 @@ fn test_conversion_scalability(#[case] task_count: usize) {
                 #[cfg(unix)]
                 3 => TaskShell::Auto, // Fallback for unix
                 _ => TaskShell::Auto,
-            }),
-            dependencies: if i > 0 {
-                Some(vec![format!("task_{}", i - 1)])
-            } else {
-                None
-            },
-            terminate_after_dependents_finished: Some(i % 3 == 0),
-            ignore_dependencies_error: Some(i % 5 == 0),
-        };
+            })
+            .terminate_after_dependents(i % 3 == 0)
+            .ignore_dependencies_error(i % 5 == 0);
+
+        if i > 0 {
+            spec.dependencies = Some(vec![format!("task_{}", i - 1)]);
+        }
 
         tasks.insert(format!("task_{}", i), spec);
     }
@@ -152,24 +147,9 @@ fn test_conversion_scalability(#[case] task_count: usize) {
 fn test_task_name_handling(#[case] task_name: &str) {
     let mut tasks = TcrmTasks::new();
 
-    let config = TaskConfig {
-        command: "echo".to_string(),
-        args: Some(vec!["test".to_string()]),
-        working_dir: None,
-        env: None,
-        timeout_ms: None,
-        enable_stdin: None,
-        ready_indicator: None,
-        ready_indicator_source: None,
-    };
+    let config = TaskConfig::new("echo").args(["test"]);
 
-    let spec = TaskSpec {
-        config,
-        shell: Some(TaskShell::Auto),
-        dependencies: None,
-        terminate_after_dependents_finished: None,
-        ignore_dependencies_error: None,
-    };
+    let spec = TaskSpec::new(config);
 
     tasks.insert(task_name.to_string(), spec);
 
@@ -203,24 +183,12 @@ fn test_deeply_nested_dependencies() {
             None
         };
 
-        let config = TaskConfig {
-            command: format!("step_{}", i),
-            args: None,
-            working_dir: None,
-            env: None,
-            timeout_ms: Some((i + 1) as u64 * 1000),
-            enable_stdin: None,
-            ready_indicator: None,
-            ready_indicator_source: None,
-        };
+        let config = TaskConfig::new(format!("step_{}", i)).timeout_ms((i + 1) as u64 * 1000);
 
-        let spec = TaskSpec {
-            config,
-            shell: Some(TaskShell::Auto),
-            dependencies,
-            terminate_after_dependents_finished: Some(false),
-            ignore_dependencies_error: Some(false),
-        };
+        let mut spec = TaskSpec::new(config).shell(TaskShell::Auto);
+        if let Some(deps) = dependencies {
+            spec.dependencies = Some(deps);
+        }
 
         tasks.insert(task_name, spec);
     }
@@ -277,28 +245,14 @@ fn test_complex_dependency_graph() {
     ];
 
     for (name, deps) in configs {
-        let config = TaskConfig {
-            command: format!("cmd_{}", name),
-            args: Some(vec![name.to_string()]),
-            working_dir: None,
-            env: None,
-            timeout_ms: Some(5000),
-            enable_stdin: None,
-            ready_indicator: None,
-            ready_indicator_source: None,
-        };
+        let config = TaskConfig::new(format!("cmd_{}", name))
+            .args([name])
+            .timeout_ms(5000);
 
-        let spec = TaskSpec {
-            config,
-            shell: Some(TaskShell::Auto),
-            dependencies: if deps.is_empty() {
-                None
-            } else {
-                Some(deps.into_iter().map(String::from).collect())
-            },
-            terminate_after_dependents_finished: Some(false),
-            ignore_dependencies_error: Some(false),
-        };
+        let mut spec = TaskSpec::new(config);
+        if !deps.is_empty() {
+            spec.dependencies = Some(deps.into_iter().map(String::from).collect());
+        }
 
         tasks.insert(name.to_string(), spec);
     }
@@ -343,28 +297,16 @@ fn test_maximum_environment_variables() {
         );
     }
 
-    let config = TaskConfig {
-        command: "env".to_string(),
-        args: Some(vec!["--help".to_string()]),
-        working_dir: Some(
-            "/very/long/path/to/working/directory/that/tests/path/length/limits".to_string(),
-        ),
-        env: Some(env),
-        timeout_ms: Some(u64::MAX), // Test maximum timeout
-        enable_stdin: Some(true),
-        ready_indicator: Some(
-            "Ready with very long indicator text that might appear in logs".to_string(),
-        ),
-        ready_indicator_source: Some(StreamSource::Stderr),
-    };
+    let config = TaskConfig::new("env")
+        .args(["--help"])
+        .working_dir("/very/long/path/to/working/directory/that/tests/path/length/limits")
+        .env(env)
+        .timeout_ms(u64::MAX) // Test maximum timeout
+        .enable_stdin(true)
+        .ready_indicator("Ready with very long indicator text that might appear in logs")
+        .ready_indicator_source(StreamSource::Stderr);
 
-    let spec = TaskSpec {
-        config,
-        shell: Some(TaskShell::Auto),
-        dependencies: None,
-        terminate_after_dependents_finished: Some(true),
-        ignore_dependencies_error: Some(false),
-    };
+    let spec = TaskSpec::new(config).terminate_after_dependents(true);
 
     tasks.insert("max_env_task".to_string(), spec);
 
@@ -420,24 +362,11 @@ fn test_concurrent_conversions() {
     let original_tasks = Arc::new({
         let mut tasks = TcrmTasks::new();
         for i in 0..20 {
-            let config = TaskConfig {
-                command: format!("task_{}", i),
-                args: Some(vec![format!("arg_{}", i)]),
-                working_dir: None,
-                env: None,
-                timeout_ms: Some(5000),
-                enable_stdin: None,
-                ready_indicator: None,
-                ready_indicator_source: None,
-            };
+            let config = TaskConfig::new(format!("task_{}", i))
+                .args([format!("arg_{}", i)])
+                .timeout_ms(5000);
 
-            let spec = TaskSpec {
-                config,
-                shell: Some(TaskShell::Auto),
-                dependencies: None,
-                terminate_after_dependents_finished: None,
-                ignore_dependencies_error: None,
-            };
+            let spec = TaskSpec::new(config).shell(TaskShell::Auto);
 
             tasks.insert(format!("task_{}", i), spec);
         }
@@ -484,46 +413,22 @@ fn test_error_resilience() {
     let mut tasks = TcrmTasks::new();
 
     // Task with minimal configuration
-    let minimal_config = TaskConfig {
-        command: "".to_string(), // Empty command
-        args: None,
-        working_dir: None,
-        env: None,
-        timeout_ms: None,
-        enable_stdin: None,
-        ready_indicator: None,
-        ready_indicator_source: None,
-    };
+    let minimal_config = TaskConfig::new(""); // Empty command
 
-    let minimal_spec = TaskSpec {
-        config: minimal_config,
-        shell: None,
-        dependencies: None,
-        terminate_after_dependents_finished: None,
-        ignore_dependencies_error: None,
-    };
+    let minimal_spec = TaskSpec::new(minimal_config);
 
     tasks.insert("minimal".to_string(), minimal_spec);
 
     // Task with empty collections
-    let empty_collections_config = TaskConfig {
-        command: "test".to_string(),
-        args: Some(vec![]), // Empty args
-        working_dir: None,
-        env: Some(HashMap::new()), // Empty env
-        timeout_ms: Some(0),       // Zero timeout
-        enable_stdin: None,
-        ready_indicator: Some("".to_string()), // Empty indicator
-        ready_indicator_source: None,
-    };
+    let empty_env: HashMap<String, String> = HashMap::new();
+    let empty_collections_config = TaskConfig::new("test")
+        .args(Vec::<String>::new()) // Empty args
+        .env(empty_env) // Empty env
+        .timeout_ms(0) // Zero timeout
+        .ready_indicator(""); // Empty indicator
 
-    let empty_collections_spec = TaskSpec {
-        config: empty_collections_config,
-        shell: Some(TaskShell::Auto),
-        dependencies: Some(vec![]), // Empty dependencies
-        terminate_after_dependents_finished: None,
-        ignore_dependencies_error: None,
-    };
+    let empty_collections_spec =
+        TaskSpec::new(empty_collections_config).dependencies(Vec::<String>::new()); // Empty dependencies
 
     tasks.insert("empty_collections".to_string(), empty_collections_spec);
 

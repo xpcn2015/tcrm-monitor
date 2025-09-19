@@ -94,11 +94,11 @@ fn spec_conversions() {
         command: "echo".to_string(),
         args: Some(vec!["hello".to_string(), "world".to_string()]),
         working_dir: Some("/tmp".to_string()),
-        env: None,
         timeout_ms: Some(5000),
         enable_stdin: Some(true),
         ready_indicator: Some("ready".to_string()),
         ready_indicator_source: Some(tcrm_task::tasks::config::StreamSource::Stdout),
+        ..Default::default()
     };
 
     let spec = TaskSpec {
@@ -106,7 +106,7 @@ fn spec_conversions() {
         shell: Some(TaskShell::Auto),
         dependencies: Some(vec!["dep1".to_string()]),
         terminate_after_dependents_finished: Some(true),
-        ignore_dependencies_error: Some(false),
+        ..Default::default()
     };
 
     let mut fbb = flatbuffers::FlatBufferBuilder::new();
@@ -174,20 +174,13 @@ fn tasks_conversions() {
     let task_config = TaskConfig {
         command: "echo".to_string(),
         args: Some(vec!["test".to_string()]),
-        working_dir: None,
-        env: None,
-        timeout_ms: None,
-        enable_stdin: None,
-        ready_indicator: None,
-        ready_indicator_source: None,
+        ..Default::default()
     };
 
     let spec = TaskSpec {
         config: task_config,
         shell: Some(TaskShell::Auto),
-        dependencies: None,
-        terminate_after_dependents_finished: None,
-        ignore_dependencies_error: None,
+        ..Default::default()
     };
 
     tasks.insert("test_task".to_string(), spec);

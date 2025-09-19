@@ -15,24 +15,12 @@ fn create_linear_dependency_chain(size: usize) -> TcrmTasks {
             None
         };
 
-        let config = TaskConfig {
-            command: format!("cmd_{}", i),
-            args: None,
-            working_dir: None,
-            env: None,
-            timeout_ms: Some(30000),
-            enable_stdin: Some(false),
-            ready_indicator: None,
-            ready_indicator_source: None,
-        };
+        let config = TaskConfig::new(format!("cmd_{}", i)).timeout_ms(30000);
 
-        let spec = TaskSpec {
-            config,
-            shell: Some(TaskShell::Auto),
-            dependencies,
-            terminate_after_dependents_finished: Some(false),
-            ignore_dependencies_error: Some(false),
-        };
+        let mut spec = TaskSpec::new(config).shell(TaskShell::Auto);
+        if let Some(deps) = dependencies {
+            spec.dependencies = Some(deps);
+        }
 
         tasks.insert(task_name, spec);
     }
@@ -58,28 +46,12 @@ fn create_complex_graph(size: usize) -> TcrmTasks {
             dependencies.push(format!("task_{}", i / 2));
         }
 
-        let config = TaskConfig {
-            command: format!("cmd_{}", i),
-            args: None,
-            working_dir: None,
-            env: None,
-            timeout_ms: Some(30000),
-            enable_stdin: Some(false),
-            ready_indicator: None,
-            ready_indicator_source: None,
-        };
+        let config = TaskConfig::new(format!("cmd_{}", i)).timeout_ms(30000);
 
-        let spec = TaskSpec {
-            config,
-            shell: Some(TaskShell::Auto),
-            dependencies: if dependencies.is_empty() {
-                None
-            } else {
-                Some(dependencies)
-            },
-            terminate_after_dependents_finished: Some(false),
-            ignore_dependencies_error: Some(false),
-        };
+        let mut spec = TaskSpec::new(config).shell(TaskShell::Auto);
+        if !dependencies.is_empty() {
+            spec.dependencies = Some(dependencies);
+        }
 
         tasks.insert(task_name, spec);
     }

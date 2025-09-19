@@ -25,31 +25,24 @@ mod test_scenarios {
 
     /// Create a sample task configuration for testing
     pub fn create_sample_task_config(command: &str) -> TaskConfig {
-        TaskConfig {
-            command: command.to_string(),
-            args: Some(vec!["--help".to_string()]),
-            working_dir: None,
-            env: Some({
-                let mut env = HashMap::new();
-                env.insert("TEST_VAR".to_string(), "test_value".to_string());
-                env
-            }),
-            timeout_ms: Some(5000),
-            enable_stdin: Some(false),
-            ready_indicator: Some("Ready".to_string()),
-            ready_indicator_source: Some(StreamSource::Stdout),
-        }
+        let mut env = HashMap::new();
+        env.insert("TEST_VAR".to_string(), "test_value".to_string());
+        TaskConfig::new(command)
+            .args(["--help"])
+            .env(env)
+            .timeout_ms(5000)
+            .ready_indicator("Ready")
+            .ready_indicator_source(StreamSource::Stdout)
     }
 
     /// Create a sample task spec for testing
     pub fn create_sample_task_spec(name: &str, dependencies: Option<Vec<String>>) -> TaskSpec {
-        TaskSpec {
-            config: create_sample_task_config(&format!("task_{}", name)),
-            shell: Some(TaskShell::Auto),
-            dependencies,
-            terminate_after_dependents_finished: Some(false),
-            ignore_dependencies_error: Some(false),
+        let mut spec = TaskSpec::new(create_sample_task_config(&format!("task_{}", name)))
+            .shell(TaskShell::Auto);
+        if let Some(deps) = dependencies {
+            spec.dependencies = Some(deps);
         }
+        spec
     }
 
     /// Create a complex task dependency graph for testing
@@ -140,32 +133,17 @@ async fn test_flatbuffers_config_validation() {
 
     // Create a simple task configuration
     let mut tasks = TcrmTasks::new();
-    let simple_config = TaskConfig {
-        command: if cfg!(windows) { "cmd" } else { "echo" }.to_string(),
-        args: Some(if cfg!(windows) {
-            vec![
-                "/c".to_string(),
-                "echo".to_string(),
-                "Hello World".to_string(),
-            ]
-        } else {
-            vec!["Hello World".to_string()]
-        }),
-        working_dir: Some(temp_path.to_string_lossy().to_string()),
-        env: None,
-        timeout_ms: Some(10000),
-        enable_stdin: Some(false),
-        ready_indicator: None,
-        ready_indicator_source: None,
-    };
-
-    let simple_spec = TaskSpec {
-        config: simple_config,
-        shell: Some(TaskShell::Auto),
-        dependencies: None,
-        terminate_after_dependents_finished: Some(false),
-        ignore_dependencies_error: Some(false),
-    };
+    #[cfg(windows)]
+    let config = TaskConfig::new("cmd")
+        .args(["/c", "echo", "Hello World"])
+        .working_dir(temp_path.to_string_lossy().to_string())
+        .timeout_ms(10000);
+    #[cfg(unix)]
+    let config = TaskConfig::new("echo")
+        .args(["Hello World"])
+        .working_dir(temp_path.to_string_lossy().to_string())
+        .timeout_ms(10000);
+    let simple_spec = TaskSpec::new(config).shell(TaskShell::Auto);
 
     tasks.insert("simple_task".to_string(), simple_spec);
 
@@ -229,24 +207,9 @@ async fn test_error_handling_in_conversion_workflow() {
     use flatbuffers::FlatBufferBuilder;
 
     // Create an invalid TaskSpec that might cause issues
-    let invalid_config = TaskConfig {
-        command: "".to_string(), // Empty command
-        args: None,
-        working_dir: None,
-        env: None,
-        timeout_ms: None,
-        enable_stdin: None,
-        ready_indicator: None,
-        ready_indicator_source: None,
-    };
+    let invalid_config = TaskConfig::new("").use_process_group(true);
 
-    let invalid_spec = TaskSpec {
-        config: invalid_config,
-        shell: None,
-        dependencies: None,
-        terminate_after_dependents_finished: None,
-        ignore_dependencies_error: None,
-    };
+    let invalid_spec = TaskSpec::new(invalid_config);
 
     // The conversion should handle this gracefully
     let mut fbb = FlatBufferBuilder::new();
@@ -408,36 +371,32 @@ async fn test_memory_efficiency() {
             env.insert(format!("ENV_VAR_{}_{}", i, j), format!("value_{}_{}", i, j));
         }
 
-        let config = TaskConfig {
-            command: format!("command_{}", i),
-            args: Some((0..10).map(|j| format!("arg_{}_{}", i, j)).collect()),
-            working_dir: Some(format!("/tmp/work_{}", i)),
-            env: Some(env),
-            timeout_ms: Some(30000),
-            enable_stdin: Some(i % 2 == 0),
-            ready_indicator: Some(format!("ready_{}", i)),
-            ready_indicator_source: Some(if i % 2 == 0 {
+        let config = TaskConfig::new(format!("command_{}", i))
+            .args((0..10).map(|j| format!("arg_{}_{}", i, j)))
+            .working_dir(format!("/tmp/work_{}", i))
+            .env(env)
+            .timeout_ms(30000)
+            .enable_stdin(i % 2 == 0)
+            .ready_indicator(format!("ready_{}", i))
+            .ready_indicator_source(if i % 2 == 0 {
                 StreamSource::Stdout
             } else {
                 StreamSource::Stderr
-            }),
-        };
-
-        let spec = TaskSpec {
-            config,
-            shell: Some(if i % 3 == 0 {
-                TaskShell::Auto
-            } else {
-                TaskShell::None
-            }),
-            dependencies: if i > 0 {
-                Some(vec![format!("task_{}", i - 1)])
-            } else {
-                None
-            },
-            terminate_after_dependents_finished: Some(i % 2 == 1),
-            ignore_dependencies_error: Some(i % 3 == 0),
-        };
+            });
+        let mut spec = TaskSpec::new(config).shell(if i % 3 == 0 {
+            TaskShell::Auto
+        } else {
+            TaskShell::None
+        });
+        if i > 0 {
+            spec.dependencies = Some(vec![format!("task_{}", i - 1)]);
+        }
+        if i % 2 == 1 {
+            spec.terminate_after_dependents_finished = Some(true);
+        }
+        if i % 3 == 0 {
+            spec.ignore_dependencies_error = Some(true);
+        }
 
         tasks.insert(format!("task_{}", i), spec);
     }

@@ -305,6 +305,7 @@ mod tests {
             enable_stdin: Some(true),
             ready_indicator: Some("ready".to_string()),
             ready_indicator_source: Some(tcrm_task::tasks::config::StreamSource::Stdout),
+            ..Default::default()
         };
 
         let spec = ConfigTaskSpec {
@@ -312,7 +313,7 @@ mod tests {
             shell: Some(ConfigTaskShell::Auto),
             dependencies: Some(vec!["dep1".to_string(), "dep2".to_string()]),
             terminate_after_dependents_finished: Some(true),
-            ignore_dependencies_error: Some(false),
+            ..Default::default()
         };
 
         // Test conversion to flatbuffers and back
@@ -451,21 +452,12 @@ mod tests {
         // Test with minimal TaskSpec (only required fields)
         let task_config = TaskConfig {
             command: "ls".to_string(),
-            args: None,
-            working_dir: None,
-            env: None,
-            timeout_ms: None,
-            enable_stdin: None,
-            ready_indicator: None,
-            ready_indicator_source: None,
+            ..Default::default()
         };
 
         let spec = ConfigTaskSpec {
             config: task_config,
-            shell: None,
-            dependencies: None,
-            terminate_after_dependents_finished: None,
-            ignore_dependencies_error: None,
+            ..Default::default()
         };
 
         // Test conversion
@@ -494,20 +486,15 @@ mod tests {
         let task_config1 = TaskConfig {
             command: "echo".to_string(),
             args: Some(vec!["task1".to_string()]),
-            working_dir: None,
-            env: None,
             timeout_ms: Some(1000),
-            enable_stdin: Some(false),
-            ready_indicator: None,
-            ready_indicator_source: None,
+            ..Default::default()
         };
 
         let spec1 = ConfigTaskSpec {
             config: task_config1,
             shell: Some(ConfigTaskShell::Auto),
-            dependencies: None,
-            terminate_after_dependents_finished: Some(false),
             ignore_dependencies_error: Some(true),
+            ..Default::default()
         };
 
         // Add second task
@@ -515,11 +502,9 @@ mod tests {
             command: "sleep".to_string(),
             args: Some(vec!["1".to_string()]),
             working_dir: Some("/tmp".to_string()),
-            env: None,
-            timeout_ms: None,
-            enable_stdin: None,
             ready_indicator: Some("done".to_string()),
             ready_indicator_source: Some(tcrm_task::tasks::config::StreamSource::Stderr),
+            ..Default::default()
         };
 
         let spec2 = ConfigTaskSpec {
@@ -527,7 +512,7 @@ mod tests {
             shell: Some(ConfigTaskShell::None),
             dependencies: Some(vec!["task1".to_string()]),
             terminate_after_dependents_finished: Some(true),
-            ignore_dependencies_error: Some(false),
+            ..Default::default()
         };
 
         tasks.insert("task1".to_string(), spec1);

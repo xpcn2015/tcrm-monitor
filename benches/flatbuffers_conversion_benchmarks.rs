@@ -11,39 +11,43 @@ fn create_sample_task_config(complexity: usize) -> TaskConfig {
         env.insert(format!("VAR_{}", i), format!("value_{}", i));
     }
 
-    let args = if complexity > 0 {
+    let args: Option<Vec<String>> = if complexity > 0 {
         Some((0..complexity).map(|i| format!("arg_{}", i)).collect())
     } else {
         None
     };
 
-    TaskConfig {
-        command: "test_command".to_string(),
-        args,
-        working_dir: Some("/test/dir".to_string()),
-        env: Some(env),
-        timeout_ms: Some(5000),
-        enable_stdin: Some(true),
-        ready_indicator: Some("ready".to_string()),
-        ready_indicator_source: Some(tcrm_task::tasks::config::StreamSource::Stdout),
+    let mut config = TaskConfig::new("test_command")
+        .working_dir("/test/dir")
+        .env(env)
+        .timeout_ms(5000)
+        .enable_stdin(true)
+        .ready_indicator("ready")
+        .ready_indicator_source(tcrm_task::tasks::config::StreamSource::Stdout);
+    
+    if let Some(args_vec) = args {
+        config = config.args(args_vec.iter().map(String::as_str));
     }
+    
+    config
 }
 
 fn create_sample_task_spec(complexity: usize) -> TaskSpec {
     let config = create_sample_task_config(complexity);
-    let dependencies = if complexity > 0 {
+    let dependencies: Option<Vec<String>> = if complexity > 0 {
         Some((0..complexity).map(|i| format!("dep_{}", i)).collect())
     } else {
         None
     };
 
-    TaskSpec {
-        config,
-        shell: Some(TaskShell::Auto),
-        dependencies,
-        terminate_after_dependents_finished: Some(true),
-        ignore_dependencies_error: Some(false),
+    let mut spec = TaskSpec::new(config)
+        .terminate_after_dependents(true);
+    
+    if let Some(deps) = dependencies {
+        spec.dependencies = Some(deps);
     }
+    
+    spec
 }
 
 fn create_sample_tasks(num_tasks: usize, complexity: usize) -> TcrmTasks {

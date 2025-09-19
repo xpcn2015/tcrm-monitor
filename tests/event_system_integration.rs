@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use tcrm_monitor::monitor::config::{TaskShell, TaskSpec};
+use tcrm_monitor::monitor::config::TaskSpec;
 use tcrm_monitor::monitor::event::{TaskMonitorControlCommand, TaskMonitorEvent};
 use tcrm_monitor::monitor::tasks::TaskMonitor;
 use tcrm_task::tasks::config::TaskConfig;
@@ -11,33 +11,17 @@ async fn test_task_monitor_event_system() {
     // Create a simple task configuration
     let mut tasks = HashMap::new();
 
-    let echo_task = TaskSpec {
-        config: TaskConfig {
-            command: if cfg!(windows) {
-                "powershell".to_string()
-            } else {
-                "echo".to_string()
-            },
-            args: if cfg!(windows) {
-                Some(vec![
-                    "-Command".to_string(),
-                    "echo 'Task started'; Start-Sleep 1; echo 'Task completed'".to_string(),
-                ])
-            } else {
-                Some(vec!["Task output".to_string()])
-            },
-            working_dir: None,
-            env: None,
-            timeout_ms: Some(10000),
-            enable_stdin: Some(true),
-            ready_indicator: None,
-            ready_indicator_source: None,
-        },
-        shell: Some(TaskShell::Auto),
-        dependencies: Some(vec![]),
-        terminate_after_dependents_finished: Some(false),
-        ignore_dependencies_error: Some(false),
-    };
+    #[cfg(windows)]
+    let config = TaskConfig::new("powershell").args([
+        "-Command",
+        "echo 'Task started'; Start-Sleep 1; echo 'Task completed'",
+    ]);
+    #[cfg(unix)]
+    let config =
+        TaskConfig::new("sh").args(["-c", "echo 'Task started'; sleep 1; echo 'Task completed'"]);
+
+    let config = config.timeout_ms(10000).enable_stdin(true);
+    let echo_task = TaskSpec::new(config);
 
     tasks.insert("echo_task".to_string(), echo_task);
 

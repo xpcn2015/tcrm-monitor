@@ -83,9 +83,9 @@ fn create_example_tasks() -> TcrmTasks {
         working_dir: Some("/opt/database".to_string()),
         env: Some(db_env),
         timeout_ms: Some(60000),
-        enable_stdin: Some(false),
         ready_indicator: Some("database system is ready to accept connections".to_string()),
         ready_indicator_source: Some(StreamSource::Stderr),
+        ..Default::default()
     };
 
     let db_spec = TaskSpec {
@@ -116,7 +116,7 @@ fn create_example_tasks() -> TcrmTasks {
         timeout_ms: Some(120000),
         enable_stdin: Some(true),
         ready_indicator: Some("Server listening on".to_string()),
-        ready_indicator_source: Some(StreamSource::Stdout),
+        ..Default::default()
     };
 
     let api_spec = TaskSpec {
@@ -124,7 +124,7 @@ fn create_example_tasks() -> TcrmTasks {
         shell: Some(TaskShell::Auto),
         dependencies: Some(vec!["setup_database".to_string()]),
         terminate_after_dependents_finished: Some(true),
-        ignore_dependencies_error: Some(false),
+        ..Default::default()
     };
 
     tasks.insert("start_api".to_string(), api_spec);
@@ -147,7 +147,7 @@ fn create_example_tasks() -> TcrmTasks {
         timeout_ms: Some(90000),
         enable_stdin: Some(false),
         ready_indicator: Some("webpack compiled".to_string()),
-        ready_indicator_source: Some(StreamSource::Stdout),
+        ..Default::default()
     };
 
     let frontend_spec = TaskSpec {
@@ -155,7 +155,7 @@ fn create_example_tasks() -> TcrmTasks {
         shell: Some(TaskShell::Auto),
         dependencies: Some(vec!["start_api".to_string()]),
         terminate_after_dependents_finished: Some(true),
-        ignore_dependencies_error: Some(false),
+        ..Default::default()
     };
 
     tasks.insert("start_frontend".to_string(), frontend_spec);
@@ -178,10 +178,8 @@ fn create_example_tasks() -> TcrmTasks {
             );
             env
         }),
-        timeout_ms: Some(300000), // 5 minutes for tests
-        enable_stdin: Some(false),
-        ready_indicator: None,
-        ready_indicator_source: None,
+        timeout_ms: Some(30000),
+        ..Default::default()
     };
 
     let test_spec = TaskSpec {
@@ -209,19 +207,17 @@ fn create_example_tasks() -> TcrmTasks {
             "prom/prometheus".to_string(),
         ]),
         working_dir: Some("/opt/monitoring".to_string()),
-        env: None,
         timeout_ms: Some(30000),
-        enable_stdin: Some(false),
         ready_indicator: Some("Server is ready to receive web requests".to_string()),
         ready_indicator_source: Some(StreamSource::Stdout),
+        ..Default::default()
     };
 
     let monitor_spec = TaskSpec {
         config: monitor_config,
         shell: Some(TaskShell::Auto),
         dependencies: Some(vec!["start_api".to_string(), "start_frontend".to_string()]),
-        terminate_after_dependents_finished: Some(false),
-        ignore_dependencies_error: Some(false),
+        ..Default::default()
     };
 
     tasks.insert("start_monitoring".to_string(), monitor_spec);

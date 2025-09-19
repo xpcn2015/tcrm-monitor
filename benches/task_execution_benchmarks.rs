@@ -8,26 +8,15 @@ use tcrm_task::tasks::config::TaskConfig;
 use tokio::time::timeout;
 
 fn create_simple_task_config(command: &str) -> TaskConfig {
-    TaskConfig {
-        command: command.to_string(),
-        args: None,
-        working_dir: None,
-        env: None,
-        timeout_ms: Some(5000),
-        enable_stdin: Some(false),
-        ready_indicator: None,
-        ready_indicator_source: None,
-    }
+    TaskConfig::new(command).timeout_ms(5000)
 }
 
 fn create_task_spec(command: &str, dependencies: Option<Vec<String>>) -> TaskSpec {
-    TaskSpec {
-        config: create_simple_task_config(command),
-        shell: Some(TaskShell::Auto),
-        dependencies,
-        terminate_after_dependents_finished: Some(false),
-        ignore_dependencies_error: Some(false),
+    let mut spec = TaskSpec::new(create_simple_task_config(command)).shell(TaskShell::Auto);
+    if let Some(deps) = dependencies {
+        spec.dependencies = Some(deps);
     }
+    spec
 }
 
 fn create_echo_tasks(count: usize) -> TcrmTasks {
@@ -488,32 +477,25 @@ fn bench_task_configuration_parsing(c: &mut Criterion) {
                         env.insert(format!("VAR_{}", i), format!("value_{}", i));
                     }
 
-                    let args = if complexity > 0 {
+                    let args: Option<Vec<String>> = if complexity > 0 {
                         Some((0..complexity).map(|i| format!("arg_{}", i)).collect())
                     } else {
                         None
                     };
 
-                    let config = TaskConfig {
-                        command: "test_command".to_string(),
-                        args,
-                        working_dir: Some("/test/dir".to_string()),
-                        env: Some(env),
-                        timeout_ms: Some(5000),
-                        enable_stdin: Some(true),
-                        ready_indicator: Some("ready".to_string()),
-                        ready_indicator_source: Some(
-                            tcrm_task::tasks::config::StreamSource::Stdout,
-                        ),
-                    };
+                    let mut config = TaskConfig::new("test_command")
+                        .working_dir("/test/dir")
+                        .env(env)
+                        .timeout_ms(5000)
+                        .enable_stdin(true)
+                        .ready_indicator("ready")
+                        .ready_indicator_source(tcrm_task::tasks::config::StreamSource::Stdout);
 
-                    let spec = TaskSpec {
-                        config,
-                        shell: Some(TaskShell::Auto),
-                        dependencies: None,
-                        terminate_after_dependents_finished: Some(false),
-                        ignore_dependencies_error: Some(false),
-                    };
+                    if let Some(args_vec) = args {
+                        config = config.args(args_vec.iter().map(String::as_str));
+                    }
+
+                    let spec = TaskSpec::new(config).shell(TaskShell::Auto);
 
                     black_box(spec)
                 });

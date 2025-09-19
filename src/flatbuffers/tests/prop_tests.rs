@@ -34,16 +34,31 @@ prop_compose! {
         }
         let env = if env.is_empty() { None } else { Some(env) };
 
-        TaskConfig {
-            command,
-            args,
-            working_dir,
-            env,
-            timeout_ms,
-            enable_stdin: Some(enable_stdin),
-            ready_indicator,
-            ready_indicator_source,
+        let mut config = TaskConfig::new(command)
+            .enable_stdin(enable_stdin);
+
+        if let Some(args_vec) = args {
+            if !args_vec.is_empty() {
+                config = config.args(args_vec.iter().map(String::as_str));
+            }
         }
+
+        if let Some(wd) = working_dir {
+            config = config.working_dir(wd);
+        }
+        if let Some(env_map) = env {
+            config = config.env(env_map);
+        }
+        if let Some(timeout) = timeout_ms {
+            config = config.timeout_ms(timeout);
+        }
+        if let Some(indicator) = ready_indicator {
+            config = config.ready_indicator(indicator);
+        }
+        if let Some(source) = ready_indicator_source {
+            config = config.ready_indicator_source(source);
+        }
+        config
     }
 }
 
@@ -238,24 +253,9 @@ proptest! {
         use flatbuffers::FlatBufferBuilder;
 
         // Test minimal TaskConfig
-        let minimal_config = TaskConfig {
-            command: command.clone(),
-            args: None,
-            working_dir: None,
-            env: None,
-            timeout_ms: None,
-            enable_stdin: None,
-            ready_indicator: None,
-            ready_indicator_source: None,
-        };
+        let minimal_config = TaskConfig::new(command.clone());
 
-        let minimal_spec = TaskSpec {
-            config: minimal_config,
-            shell: None,
-            dependencies: None,
-            terminate_after_dependents_finished: None,
-            ignore_dependencies_error: None,
-        };
+        let minimal_spec = TaskSpec::new(minimal_config);
 
         let mut fbb = FlatBufferBuilder::new();
         let fb_spec_offset = minimal_spec.to_flatbuffers(&mut fbb);
@@ -287,24 +287,21 @@ proptest! {
         }
         let dependencies: Vec<String> = (0..dep_count).map(|i| format!("dep_{}", i)).collect();
 
-        let large_config = TaskConfig {
-            command: base_command.clone(),
-            args: Some(args.clone()),
-            working_dir: Some("/very/long/path/to/working/directory".to_string()),
-            env: Some(env.clone()),
-            timeout_ms: Some(60000),
-            enable_stdin: Some(true),
-            ready_indicator: Some("READY_INDICATOR".to_string()),
-            ready_indicator_source: Some(StreamSource::Stderr),
-        };
+        let large_config = TaskConfig::new(base_command.clone())
+            .args(args.clone())
+            .working_dir("/very/long/path/to/working/directory")
+            .env(env.clone())
+            .timeout_ms(60000)
+            .enable_stdin(true)
+            .ready_indicator("READY_INDICATOR")
+            .ready_indicator_source(StreamSource::Stderr)
+            .use_process_group(true);
 
-        let large_spec = TaskSpec {
-            config: large_config,
-            shell: Some(TaskShell::Auto),
-            dependencies: Some(dependencies.clone()),
-            terminate_after_dependents_finished: Some(true),
-            ignore_dependencies_error: Some(false),
-        };
+        let mut large_spec = TaskSpec::new(large_config)
+            .shell(TaskShell::Auto)
+            .dependencies(dependencies.clone());
+        large_spec.terminate_after_dependents_finished = Some(true);
+        large_spec.ignore_dependencies_error = Some(false);
 
         let mut fbb = FlatBufferBuilder::new();
         let fb_spec_offset = large_spec.to_flatbuffers(&mut fbb);
@@ -329,24 +326,9 @@ mod deterministic_tests {
     #[test]
     fn test_specific_edge_cases() {
         // Test empty string command (should this be allowed?)
-        let empty_command_config = TaskConfig {
-            command: "".to_string(),
-            args: None,
-            working_dir: None,
-            env: None,
-            timeout_ms: None,
-            enable_stdin: None,
-            ready_indicator: None,
-            ready_indicator_source: None,
-        };
+        let empty_command_config = TaskConfig::new("");
 
-        let spec = TaskSpec {
-            config: empty_command_config,
-            shell: Some(TaskShell::Auto),
-            dependencies: None,
-            terminate_after_dependents_finished: None,
-            ignore_dependencies_error: None,
-        };
+        let spec = TaskSpec::new(empty_command_config);
 
         use flatbuffers::FlatBufferBuilder;
         let mut fbb = FlatBufferBuilder::new();
@@ -356,32 +338,20 @@ mod deterministic_tests {
 
     #[test]
     fn test_unicode_handling() {
-        let unicode_config = TaskConfig {
-            command: "echo".to_string(),
-            args: Some(vec![
-                "Hello 🌍".to_string(),
-                "مرحبا".to_string(),
-                "你好".to_string(),
-            ]),
-            working_dir: Some("/tmp/测试目录".to_string()),
-            env: Some({
-                let mut env = HashMap::new();
-                env.insert("UNICODE_VAR".to_string(), "🚀 Rocket".to_string());
-                env
-            }),
-            timeout_ms: Some(5000),
-            enable_stdin: Some(false),
-            ready_indicator: Some("準備完了".to_string()),
-            ready_indicator_source: Some(StreamSource::Stdout),
-        };
+        let mut env = HashMap::new();
+        env.insert("UNICODE_VAR".to_string(), "🚀 Rocket".to_string());
 
-        let spec = TaskSpec {
-            config: unicode_config,
-            shell: Some(TaskShell::Auto),
-            dependencies: Some(vec!["前置任务".to_string()]),
-            terminate_after_dependents_finished: Some(false),
-            ignore_dependencies_error: Some(false),
-        };
+        let unicode_config = TaskConfig::new("echo")
+            .args(["Hello 🌍", "مرحبا", "你好"])
+            .working_dir("/tmp/测试目录")
+            .env(env)
+            .timeout_ms(5000)
+            .ready_indicator("準備完了")
+            .ready_indicator_source(StreamSource::Stdout);
+
+        let spec = TaskSpec::new(unicode_config)
+            .shell(TaskShell::Auto)
+            .dependencies(["前置任务"]);
 
         use flatbuffers::FlatBufferBuilder;
         let mut fbb = FlatBufferBuilder::new();
@@ -408,24 +378,13 @@ mod deterministic_tests {
 
     #[test]
     fn test_boundary_values() {
-        let boundary_config = TaskConfig {
-            command: "test".to_string(),
-            args: None,
-            working_dir: None,
-            env: None,
-            timeout_ms: Some(u64::MAX),
-            enable_stdin: Some(true),
-            ready_indicator: None,
-            ready_indicator_source: None,
-        };
+        let boundary_config = TaskConfig::new("test")
+            .timeout_ms(u64::MAX)
+            .enable_stdin(true);
 
-        let spec = TaskSpec {
-            config: boundary_config,
-            shell: Some(TaskShell::Auto),
-            dependencies: None,
-            terminate_after_dependents_finished: Some(true),
-            ignore_dependencies_error: Some(false),
-        };
+        let spec = TaskSpec::new(boundary_config)
+            .shell(TaskShell::Auto)
+            .terminate_after_dependents(true);
 
         use flatbuffers::FlatBufferBuilder;
         let mut fbb = FlatBufferBuilder::new();
