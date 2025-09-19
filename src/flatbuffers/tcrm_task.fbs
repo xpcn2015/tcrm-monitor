@@ -17,6 +17,7 @@ table TaskConfig {
   enable_stdin: bool = false;
   ready_indicator: string;
   ready_indicator_source: StreamSource = Stdout;
+  use_process_group: bool = false;
 
 }
 
