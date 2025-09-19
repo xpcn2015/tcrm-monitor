@@ -1,6 +1,6 @@
 [package]
 name = "tcrm-monitor"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 description = "Task dependency management and execution library with parallel processing, real-time monitoring, and runtime control"
 repository = "https://github.com/xpcn2015/tcrm-monitor"

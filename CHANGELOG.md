@@ -1,4 +1,8 @@
 # Changelog
+
+## 0.1.4 (2025/09/19)
+### Fix
+- update `tcrm-task` dependency to version 0.3.6, fix grandchild processes hanging problem by using Job/Process group
 ## 0.1.3 (2025/09/18)
 ### Fix
 - incorrect `completed_tasks` report in event `Completed` [[commit](https://github.com/xpcn2015/tcrm-monitor/commit/3f62f38eb211971cbc02b38f733c5d91e1e73a68)]
