@@ -307,13 +307,6 @@ impl TaskMonitor {
                 return true;
             }
         };
-        // Count completed/failed tasks
-        if let TaskEvent::Stopped { reason, .. } = &event {
-            *completed_tasks += 1;
-            if let TaskEventStopReason::Error(_) = reason {
-                *failed_tasks += 1
-            }
-        }
 
         // Forward wrapped task event
         if let Some(tx) = event_tx
@@ -339,6 +332,11 @@ impl TaskMonitor {
                 reason,
             } => {
                 active_tasks.remove(&task_name);
+                if let TaskEventStopReason::Error(_) = reason {
+                    *failed_tasks += 1;
+                } else {
+                    *completed_tasks += 1;
+                }
 
                 self.terminate_dependencies_if_all_dependent_finished(&task_name)
                     .await;
@@ -353,6 +351,7 @@ impl TaskMonitor {
             }
             TaskEvent::Error { task_name, error } => {
                 active_tasks.remove(&task_name);
+                *failed_tasks += 1;
 
                 self.terminate_dependencies_if_all_dependent_finished(&task_name)
                     .await;
