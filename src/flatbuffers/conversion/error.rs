@@ -2,11 +2,10 @@ use flatbuffers::{FlatBufferBuilder, WIPOffset};
 use tcrm_task::flatbuffers::conversion::ToFlatbuffers;
 use thiserror::Error;
 
-use crate::flatbuffers::tcrm_monitor_generated::tcrm::monitor::{
-    ControlCommandError as FbControlCommandError, ControlCommandErrorArgs,
-    SendStdinErrorReason as FbSendStdinErrorReason,
-};
-use crate::monitor::error::{ControlCommandError, SendStdinErrorReason};
+use crate::flatbuffers::conversion::FromFlatbuffers;
+
+use crate::flatbuffers::tcrm_monitor_generated::tcrm::monitor as fb;
+use crate::monitor::error::{ControlCommandError, SendStdinErrorReason, TaskMonitorError};
 
 /// Error types for `FlatBuffers` conversion operations.
 ///
@@ -35,26 +34,26 @@ pub enum ConversionError {
 }
 
 // SendStdinErrorReason conversions
-impl From<SendStdinErrorReason> for FbSendStdinErrorReason {
+impl From<SendStdinErrorReason> for fb::SendStdinErrorReason {
     fn from(reason: SendStdinErrorReason) -> Self {
         match reason {
-            SendStdinErrorReason::TaskNotFound => FbSendStdinErrorReason::TaskNotFound,
-            SendStdinErrorReason::StdinNotEnabled => FbSendStdinErrorReason::StdinNotEnabled,
-            SendStdinErrorReason::TaskNotActive => FbSendStdinErrorReason::TaskNotActive,
-            SendStdinErrorReason::ChannelClosed => FbSendStdinErrorReason::ChannelClosed,
+            SendStdinErrorReason::TaskNotFound => fb::SendStdinErrorReason::TaskNotFound,
+            SendStdinErrorReason::StdinNotEnabled => fb::SendStdinErrorReason::StdinNotEnabled,
+            SendStdinErrorReason::TaskNotActive => fb::SendStdinErrorReason::TaskNotActive,
+            SendStdinErrorReason::ChannelClosed => fb::SendStdinErrorReason::ChannelClosed,
         }
     }
 }
 
-impl TryFrom<FbSendStdinErrorReason> for SendStdinErrorReason {
+impl TryFrom<fb::SendStdinErrorReason> for SendStdinErrorReason {
     type Error = ConversionError;
 
-    fn try_from(reason: FbSendStdinErrorReason) -> Result<Self, Self::Error> {
+    fn try_from(reason: fb::SendStdinErrorReason) -> Result<Self, Self::Error> {
         match reason {
-            FbSendStdinErrorReason::TaskNotFound => Ok(SendStdinErrorReason::TaskNotFound),
-            FbSendStdinErrorReason::StdinNotEnabled => Ok(SendStdinErrorReason::StdinNotEnabled),
-            FbSendStdinErrorReason::TaskNotActive => Ok(SendStdinErrorReason::TaskNotActive),
-            FbSendStdinErrorReason::ChannelClosed => Ok(SendStdinErrorReason::ChannelClosed),
+            fb::SendStdinErrorReason::TaskNotFound => Ok(SendStdinErrorReason::TaskNotFound),
+            fb::SendStdinErrorReason::StdinNotEnabled => Ok(SendStdinErrorReason::StdinNotEnabled),
+            fb::SendStdinErrorReason::TaskNotActive => Ok(SendStdinErrorReason::TaskNotActive),
+            fb::SendStdinErrorReason::ChannelClosed => Ok(SendStdinErrorReason::ChannelClosed),
             _ => Err(ConversionError::InvalidEnumValue(format!(
                 "Invalid SendStdinErrorReason: {:?}",
                 reason
@@ -63,95 +62,140 @@ impl TryFrom<FbSendStdinErrorReason> for SendStdinErrorReason {
     }
 }
 
-// ControlCommandError conversions
+// ControlCommandError conversions (new schema)
+
 impl<'a> ToFlatbuffers<'a> for ControlCommandError {
-    type Output = WIPOffset<FbControlCommandError<'a>>;
+    type Output = WIPOffset<fb::ControlCommandError<'a>>;
 
     fn to_flatbuffers(&self, fbb: &mut FlatBufferBuilder<'a>) -> Self::Output {
-        let (
-            terminate_all_tasks_reason,
-            terminate_task_name,
-            terminate_task_reason,
-            send_stdin_task_name,
-            send_stdin_input,
-            send_stdin_reason,
-        ) = match self {
-            ControlCommandError::TerminateAllTasks { reason } => (
-                Some(fbb.create_string(reason)),
-                None,
-                None,
-                None,
-                None,
-                FbSendStdinErrorReason::TaskNotFound,
-            ),
-            ControlCommandError::TerminateTask { task_name, reason } => (
-                None,
-                Some(fbb.create_string(task_name)),
-                Some(fbb.create_string(reason)),
-                None,
-                None,
-                FbSendStdinErrorReason::TaskNotFound,
-            ),
+        let (error_type, error_offset) = match self {
+            ControlCommandError::TerminateAllTasks { reason } => {
+                let reason_str = fbb.create_string(reason);
+                let args = fb::TerminateAllTasksErrorArgs {
+                    reason: Some(reason_str),
+                };
+                let offset = fb::TerminateAllTasksError::create(fbb, &args).as_union_value();
+                (fb::ControlCommandErrorUnion::TerminateAllTasks, offset)
+            }
+            ControlCommandError::TerminateTask { task_name, reason } => {
+                let task_name_str = fbb.create_string(task_name);
+                let reason_str = fbb.create_string(reason);
+                let args = fb::TerminateTaskErrorArgs {
+                    task_name: Some(task_name_str),
+                    reason: Some(reason_str),
+                };
+                let offset = fb::TerminateTaskError::create(fbb, &args).as_union_value();
+                (fb::ControlCommandErrorUnion::TerminateTask, offset)
+            }
             ControlCommandError::SendStdin {
                 task_name,
                 input,
                 reason,
-            } => (
-                None,
-                None,
-                None,
-                Some(fbb.create_string(task_name)),
-                Some(fbb.create_string(input)),
-                reason.clone().into(),
-            ),
+            } => {
+                let task_name_str = fbb.create_string(task_name);
+                let input_str = fbb.create_string(input);
+                let args = fb::SendStdinErrorArgs {
+                    task_name: Some(task_name_str),
+                    input: Some(input_str),
+                    reason: reason.clone().into(),
+                };
+                let offset = fb::SendStdinError::create(fbb, &args).as_union_value();
+                (fb::ControlCommandErrorUnion::SendStdin, offset)
+            }
         };
-
-        let args = ControlCommandErrorArgs {
-            terminate_all_tasks_reason,
-            terminate_task_name,
-            terminate_task_reason,
-            send_stdin_task_name,
-            send_stdin_input,
-            send_stdin_reason,
+        let args = fb::ControlCommandErrorArgs {
+            error_type,
+            error: Some(error_offset),
         };
-
-        FbControlCommandError::create(fbb, &args)
+        fb::ControlCommandError::create(fbb, &args)
     }
 }
 
-impl TryFrom<FbControlCommandError<'_>> for ControlCommandError {
+impl TryFrom<fb::ControlCommandError<'_>> for ControlCommandError {
     type Error = ConversionError;
 
-    fn try_from(fb_error: FbControlCommandError) -> Result<Self, Self::Error> {
-        if let Some(reason) = fb_error.terminate_all_tasks_reason() {
-            return Ok(ControlCommandError::TerminateAllTasks {
-                reason: reason.to_string(),
-            });
+    fn try_from(fb_error: fb::ControlCommandError) -> Result<Self, Self::Error> {
+        match fb_error.error_type() {
+            fb::ControlCommandErrorUnion::TerminateAllTasks => {
+                let tat = fb_error.error_as_terminate_all_tasks().ok_or(
+                    ConversionError::MissingRequiredField("TerminateAllTasksError"),
+                )?;
+                let reason = tat.reason();
+                Ok(ControlCommandError::TerminateAllTasks {
+                    reason: reason.to_string(),
+                })
+            }
+            fb::ControlCommandErrorUnion::TerminateTask => {
+                let tt = fb_error
+                    .error_as_terminate_task()
+                    .ok_or(ConversionError::MissingRequiredField("TerminateTaskError"))?;
+                let task_name = tt.task_name();
+                let reason = tt.reason();
+                Ok(ControlCommandError::TerminateTask {
+                    task_name: task_name.to_string(),
+                    reason: reason.to_string(),
+                })
+            }
+            fb::ControlCommandErrorUnion::SendStdin => {
+                let ss = fb_error
+                    .error_as_send_stdin()
+                    .ok_or(ConversionError::MissingRequiredField("SendStdinError"))?;
+                let task_name = ss.task_name();
+                let input = ss.input();
+                let reason = ss.reason();
+                Ok(ControlCommandError::SendStdin {
+                    task_name: task_name.to_string(),
+                    input: input.to_string(),
+                    reason: reason.try_into()?,
+                })
+            }
+            _ => Err(ConversionError::MissingRequiredField(
+                "control command error variant",
+            )),
         }
+    }
+}
 
-        if let (Some(task_name), Some(reason)) = (
-            fb_error.terminate_task_name(),
-            fb_error.terminate_task_reason(),
-        ) {
-            return Ok(ControlCommandError::TerminateTask {
-                task_name: task_name.to_string(),
-                reason: reason.to_string(),
-            });
+impl FromFlatbuffers<fb::TaskMonitorError<'_>> for TaskMonitorError {
+    fn from_flatbuffers(wrapper: fb::TaskMonitorError) -> Result<Self, ConversionError> {
+        match wrapper.error_type() {
+            fb::TaskMonitorErrorUnion::ConfigParse => {
+                if let Some(error) = wrapper.error_as_config_parse() {
+                    TaskMonitorError::from_flatbuffers(error)
+                } else {
+                    Err(ConversionError::MissingRequiredField("ConfigParse error"))
+                }
+            }
+            fb::TaskMonitorErrorUnion::CircularDependency => {
+                if let Some(error) = wrapper.error_as_circular_dependency() {
+                    TaskMonitorError::from_flatbuffers(error)
+                } else {
+                    Err(ConversionError::MissingRequiredField(
+                        "CircularDependency error",
+                    ))
+                }
+            }
+            fb::TaskMonitorErrorUnion::DependencyNotFound => {
+                if let Some(error) = wrapper.error_as_dependency_not_found() {
+                    TaskMonitorError::from_flatbuffers(error)
+                } else {
+                    Err(ConversionError::MissingRequiredField(
+                        "DependencyNotFound error",
+                    ))
+                }
+            }
+            fb::TaskMonitorErrorUnion::ControlError => {
+                if let Some(error) = wrapper.error_as_control_error() {
+                    TaskMonitorError::from_flatbuffers(error)
+                } else {
+                    Err(ConversionError::MissingRequiredField("ControlError error"))
+                }
+            }
+            _ => Err(ConversionError::InvalidEnumValue(format!(
+                "Unknown TaskMonitorError variant: {:?}",
+                wrapper.error_type()
+            ))),
         }
-
-        if let (Some(task_name), Some(input)) =
-            (fb_error.send_stdin_task_name(), fb_error.send_stdin_input())
-        {
-            return Ok(ControlCommandError::SendStdin {
-                task_name: task_name.to_string(),
-                input: input.to_string(),
-                reason: fb_error.send_stdin_reason().try_into()?,
-            });
-        }
-
-        Err(ConversionError::MissingRequiredField(
-            "control command error variant",
-        ))
     }
 }
 

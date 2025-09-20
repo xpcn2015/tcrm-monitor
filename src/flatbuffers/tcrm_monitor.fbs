@@ -25,16 +25,33 @@ enum SendStdinErrorReason: byte {
   ChannelClosed = 3
 }
 
-table ControlCommandError {
-  terminate_all_tasks_reason: string;
-  terminate_task_name: string;
-  terminate_task_reason: string;
-  send_stdin_task_name: string;
-  send_stdin_input: string;
-  send_stdin_reason: SendStdinErrorReason;
+table TerminateAllTasksError {
+  reason: string (required);
 }
 
-union TaskMonitorError {
+table TerminateTaskError {
+  task_name: string (required);
+  reason: string (required);
+}
+
+table SendStdinError {
+  task_name: string (required);
+  input: string (required);
+  reason: SendStdinErrorReason;
+}
+
+
+union ControlCommandErrorUnion {
+  TerminateAllTasks: TerminateAllTasksError,
+  TerminateTask: TerminateTaskError,
+  SendStdin: SendStdinError
+}
+
+table ControlCommandError {
+  error: ControlCommandErrorUnion (required);
+}
+
+union TaskMonitorErrorUnion {
   ConfigParse: ConfigParseError,
   CircularDependency: CircularDependencyError,
   DependencyNotFound: DependencyNotFoundError,
@@ -73,13 +90,13 @@ table ControlProcessedEvent {
   control: TaskMonitorControlCommand (required);
 }
 
-union TaskMonitorControlEvent {
+union TaskMonitorControlEventUnion {
   ControlReceived: ControlReceivedEvent,
   ControlProcessed: ControlProcessedEvent
 }
 
-table TaskMonitorControlEventWrapper {
-  control_event: TaskMonitorControlEvent (required);
+table TaskMonitorControlEvent {
+  control_event: TaskMonitorControlEventUnion (required);
 }
 
 // Monitor Events
@@ -93,20 +110,20 @@ table ExecutionCompletedEvent {
   failed_tasks: uint64;
 }
 
-table TaskMonitorErrorWrapper {
-  error: TaskMonitorError (required);
+table TaskMonitorError {
+  error: TaskMonitorErrorUnion (required);
 }
 
-union TaskMonitorEvent {
+union TaskMonitorEventUnion {
   Task: TCRM.Task.TaskEvent,
   Started: ExecutionStartedEvent,
   Completed: ExecutionCompletedEvent,
-  Control: TaskMonitorControlEventWrapper,
-  Error: TaskMonitorErrorWrapper
+  Control: TaskMonitorControlEvent,
+  Error: TaskMonitorError
 }
 
-table TaskMonitorEventMessage {
-  event: TaskMonitorEvent (required);
+table TaskMonitorEvent {
+  event: TaskMonitorEventUnion (required);
 }
 
 // Configuration Types

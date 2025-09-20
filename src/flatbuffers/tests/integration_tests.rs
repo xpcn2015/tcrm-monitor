@@ -494,7 +494,7 @@ async fn test_task_monitor_event_flatbuffers_roundtrip() {
         // Convert back from flatbuffers using trait
         let buffer = fbb.finished_data();
         let fb_event_message = flatbuffers::root::<
-            crate::flatbuffers::tcrm_monitor_generated::tcrm::monitor::TaskMonitorEventMessage,
+            crate::flatbuffers::tcrm_monitor_generated::tcrm::monitor::TaskMonitorEvent,
         >(&buffer)
         .expect("Should parse flatbuffers");
 

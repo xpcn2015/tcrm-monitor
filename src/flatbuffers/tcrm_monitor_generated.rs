@@ -12,9 +12,10 @@
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::too_many_lines)]
 
+use tcrm_task::flatbuffers::tcrm_task_generated::*;
+
 use core::cmp::Ordering;
 use core::mem;
-use tcrm_task::flatbuffers::tcrm_task_generated::*;
 
 extern crate flatbuffers;
 use self::flatbuffers::{EndianScalar, Follow};
@@ -152,30 +153,139 @@ pub mod tcrm {
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
-        pub const ENUM_MIN_TASK_MONITOR_ERROR: u8 = 0;
+        pub const ENUM_MIN_CONTROL_COMMAND_ERROR_UNION: u8 = 0;
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
-        pub const ENUM_MAX_TASK_MONITOR_ERROR: u8 = 4;
+        pub const ENUM_MAX_CONTROL_COMMAND_ERROR_UNION: u8 = 3;
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
         #[allow(non_camel_case_types)]
-        pub const ENUM_VALUES_TASK_MONITOR_ERROR: [TaskMonitorError; 5] = [
-            TaskMonitorError::NONE,
-            TaskMonitorError::ConfigParse,
-            TaskMonitorError::CircularDependency,
-            TaskMonitorError::DependencyNotFound,
-            TaskMonitorError::ControlError,
+        pub const ENUM_VALUES_CONTROL_COMMAND_ERROR_UNION: [ControlCommandErrorUnion; 4] = [
+            ControlCommandErrorUnion::NONE,
+            ControlCommandErrorUnion::TerminateAllTasks,
+            ControlCommandErrorUnion::TerminateTask,
+            ControlCommandErrorUnion::SendStdin,
         ];
 
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
         #[repr(transparent)]
-        pub struct TaskMonitorError(pub u8);
+        pub struct ControlCommandErrorUnion(pub u8);
         #[allow(non_upper_case_globals)]
-        impl TaskMonitorError {
+        impl ControlCommandErrorUnion {
+            pub const NONE: Self = Self(0);
+            pub const TerminateAllTasks: Self = Self(1);
+            pub const TerminateTask: Self = Self(2);
+            pub const SendStdin: Self = Self(3);
+
+            pub const ENUM_MIN: u8 = 0;
+            pub const ENUM_MAX: u8 = 3;
+            pub const ENUM_VALUES: &'static [Self] = &[
+                Self::NONE,
+                Self::TerminateAllTasks,
+                Self::TerminateTask,
+                Self::SendStdin,
+            ];
+            /// Returns the variant's name or "" if unknown.
+            pub fn variant_name(self) -> Option<&'static str> {
+                match self {
+                    Self::NONE => Some("NONE"),
+                    Self::TerminateAllTasks => Some("TerminateAllTasks"),
+                    Self::TerminateTask => Some("TerminateTask"),
+                    Self::SendStdin => Some("SendStdin"),
+                    _ => None,
+                }
+            }
+        }
+        impl core::fmt::Debug for ControlCommandErrorUnion {
+            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                if let Some(name) = self.variant_name() {
+                    f.write_str(name)
+                } else {
+                    f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+                }
+            }
+        }
+        impl<'a> flatbuffers::Follow<'a> for ControlCommandErrorUnion {
+            type Inner = Self;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                unsafe {
+                    let b = flatbuffers::read_scalar_at::<u8>(buf, loc);
+                    Self(b)
+                }
+            }
+        }
+
+        impl flatbuffers::Push for ControlCommandErrorUnion {
+            type Output = ControlCommandErrorUnion;
+            #[inline]
+            unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+                unsafe {
+                    flatbuffers::emplace_scalar::<u8>(dst, self.0);
+                }
+            }
+        }
+
+        impl flatbuffers::EndianScalar for ControlCommandErrorUnion {
+            type Scalar = u8;
+            #[inline]
+            fn to_little_endian(self) -> u8 {
+                self.0.to_le()
+            }
+            #[inline]
+            #[allow(clippy::wrong_self_convention)]
+            fn from_little_endian(v: u8) -> Self {
+                let b = u8::from_le(v);
+                Self(b)
+            }
+        }
+
+        impl<'a> flatbuffers::Verifiable for ControlCommandErrorUnion {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                u8::run_verifier(v, pos)
+            }
+        }
+
+        impl flatbuffers::SimpleToVerifyInSlice for ControlCommandErrorUnion {}
+        pub struct ControlCommandErrorUnionUnionTableOffset {}
+
+        #[deprecated(
+            since = "2.0.0",
+            note = "Use associated constants instead. This will no longer be generated in 2021."
+        )]
+        pub const ENUM_MIN_TASK_MONITOR_ERROR_UNION: u8 = 0;
+        #[deprecated(
+            since = "2.0.0",
+            note = "Use associated constants instead. This will no longer be generated in 2021."
+        )]
+        pub const ENUM_MAX_TASK_MONITOR_ERROR_UNION: u8 = 4;
+        #[deprecated(
+            since = "2.0.0",
+            note = "Use associated constants instead. This will no longer be generated in 2021."
+        )]
+        #[allow(non_camel_case_types)]
+        pub const ENUM_VALUES_TASK_MONITOR_ERROR_UNION: [TaskMonitorErrorUnion; 5] = [
+            TaskMonitorErrorUnion::NONE,
+            TaskMonitorErrorUnion::ConfigParse,
+            TaskMonitorErrorUnion::CircularDependency,
+            TaskMonitorErrorUnion::DependencyNotFound,
+            TaskMonitorErrorUnion::ControlError,
+        ];
+
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+        #[repr(transparent)]
+        pub struct TaskMonitorErrorUnion(pub u8);
+        #[allow(non_upper_case_globals)]
+        impl TaskMonitorErrorUnion {
             pub const NONE: Self = Self(0);
             pub const ConfigParse: Self = Self(1);
             pub const CircularDependency: Self = Self(2);
@@ -203,7 +313,7 @@ pub mod tcrm {
                 }
             }
         }
-        impl core::fmt::Debug for TaskMonitorError {
+        impl core::fmt::Debug for TaskMonitorErrorUnion {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 if let Some(name) = self.variant_name() {
                     f.write_str(name)
@@ -212,7 +322,7 @@ pub mod tcrm {
                 }
             }
         }
-        impl<'a> flatbuffers::Follow<'a> for TaskMonitorError {
+        impl<'a> flatbuffers::Follow<'a> for TaskMonitorErrorUnion {
             type Inner = Self;
             #[inline]
             unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
@@ -223,8 +333,8 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::Push for TaskMonitorError {
-            type Output = TaskMonitorError;
+        impl flatbuffers::Push for TaskMonitorErrorUnion {
+            type Output = TaskMonitorErrorUnion;
             #[inline]
             unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
                 unsafe {
@@ -233,7 +343,7 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::EndianScalar for TaskMonitorError {
+        impl flatbuffers::EndianScalar for TaskMonitorErrorUnion {
             type Scalar = u8;
             #[inline]
             fn to_little_endian(self) -> u8 {
@@ -247,7 +357,7 @@ pub mod tcrm {
             }
         }
 
-        impl<'a> flatbuffers::Verifiable for TaskMonitorError {
+        impl<'a> flatbuffers::Verifiable for TaskMonitorErrorUnion {
             #[inline]
             fn run_verifier(
                 v: &mut flatbuffers::Verifier,
@@ -258,8 +368,8 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::SimpleToVerifyInSlice for TaskMonitorError {}
-        pub struct TaskMonitorErrorUnionTableOffset {}
+        impl flatbuffers::SimpleToVerifyInSlice for TaskMonitorErrorUnion {}
+        pub struct TaskMonitorErrorUnionUnionTableOffset {}
 
         #[deprecated(
             since = "2.0.0",
@@ -374,28 +484,28 @@ pub mod tcrm {
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
-        pub const ENUM_MIN_TASK_MONITOR_CONTROL_EVENT: u8 = 0;
+        pub const ENUM_MIN_TASK_MONITOR_CONTROL_EVENT_UNION: u8 = 0;
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
-        pub const ENUM_MAX_TASK_MONITOR_CONTROL_EVENT: u8 = 2;
+        pub const ENUM_MAX_TASK_MONITOR_CONTROL_EVENT_UNION: u8 = 2;
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
         #[allow(non_camel_case_types)]
-        pub const ENUM_VALUES_TASK_MONITOR_CONTROL_EVENT: [TaskMonitorControlEvent; 3] = [
-            TaskMonitorControlEvent::NONE,
-            TaskMonitorControlEvent::ControlReceived,
-            TaskMonitorControlEvent::ControlProcessed,
+        pub const ENUM_VALUES_TASK_MONITOR_CONTROL_EVENT_UNION: [TaskMonitorControlEventUnion; 3] = [
+            TaskMonitorControlEventUnion::NONE,
+            TaskMonitorControlEventUnion::ControlReceived,
+            TaskMonitorControlEventUnion::ControlProcessed,
         ];
 
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
         #[repr(transparent)]
-        pub struct TaskMonitorControlEvent(pub u8);
+        pub struct TaskMonitorControlEventUnion(pub u8);
         #[allow(non_upper_case_globals)]
-        impl TaskMonitorControlEvent {
+        impl TaskMonitorControlEventUnion {
             pub const NONE: Self = Self(0);
             pub const ControlReceived: Self = Self(1);
             pub const ControlProcessed: Self = Self(2);
@@ -414,7 +524,7 @@ pub mod tcrm {
                 }
             }
         }
-        impl core::fmt::Debug for TaskMonitorControlEvent {
+        impl core::fmt::Debug for TaskMonitorControlEventUnion {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 if let Some(name) = self.variant_name() {
                     f.write_str(name)
@@ -423,7 +533,7 @@ pub mod tcrm {
                 }
             }
         }
-        impl<'a> flatbuffers::Follow<'a> for TaskMonitorControlEvent {
+        impl<'a> flatbuffers::Follow<'a> for TaskMonitorControlEventUnion {
             type Inner = Self;
             #[inline]
             unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
@@ -434,8 +544,8 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::Push for TaskMonitorControlEvent {
-            type Output = TaskMonitorControlEvent;
+        impl flatbuffers::Push for TaskMonitorControlEventUnion {
+            type Output = TaskMonitorControlEventUnion;
             #[inline]
             unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
                 unsafe {
@@ -444,7 +554,7 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::EndianScalar for TaskMonitorControlEvent {
+        impl flatbuffers::EndianScalar for TaskMonitorControlEventUnion {
             type Scalar = u8;
             #[inline]
             fn to_little_endian(self) -> u8 {
@@ -458,7 +568,7 @@ pub mod tcrm {
             }
         }
 
-        impl<'a> flatbuffers::Verifiable for TaskMonitorControlEvent {
+        impl<'a> flatbuffers::Verifiable for TaskMonitorControlEventUnion {
             #[inline]
             fn run_verifier(
                 v: &mut flatbuffers::Verifier,
@@ -469,38 +579,38 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::SimpleToVerifyInSlice for TaskMonitorControlEvent {}
-        pub struct TaskMonitorControlEventUnionTableOffset {}
+        impl flatbuffers::SimpleToVerifyInSlice for TaskMonitorControlEventUnion {}
+        pub struct TaskMonitorControlEventUnionUnionTableOffset {}
 
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
-        pub const ENUM_MIN_TASK_MONITOR_EVENT: u8 = 0;
+        pub const ENUM_MIN_TASK_MONITOR_EVENT_UNION: u8 = 0;
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
-        pub const ENUM_MAX_TASK_MONITOR_EVENT: u8 = 5;
+        pub const ENUM_MAX_TASK_MONITOR_EVENT_UNION: u8 = 5;
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
         #[allow(non_camel_case_types)]
-        pub const ENUM_VALUES_TASK_MONITOR_EVENT: [TaskMonitorEvent; 6] = [
-            TaskMonitorEvent::NONE,
-            TaskMonitorEvent::Task,
-            TaskMonitorEvent::Started,
-            TaskMonitorEvent::Completed,
-            TaskMonitorEvent::Control,
-            TaskMonitorEvent::Error,
+        pub const ENUM_VALUES_TASK_MONITOR_EVENT_UNION: [TaskMonitorEventUnion; 6] = [
+            TaskMonitorEventUnion::NONE,
+            TaskMonitorEventUnion::Task,
+            TaskMonitorEventUnion::Started,
+            TaskMonitorEventUnion::Completed,
+            TaskMonitorEventUnion::Control,
+            TaskMonitorEventUnion::Error,
         ];
 
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
         #[repr(transparent)]
-        pub struct TaskMonitorEvent(pub u8);
+        pub struct TaskMonitorEventUnion(pub u8);
         #[allow(non_upper_case_globals)]
-        impl TaskMonitorEvent {
+        impl TaskMonitorEventUnion {
             pub const NONE: Self = Self(0);
             pub const Task: Self = Self(1);
             pub const Started: Self = Self(2);
@@ -531,7 +641,7 @@ pub mod tcrm {
                 }
             }
         }
-        impl core::fmt::Debug for TaskMonitorEvent {
+        impl core::fmt::Debug for TaskMonitorEventUnion {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 if let Some(name) = self.variant_name() {
                     f.write_str(name)
@@ -540,7 +650,7 @@ pub mod tcrm {
                 }
             }
         }
-        impl<'a> flatbuffers::Follow<'a> for TaskMonitorEvent {
+        impl<'a> flatbuffers::Follow<'a> for TaskMonitorEventUnion {
             type Inner = Self;
             #[inline]
             unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
@@ -551,8 +661,8 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::Push for TaskMonitorEvent {
-            type Output = TaskMonitorEvent;
+        impl flatbuffers::Push for TaskMonitorEventUnion {
+            type Output = TaskMonitorEventUnion;
             #[inline]
             unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
                 unsafe {
@@ -561,7 +671,7 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::EndianScalar for TaskMonitorEvent {
+        impl flatbuffers::EndianScalar for TaskMonitorEventUnion {
             type Scalar = u8;
             #[inline]
             fn to_little_endian(self) -> u8 {
@@ -575,7 +685,7 @@ pub mod tcrm {
             }
         }
 
-        impl<'a> flatbuffers::Verifiable for TaskMonitorEvent {
+        impl<'a> flatbuffers::Verifiable for TaskMonitorEventUnion {
             #[inline]
             fn run_verifier(
                 v: &mut flatbuffers::Verifier,
@@ -586,8 +696,8 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::SimpleToVerifyInSlice for TaskMonitorEvent {}
-        pub struct TaskMonitorEventUnionTableOffset {}
+        impl flatbuffers::SimpleToVerifyInSlice for TaskMonitorEventUnion {}
+        pub struct TaskMonitorEventUnionUnionTableOffset {}
 
         #[deprecated(
             since = "2.0.0",
@@ -1131,6 +1241,476 @@ pub mod tcrm {
                 ds.finish()
             }
         }
+        pub enum TerminateAllTasksErrorOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct TerminateAllTasksError<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for TerminateAllTasksError<'a> {
+            type Inner = TerminateAllTasksError<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                unsafe {
+                    Self {
+                        _tab: flatbuffers::Table::new(buf, loc),
+                    }
+                }
+            }
+        }
+
+        impl<'a> TerminateAllTasksError<'a> {
+            pub const VT_REASON: flatbuffers::VOffsetT = 4;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                TerminateAllTasksError { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args TerminateAllTasksErrorArgs<'args>,
+            ) -> flatbuffers::WIPOffset<TerminateAllTasksError<'bldr>> {
+                let mut builder = TerminateAllTasksErrorBuilder::new(_fbb);
+                if let Some(x) = args.reason {
+                    builder.add_reason(x);
+                }
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn reason(&self) -> &'a str {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<&str>>(
+                            TerminateAllTasksError::VT_REASON,
+                            None,
+                        )
+                        .unwrap()
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for TerminateAllTasksError<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
+                        "reason",
+                        Self::VT_REASON,
+                        true,
+                    )?
+                    .finish();
+                Ok(())
+            }
+        }
+        pub struct TerminateAllTasksErrorArgs<'a> {
+            pub reason: Option<flatbuffers::WIPOffset<&'a str>>,
+        }
+        impl<'a> Default for TerminateAllTasksErrorArgs<'a> {
+            #[inline]
+            fn default() -> Self {
+                TerminateAllTasksErrorArgs {
+                    reason: None, // required field
+                }
+            }
+        }
+
+        pub struct TerminateAllTasksErrorBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TerminateAllTasksErrorBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_reason(&mut self, reason: flatbuffers::WIPOffset<&'b str>) {
+                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                    TerminateAllTasksError::VT_REASON,
+                    reason,
+                );
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> TerminateAllTasksErrorBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                TerminateAllTasksErrorBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<TerminateAllTasksError<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                self.fbb_
+                    .required(o, TerminateAllTasksError::VT_REASON, "reason");
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for TerminateAllTasksError<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("TerminateAllTasksError");
+                ds.field("reason", &self.reason());
+                ds.finish()
+            }
+        }
+        pub enum TerminateTaskErrorOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct TerminateTaskError<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for TerminateTaskError<'a> {
+            type Inner = TerminateTaskError<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                unsafe {
+                    Self {
+                        _tab: flatbuffers::Table::new(buf, loc),
+                    }
+                }
+            }
+        }
+
+        impl<'a> TerminateTaskError<'a> {
+            pub const VT_TASK_NAME: flatbuffers::VOffsetT = 4;
+            pub const VT_REASON: flatbuffers::VOffsetT = 6;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                TerminateTaskError { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args TerminateTaskErrorArgs<'args>,
+            ) -> flatbuffers::WIPOffset<TerminateTaskError<'bldr>> {
+                let mut builder = TerminateTaskErrorBuilder::new(_fbb);
+                if let Some(x) = args.reason {
+                    builder.add_reason(x);
+                }
+                if let Some(x) = args.task_name {
+                    builder.add_task_name(x);
+                }
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn task_name(&self) -> &'a str {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<&str>>(
+                            TerminateTaskError::VT_TASK_NAME,
+                            None,
+                        )
+                        .unwrap()
+                }
+            }
+            #[inline]
+            pub fn reason(&self) -> &'a str {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<&str>>(
+                            TerminateTaskError::VT_REASON,
+                            None,
+                        )
+                        .unwrap()
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for TerminateTaskError<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
+                        "task_name",
+                        Self::VT_TASK_NAME,
+                        true,
+                    )?
+                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
+                        "reason",
+                        Self::VT_REASON,
+                        true,
+                    )?
+                    .finish();
+                Ok(())
+            }
+        }
+        pub struct TerminateTaskErrorArgs<'a> {
+            pub task_name: Option<flatbuffers::WIPOffset<&'a str>>,
+            pub reason: Option<flatbuffers::WIPOffset<&'a str>>,
+        }
+        impl<'a> Default for TerminateTaskErrorArgs<'a> {
+            #[inline]
+            fn default() -> Self {
+                TerminateTaskErrorArgs {
+                    task_name: None, // required field
+                    reason: None,    // required field
+                }
+            }
+        }
+
+        pub struct TerminateTaskErrorBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TerminateTaskErrorBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_task_name(&mut self, task_name: flatbuffers::WIPOffset<&'b str>) {
+                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                    TerminateTaskError::VT_TASK_NAME,
+                    task_name,
+                );
+            }
+            #[inline]
+            pub fn add_reason(&mut self, reason: flatbuffers::WIPOffset<&'b str>) {
+                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                    TerminateTaskError::VT_REASON,
+                    reason,
+                );
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> TerminateTaskErrorBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                TerminateTaskErrorBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<TerminateTaskError<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                self.fbb_
+                    .required(o, TerminateTaskError::VT_TASK_NAME, "task_name");
+                self.fbb_
+                    .required(o, TerminateTaskError::VT_REASON, "reason");
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for TerminateTaskError<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("TerminateTaskError");
+                ds.field("task_name", &self.task_name());
+                ds.field("reason", &self.reason());
+                ds.finish()
+            }
+        }
+        pub enum SendStdinErrorOffset {}
+        #[derive(Copy, Clone, PartialEq)]
+
+        pub struct SendStdinError<'a> {
+            pub _tab: flatbuffers::Table<'a>,
+        }
+
+        impl<'a> flatbuffers::Follow<'a> for SendStdinError<'a> {
+            type Inner = SendStdinError<'a>;
+            #[inline]
+            unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+                unsafe {
+                    Self {
+                        _tab: flatbuffers::Table::new(buf, loc),
+                    }
+                }
+            }
+        }
+
+        impl<'a> SendStdinError<'a> {
+            pub const VT_TASK_NAME: flatbuffers::VOffsetT = 4;
+            pub const VT_INPUT: flatbuffers::VOffsetT = 6;
+            pub const VT_REASON: flatbuffers::VOffsetT = 8;
+
+            #[inline]
+            pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+                SendStdinError { _tab: table }
+            }
+            #[allow(unused_mut)]
+            pub fn create<
+                'bldr: 'args,
+                'args: 'mut_bldr,
+                'mut_bldr,
+                A: flatbuffers::Allocator + 'bldr,
+            >(
+                _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+                args: &'args SendStdinErrorArgs<'args>,
+            ) -> flatbuffers::WIPOffset<SendStdinError<'bldr>> {
+                let mut builder = SendStdinErrorBuilder::new(_fbb);
+                if let Some(x) = args.input {
+                    builder.add_input(x);
+                }
+                if let Some(x) = args.task_name {
+                    builder.add_task_name(x);
+                }
+                builder.add_reason(args.reason);
+                builder.finish()
+            }
+
+            #[inline]
+            pub fn task_name(&self) -> &'a str {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<&str>>(
+                            SendStdinError::VT_TASK_NAME,
+                            None,
+                        )
+                        .unwrap()
+                }
+            }
+            #[inline]
+            pub fn input(&self) -> &'a str {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<&str>>(SendStdinError::VT_INPUT, None)
+                        .unwrap()
+                }
+            }
+            #[inline]
+            pub fn reason(&self) -> SendStdinErrorReason {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<SendStdinErrorReason>(
+                            SendStdinError::VT_REASON,
+                            Some(SendStdinErrorReason::TaskNotFound),
+                        )
+                        .unwrap()
+                }
+            }
+        }
+
+        impl flatbuffers::Verifiable for SendStdinError<'_> {
+            #[inline]
+            fn run_verifier(
+                v: &mut flatbuffers::Verifier,
+                pos: usize,
+            ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+                use self::flatbuffers::Verifiable;
+                v.visit_table(pos)?
+                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
+                        "task_name",
+                        Self::VT_TASK_NAME,
+                        true,
+                    )?
+                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
+                        "input",
+                        Self::VT_INPUT,
+                        true,
+                    )?
+                    .visit_field::<SendStdinErrorReason>("reason", Self::VT_REASON, false)?
+                    .finish();
+                Ok(())
+            }
+        }
+        pub struct SendStdinErrorArgs<'a> {
+            pub task_name: Option<flatbuffers::WIPOffset<&'a str>>,
+            pub input: Option<flatbuffers::WIPOffset<&'a str>>,
+            pub reason: SendStdinErrorReason,
+        }
+        impl<'a> Default for SendStdinErrorArgs<'a> {
+            #[inline]
+            fn default() -> Self {
+                SendStdinErrorArgs {
+                    task_name: None, // required field
+                    input: None,     // required field
+                    reason: SendStdinErrorReason::TaskNotFound,
+                }
+            }
+        }
+
+        pub struct SendStdinErrorBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+            fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+        }
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> SendStdinErrorBuilder<'a, 'b, A> {
+            #[inline]
+            pub fn add_task_name(&mut self, task_name: flatbuffers::WIPOffset<&'b str>) {
+                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                    SendStdinError::VT_TASK_NAME,
+                    task_name,
+                );
+            }
+            #[inline]
+            pub fn add_input(&mut self, input: flatbuffers::WIPOffset<&'b str>) {
+                self.fbb_
+                    .push_slot_always::<flatbuffers::WIPOffset<_>>(SendStdinError::VT_INPUT, input);
+            }
+            #[inline]
+            pub fn add_reason(&mut self, reason: SendStdinErrorReason) {
+                self.fbb_.push_slot::<SendStdinErrorReason>(
+                    SendStdinError::VT_REASON,
+                    reason,
+                    SendStdinErrorReason::TaskNotFound,
+                );
+            }
+            #[inline]
+            pub fn new(
+                _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+            ) -> SendStdinErrorBuilder<'a, 'b, A> {
+                let start = _fbb.start_table();
+                SendStdinErrorBuilder {
+                    fbb_: _fbb,
+                    start_: start,
+                }
+            }
+            #[inline]
+            pub fn finish(self) -> flatbuffers::WIPOffset<SendStdinError<'a>> {
+                let o = self.fbb_.end_table(self.start_);
+                self.fbb_
+                    .required(o, SendStdinError::VT_TASK_NAME, "task_name");
+                self.fbb_.required(o, SendStdinError::VT_INPUT, "input");
+                flatbuffers::WIPOffset::new(o.value())
+            }
+        }
+
+        impl core::fmt::Debug for SendStdinError<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let mut ds = f.debug_struct("SendStdinError");
+                ds.field("task_name", &self.task_name());
+                ds.field("input", &self.input());
+                ds.field("reason", &self.reason());
+                ds.finish()
+            }
+        }
         pub enum ControlCommandErrorOffset {}
         #[derive(Copy, Clone, PartialEq)]
 
@@ -1151,12 +1731,8 @@ pub mod tcrm {
         }
 
         impl<'a> ControlCommandError<'a> {
-            pub const VT_TERMINATE_ALL_TASKS_REASON: flatbuffers::VOffsetT = 4;
-            pub const VT_TERMINATE_TASK_NAME: flatbuffers::VOffsetT = 6;
-            pub const VT_TERMINATE_TASK_REASON: flatbuffers::VOffsetT = 8;
-            pub const VT_SEND_STDIN_TASK_NAME: flatbuffers::VOffsetT = 10;
-            pub const VT_SEND_STDIN_INPUT: flatbuffers::VOffsetT = 12;
-            pub const VT_SEND_STDIN_REASON: flatbuffers::VOffsetT = 14;
+            pub const VT_ERROR_TYPE: flatbuffers::VOffsetT = 4;
+            pub const VT_ERROR: flatbuffers::VOffsetT = 6;
 
             #[inline]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
@@ -1170,100 +1746,83 @@ pub mod tcrm {
                 A: flatbuffers::Allocator + 'bldr,
             >(
                 _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
-                args: &'args ControlCommandErrorArgs<'args>,
+                args: &'args ControlCommandErrorArgs,
             ) -> flatbuffers::WIPOffset<ControlCommandError<'bldr>> {
                 let mut builder = ControlCommandErrorBuilder::new(_fbb);
-                if let Some(x) = args.send_stdin_input {
-                    builder.add_send_stdin_input(x);
+                if let Some(x) = args.error {
+                    builder.add_error(x);
                 }
-                if let Some(x) = args.send_stdin_task_name {
-                    builder.add_send_stdin_task_name(x);
-                }
-                if let Some(x) = args.terminate_task_reason {
-                    builder.add_terminate_task_reason(x);
-                }
-                if let Some(x) = args.terminate_task_name {
-                    builder.add_terminate_task_name(x);
-                }
-                if let Some(x) = args.terminate_all_tasks_reason {
-                    builder.add_terminate_all_tasks_reason(x);
-                }
-                builder.add_send_stdin_reason(args.send_stdin_reason);
+                builder.add_error_type(args.error_type);
                 builder.finish()
             }
 
             #[inline]
-            pub fn terminate_all_tasks_reason(&self) -> Option<&'a str> {
-                // Safety:
-                // Created from valid Table for this object
-                // which contains a valid value in this slot
-                unsafe {
-                    self._tab.get::<flatbuffers::ForwardsUOffset<&str>>(
-                        ControlCommandError::VT_TERMINATE_ALL_TASKS_REASON,
-                        None,
-                    )
-                }
-            }
-            #[inline]
-            pub fn terminate_task_name(&self) -> Option<&'a str> {
-                // Safety:
-                // Created from valid Table for this object
-                // which contains a valid value in this slot
-                unsafe {
-                    self._tab.get::<flatbuffers::ForwardsUOffset<&str>>(
-                        ControlCommandError::VT_TERMINATE_TASK_NAME,
-                        None,
-                    )
-                }
-            }
-            #[inline]
-            pub fn terminate_task_reason(&self) -> Option<&'a str> {
-                // Safety:
-                // Created from valid Table for this object
-                // which contains a valid value in this slot
-                unsafe {
-                    self._tab.get::<flatbuffers::ForwardsUOffset<&str>>(
-                        ControlCommandError::VT_TERMINATE_TASK_REASON,
-                        None,
-                    )
-                }
-            }
-            #[inline]
-            pub fn send_stdin_task_name(&self) -> Option<&'a str> {
-                // Safety:
-                // Created from valid Table for this object
-                // which contains a valid value in this slot
-                unsafe {
-                    self._tab.get::<flatbuffers::ForwardsUOffset<&str>>(
-                        ControlCommandError::VT_SEND_STDIN_TASK_NAME,
-                        None,
-                    )
-                }
-            }
-            #[inline]
-            pub fn send_stdin_input(&self) -> Option<&'a str> {
-                // Safety:
-                // Created from valid Table for this object
-                // which contains a valid value in this slot
-                unsafe {
-                    self._tab.get::<flatbuffers::ForwardsUOffset<&str>>(
-                        ControlCommandError::VT_SEND_STDIN_INPUT,
-                        None,
-                    )
-                }
-            }
-            #[inline]
-            pub fn send_stdin_reason(&self) -> SendStdinErrorReason {
+            pub fn error_type(&self) -> ControlCommandErrorUnion {
                 // Safety:
                 // Created from valid Table for this object
                 // which contains a valid value in this slot
                 unsafe {
                     self._tab
-                        .get::<SendStdinErrorReason>(
-                            ControlCommandError::VT_SEND_STDIN_REASON,
-                            Some(SendStdinErrorReason::TaskNotFound),
+                        .get::<ControlCommandErrorUnion>(
+                            ControlCommandError::VT_ERROR_TYPE,
+                            Some(ControlCommandErrorUnion::NONE),
                         )
                         .unwrap()
+                }
+            }
+            #[inline]
+            pub fn error(&self) -> flatbuffers::Table<'a> {
+                // Safety:
+                // Created from valid Table for this object
+                // which contains a valid value in this slot
+                unsafe {
+                    self._tab
+                        .get::<flatbuffers::ForwardsUOffset<flatbuffers::Table<'a>>>(
+                            ControlCommandError::VT_ERROR,
+                            None,
+                        )
+                        .unwrap()
+                }
+            }
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn error_as_terminate_all_tasks(&self) -> Option<TerminateAllTasksError<'a>> {
+                if self.error_type() == ControlCommandErrorUnion::TerminateAllTasks {
+                    let u = self.error();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { TerminateAllTasksError::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn error_as_terminate_task(&self) -> Option<TerminateTaskError<'a>> {
+                if self.error_type() == ControlCommandErrorUnion::TerminateTask {
+                    let u = self.error();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { TerminateTaskError::init_from_table(u) })
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            #[allow(non_snake_case)]
+            pub fn error_as_send_stdin(&self) -> Option<SendStdinError<'a>> {
+                if self.error_type() == ControlCommandErrorUnion::SendStdin {
+                    let u = self.error();
+                    // Safety:
+                    // Created from a valid Table for this object
+                    // Which contains a valid union in this slot
+                    Some(unsafe { SendStdinError::init_from_table(u) })
+                } else {
+                    None
                 }
             }
         }
@@ -1276,58 +1835,28 @@ pub mod tcrm {
             ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
                 use self::flatbuffers::Verifiable;
                 v.visit_table(pos)?
-                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
-                        "terminate_all_tasks_reason",
-                        Self::VT_TERMINATE_ALL_TASKS_REASON,
-                        false,
-                    )?
-                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
-                        "terminate_task_name",
-                        Self::VT_TERMINATE_TASK_NAME,
-                        false,
-                    )?
-                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
-                        "terminate_task_reason",
-                        Self::VT_TERMINATE_TASK_REASON,
-                        false,
-                    )?
-                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
-                        "send_stdin_task_name",
-                        Self::VT_SEND_STDIN_TASK_NAME,
-                        false,
-                    )?
-                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
-                        "send_stdin_input",
-                        Self::VT_SEND_STDIN_INPUT,
-                        false,
-                    )?
-                    .visit_field::<SendStdinErrorReason>(
-                        "send_stdin_reason",
-                        Self::VT_SEND_STDIN_REASON,
-                        false,
-                    )?
-                    .finish();
+     .visit_union::<ControlCommandErrorUnion, _>("error_type", Self::VT_ERROR_TYPE, "error", Self::VT_ERROR, true, |key, v, pos| {
+        match key {
+          ControlCommandErrorUnion::TerminateAllTasks => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TerminateAllTasksError>>("ControlCommandErrorUnion::TerminateAllTasks", pos),
+          ControlCommandErrorUnion::TerminateTask => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TerminateTaskError>>("ControlCommandErrorUnion::TerminateTask", pos),
+          ControlCommandErrorUnion::SendStdin => v.verify_union_variant::<flatbuffers::ForwardsUOffset<SendStdinError>>("ControlCommandErrorUnion::SendStdin", pos),
+          _ => Ok(()),
+        }
+     })?
+     .finish();
                 Ok(())
             }
         }
-        pub struct ControlCommandErrorArgs<'a> {
-            pub terminate_all_tasks_reason: Option<flatbuffers::WIPOffset<&'a str>>,
-            pub terminate_task_name: Option<flatbuffers::WIPOffset<&'a str>>,
-            pub terminate_task_reason: Option<flatbuffers::WIPOffset<&'a str>>,
-            pub send_stdin_task_name: Option<flatbuffers::WIPOffset<&'a str>>,
-            pub send_stdin_input: Option<flatbuffers::WIPOffset<&'a str>>,
-            pub send_stdin_reason: SendStdinErrorReason,
+        pub struct ControlCommandErrorArgs {
+            pub error_type: ControlCommandErrorUnion,
+            pub error: Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>>,
         }
-        impl<'a> Default for ControlCommandErrorArgs<'a> {
+        impl<'a> Default for ControlCommandErrorArgs {
             #[inline]
             fn default() -> Self {
                 ControlCommandErrorArgs {
-                    terminate_all_tasks_reason: None,
-                    terminate_task_name: None,
-                    terminate_task_reason: None,
-                    send_stdin_task_name: None,
-                    send_stdin_input: None,
-                    send_stdin_reason: SendStdinErrorReason::TaskNotFound,
+                    error_type: ControlCommandErrorUnion::NONE,
+                    error: None, // required field
                 }
             }
         }
@@ -1338,61 +1867,21 @@ pub mod tcrm {
         }
         impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> ControlCommandErrorBuilder<'a, 'b, A> {
             #[inline]
-            pub fn add_terminate_all_tasks_reason(
-                &mut self,
-                terminate_all_tasks_reason: flatbuffers::WIPOffset<&'b str>,
-            ) {
-                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                    ControlCommandError::VT_TERMINATE_ALL_TASKS_REASON,
-                    terminate_all_tasks_reason,
+            pub fn add_error_type(&mut self, error_type: ControlCommandErrorUnion) {
+                self.fbb_.push_slot::<ControlCommandErrorUnion>(
+                    ControlCommandError::VT_ERROR_TYPE,
+                    error_type,
+                    ControlCommandErrorUnion::NONE,
                 );
             }
             #[inline]
-            pub fn add_terminate_task_name(
+            pub fn add_error(
                 &mut self,
-                terminate_task_name: flatbuffers::WIPOffset<&'b str>,
+                error: flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
             ) {
                 self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                    ControlCommandError::VT_TERMINATE_TASK_NAME,
-                    terminate_task_name,
-                );
-            }
-            #[inline]
-            pub fn add_terminate_task_reason(
-                &mut self,
-                terminate_task_reason: flatbuffers::WIPOffset<&'b str>,
-            ) {
-                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                    ControlCommandError::VT_TERMINATE_TASK_REASON,
-                    terminate_task_reason,
-                );
-            }
-            #[inline]
-            pub fn add_send_stdin_task_name(
-                &mut self,
-                send_stdin_task_name: flatbuffers::WIPOffset<&'b str>,
-            ) {
-                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                    ControlCommandError::VT_SEND_STDIN_TASK_NAME,
-                    send_stdin_task_name,
-                );
-            }
-            #[inline]
-            pub fn add_send_stdin_input(
-                &mut self,
-                send_stdin_input: flatbuffers::WIPOffset<&'b str>,
-            ) {
-                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                    ControlCommandError::VT_SEND_STDIN_INPUT,
-                    send_stdin_input,
-                );
-            }
-            #[inline]
-            pub fn add_send_stdin_reason(&mut self, send_stdin_reason: SendStdinErrorReason) {
-                self.fbb_.push_slot::<SendStdinErrorReason>(
-                    ControlCommandError::VT_SEND_STDIN_REASON,
-                    send_stdin_reason,
-                    SendStdinErrorReason::TaskNotFound,
+                    ControlCommandError::VT_ERROR,
+                    error,
                 );
             }
             #[inline]
@@ -1408,6 +1897,8 @@ pub mod tcrm {
             #[inline]
             pub fn finish(self) -> flatbuffers::WIPOffset<ControlCommandError<'a>> {
                 let o = self.fbb_.end_table(self.start_);
+                self.fbb_
+                    .required(o, ControlCommandError::VT_ERROR, "error");
                 flatbuffers::WIPOffset::new(o.value())
             }
         }
@@ -1415,15 +1906,43 @@ pub mod tcrm {
         impl core::fmt::Debug for ControlCommandError<'_> {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 let mut ds = f.debug_struct("ControlCommandError");
-                ds.field(
-                    "terminate_all_tasks_reason",
-                    &self.terminate_all_tasks_reason(),
-                );
-                ds.field("terminate_task_name", &self.terminate_task_name());
-                ds.field("terminate_task_reason", &self.terminate_task_reason());
-                ds.field("send_stdin_task_name", &self.send_stdin_task_name());
-                ds.field("send_stdin_input", &self.send_stdin_input());
-                ds.field("send_stdin_reason", &self.send_stdin_reason());
+                ds.field("error_type", &self.error_type());
+                match self.error_type() {
+                    ControlCommandErrorUnion::TerminateAllTasks => {
+                        if let Some(x) = self.error_as_terminate_all_tasks() {
+                            ds.field("error", &x)
+                        } else {
+                            ds.field(
+                                "error",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    ControlCommandErrorUnion::TerminateTask => {
+                        if let Some(x) = self.error_as_terminate_task() {
+                            ds.field("error", &x)
+                        } else {
+                            ds.field(
+                                "error",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    ControlCommandErrorUnion::SendStdin => {
+                        if let Some(x) = self.error_as_send_stdin() {
+                            ds.field("error", &x)
+                        } else {
+                            ds.field(
+                                "error",
+                                &"InvalidFlatbuffer: Union discriminant does not match value.",
+                            )
+                        }
+                    }
+                    _ => {
+                        let x: Option<()> = None;
+                        ds.field("error", &x)
+                    }
+                };
                 ds.finish()
             }
         }
@@ -2341,15 +2860,15 @@ pub mod tcrm {
                 ds.finish()
             }
         }
-        pub enum TaskMonitorControlEventWrapperOffset {}
+        pub enum TaskMonitorControlEventOffset {}
         #[derive(Copy, Clone, PartialEq)]
 
-        pub struct TaskMonitorControlEventWrapper<'a> {
+        pub struct TaskMonitorControlEvent<'a> {
             pub _tab: flatbuffers::Table<'a>,
         }
 
-        impl<'a> flatbuffers::Follow<'a> for TaskMonitorControlEventWrapper<'a> {
-            type Inner = TaskMonitorControlEventWrapper<'a>;
+        impl<'a> flatbuffers::Follow<'a> for TaskMonitorControlEvent<'a> {
+            type Inner = TaskMonitorControlEvent<'a>;
             #[inline]
             unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
                 unsafe {
@@ -2360,13 +2879,13 @@ pub mod tcrm {
             }
         }
 
-        impl<'a> TaskMonitorControlEventWrapper<'a> {
+        impl<'a> TaskMonitorControlEvent<'a> {
             pub const VT_CONTROL_EVENT_TYPE: flatbuffers::VOffsetT = 4;
             pub const VT_CONTROL_EVENT: flatbuffers::VOffsetT = 6;
 
             #[inline]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
-                TaskMonitorControlEventWrapper { _tab: table }
+                TaskMonitorControlEvent { _tab: table }
             }
             #[allow(unused_mut)]
             pub fn create<
@@ -2376,9 +2895,9 @@ pub mod tcrm {
                 A: flatbuffers::Allocator + 'bldr,
             >(
                 _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
-                args: &'args TaskMonitorControlEventWrapperArgs,
-            ) -> flatbuffers::WIPOffset<TaskMonitorControlEventWrapper<'bldr>> {
-                let mut builder = TaskMonitorControlEventWrapperBuilder::new(_fbb);
+                args: &'args TaskMonitorControlEventArgs,
+            ) -> flatbuffers::WIPOffset<TaskMonitorControlEvent<'bldr>> {
+                let mut builder = TaskMonitorControlEventBuilder::new(_fbb);
                 if let Some(x) = args.control_event {
                     builder.add_control_event(x);
                 }
@@ -2387,15 +2906,15 @@ pub mod tcrm {
             }
 
             #[inline]
-            pub fn control_event_type(&self) -> TaskMonitorControlEvent {
+            pub fn control_event_type(&self) -> TaskMonitorControlEventUnion {
                 // Safety:
                 // Created from valid Table for this object
                 // which contains a valid value in this slot
                 unsafe {
                     self._tab
-                        .get::<TaskMonitorControlEvent>(
-                            TaskMonitorControlEventWrapper::VT_CONTROL_EVENT_TYPE,
-                            Some(TaskMonitorControlEvent::NONE),
+                        .get::<TaskMonitorControlEventUnion>(
+                            TaskMonitorControlEvent::VT_CONTROL_EVENT_TYPE,
+                            Some(TaskMonitorControlEventUnion::NONE),
                         )
                         .unwrap()
                 }
@@ -2408,7 +2927,7 @@ pub mod tcrm {
                 unsafe {
                     self._tab
                         .get::<flatbuffers::ForwardsUOffset<flatbuffers::Table<'a>>>(
-                            TaskMonitorControlEventWrapper::VT_CONTROL_EVENT,
+                            TaskMonitorControlEvent::VT_CONTROL_EVENT,
                             None,
                         )
                         .unwrap()
@@ -2417,7 +2936,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn control_event_as_control_received(&self) -> Option<ControlReceivedEvent<'a>> {
-                if self.control_event_type() == TaskMonitorControlEvent::ControlReceived {
+                if self.control_event_type() == TaskMonitorControlEventUnion::ControlReceived {
                     let u = self.control_event();
                     // Safety:
                     // Created from a valid Table for this object
@@ -2431,7 +2950,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn control_event_as_control_processed(&self) -> Option<ControlProcessedEvent<'a>> {
-                if self.control_event_type() == TaskMonitorControlEvent::ControlProcessed {
+                if self.control_event_type() == TaskMonitorControlEventUnion::ControlProcessed {
                     let u = self.control_event();
                     // Safety:
                     // Created from a valid Table for this object
@@ -2443,7 +2962,7 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::Verifiable for TaskMonitorControlEventWrapper<'_> {
+        impl flatbuffers::Verifiable for TaskMonitorControlEvent<'_> {
             #[inline]
             fn run_verifier(
                 v: &mut flatbuffers::Verifier,
@@ -2451,10 +2970,10 @@ pub mod tcrm {
             ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
                 use self::flatbuffers::Verifiable;
                 v.visit_table(pos)?
-     .visit_union::<TaskMonitorControlEvent, _>("control_event_type", Self::VT_CONTROL_EVENT_TYPE, "control_event", Self::VT_CONTROL_EVENT, true, |key, v, pos| {
+     .visit_union::<TaskMonitorControlEventUnion, _>("control_event_type", Self::VT_CONTROL_EVENT_TYPE, "control_event", Self::VT_CONTROL_EVENT, true, |key, v, pos| {
         match key {
-          TaskMonitorControlEvent::ControlReceived => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ControlReceivedEvent>>("TaskMonitorControlEvent::ControlReceived", pos),
-          TaskMonitorControlEvent::ControlProcessed => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ControlProcessedEvent>>("TaskMonitorControlEvent::ControlProcessed", pos),
+          TaskMonitorControlEventUnion::ControlReceived => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ControlReceivedEvent>>("TaskMonitorControlEventUnion::ControlReceived", pos),
+          TaskMonitorControlEventUnion::ControlProcessed => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ControlProcessedEvent>>("TaskMonitorControlEventUnion::ControlProcessed", pos),
           _ => Ok(()),
         }
      })?
@@ -2462,31 +2981,34 @@ pub mod tcrm {
                 Ok(())
             }
         }
-        pub struct TaskMonitorControlEventWrapperArgs {
-            pub control_event_type: TaskMonitorControlEvent,
+        pub struct TaskMonitorControlEventArgs {
+            pub control_event_type: TaskMonitorControlEventUnion,
             pub control_event: Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>>,
         }
-        impl<'a> Default for TaskMonitorControlEventWrapperArgs {
+        impl<'a> Default for TaskMonitorControlEventArgs {
             #[inline]
             fn default() -> Self {
-                TaskMonitorControlEventWrapperArgs {
-                    control_event_type: TaskMonitorControlEvent::NONE,
+                TaskMonitorControlEventArgs {
+                    control_event_type: TaskMonitorControlEventUnion::NONE,
                     control_event: None, // required field
                 }
             }
         }
 
-        pub struct TaskMonitorControlEventWrapperBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+        pub struct TaskMonitorControlEventBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
             fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
             start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
         }
-        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TaskMonitorControlEventWrapperBuilder<'a, 'b, A> {
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TaskMonitorControlEventBuilder<'a, 'b, A> {
             #[inline]
-            pub fn add_control_event_type(&mut self, control_event_type: TaskMonitorControlEvent) {
-                self.fbb_.push_slot::<TaskMonitorControlEvent>(
-                    TaskMonitorControlEventWrapper::VT_CONTROL_EVENT_TYPE,
+            pub fn add_control_event_type(
+                &mut self,
+                control_event_type: TaskMonitorControlEventUnion,
+            ) {
+                self.fbb_.push_slot::<TaskMonitorControlEventUnion>(
+                    TaskMonitorControlEvent::VT_CONTROL_EVENT_TYPE,
                     control_event_type,
-                    TaskMonitorControlEvent::NONE,
+                    TaskMonitorControlEventUnion::NONE,
                 );
             }
             #[inline]
@@ -2495,38 +3017,38 @@ pub mod tcrm {
                 control_event: flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
             ) {
                 self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                    TaskMonitorControlEventWrapper::VT_CONTROL_EVENT,
+                    TaskMonitorControlEvent::VT_CONTROL_EVENT,
                     control_event,
                 );
             }
             #[inline]
             pub fn new(
                 _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
-            ) -> TaskMonitorControlEventWrapperBuilder<'a, 'b, A> {
+            ) -> TaskMonitorControlEventBuilder<'a, 'b, A> {
                 let start = _fbb.start_table();
-                TaskMonitorControlEventWrapperBuilder {
+                TaskMonitorControlEventBuilder {
                     fbb_: _fbb,
                     start_: start,
                 }
             }
             #[inline]
-            pub fn finish(self) -> flatbuffers::WIPOffset<TaskMonitorControlEventWrapper<'a>> {
+            pub fn finish(self) -> flatbuffers::WIPOffset<TaskMonitorControlEvent<'a>> {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_.required(
                     o,
-                    TaskMonitorControlEventWrapper::VT_CONTROL_EVENT,
+                    TaskMonitorControlEvent::VT_CONTROL_EVENT,
                     "control_event",
                 );
                 flatbuffers::WIPOffset::new(o.value())
             }
         }
 
-        impl core::fmt::Debug for TaskMonitorControlEventWrapper<'_> {
+        impl core::fmt::Debug for TaskMonitorControlEvent<'_> {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                let mut ds = f.debug_struct("TaskMonitorControlEventWrapper");
+                let mut ds = f.debug_struct("TaskMonitorControlEvent");
                 ds.field("control_event_type", &self.control_event_type());
                 match self.control_event_type() {
-                    TaskMonitorControlEvent::ControlReceived => {
+                    TaskMonitorControlEventUnion::ControlReceived => {
                         if let Some(x) = self.control_event_as_control_received() {
                             ds.field("control_event", &x)
                         } else {
@@ -2536,7 +3058,7 @@ pub mod tcrm {
                             )
                         }
                     }
-                    TaskMonitorControlEvent::ControlProcessed => {
+                    TaskMonitorControlEventUnion::ControlProcessed => {
                         if let Some(x) = self.control_event_as_control_processed() {
                             ds.field("control_event", &x)
                         } else {
@@ -2806,15 +3328,15 @@ pub mod tcrm {
                 ds.finish()
             }
         }
-        pub enum TaskMonitorErrorWrapperOffset {}
+        pub enum TaskMonitorErrorOffset {}
         #[derive(Copy, Clone, PartialEq)]
 
-        pub struct TaskMonitorErrorWrapper<'a> {
+        pub struct TaskMonitorError<'a> {
             pub _tab: flatbuffers::Table<'a>,
         }
 
-        impl<'a> flatbuffers::Follow<'a> for TaskMonitorErrorWrapper<'a> {
-            type Inner = TaskMonitorErrorWrapper<'a>;
+        impl<'a> flatbuffers::Follow<'a> for TaskMonitorError<'a> {
+            type Inner = TaskMonitorError<'a>;
             #[inline]
             unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
                 unsafe {
@@ -2825,13 +3347,13 @@ pub mod tcrm {
             }
         }
 
-        impl<'a> TaskMonitorErrorWrapper<'a> {
+        impl<'a> TaskMonitorError<'a> {
             pub const VT_ERROR_TYPE: flatbuffers::VOffsetT = 4;
             pub const VT_ERROR: flatbuffers::VOffsetT = 6;
 
             #[inline]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
-                TaskMonitorErrorWrapper { _tab: table }
+                TaskMonitorError { _tab: table }
             }
             #[allow(unused_mut)]
             pub fn create<
@@ -2841,9 +3363,9 @@ pub mod tcrm {
                 A: flatbuffers::Allocator + 'bldr,
             >(
                 _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
-                args: &'args TaskMonitorErrorWrapperArgs,
-            ) -> flatbuffers::WIPOffset<TaskMonitorErrorWrapper<'bldr>> {
-                let mut builder = TaskMonitorErrorWrapperBuilder::new(_fbb);
+                args: &'args TaskMonitorErrorArgs,
+            ) -> flatbuffers::WIPOffset<TaskMonitorError<'bldr>> {
+                let mut builder = TaskMonitorErrorBuilder::new(_fbb);
                 if let Some(x) = args.error {
                     builder.add_error(x);
                 }
@@ -2852,15 +3374,15 @@ pub mod tcrm {
             }
 
             #[inline]
-            pub fn error_type(&self) -> TaskMonitorError {
+            pub fn error_type(&self) -> TaskMonitorErrorUnion {
                 // Safety:
                 // Created from valid Table for this object
                 // which contains a valid value in this slot
                 unsafe {
                     self._tab
-                        .get::<TaskMonitorError>(
-                            TaskMonitorErrorWrapper::VT_ERROR_TYPE,
-                            Some(TaskMonitorError::NONE),
+                        .get::<TaskMonitorErrorUnion>(
+                            TaskMonitorError::VT_ERROR_TYPE,
+                            Some(TaskMonitorErrorUnion::NONE),
                         )
                         .unwrap()
                 }
@@ -2873,7 +3395,7 @@ pub mod tcrm {
                 unsafe {
                     self._tab
                         .get::<flatbuffers::ForwardsUOffset<flatbuffers::Table<'a>>>(
-                            TaskMonitorErrorWrapper::VT_ERROR,
+                            TaskMonitorError::VT_ERROR,
                             None,
                         )
                         .unwrap()
@@ -2882,7 +3404,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn error_as_config_parse(&self) -> Option<ConfigParseError<'a>> {
-                if self.error_type() == TaskMonitorError::ConfigParse {
+                if self.error_type() == TaskMonitorErrorUnion::ConfigParse {
                     let u = self.error();
                     // Safety:
                     // Created from a valid Table for this object
@@ -2896,7 +3418,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn error_as_circular_dependency(&self) -> Option<CircularDependencyError<'a>> {
-                if self.error_type() == TaskMonitorError::CircularDependency {
+                if self.error_type() == TaskMonitorErrorUnion::CircularDependency {
                     let u = self.error();
                     // Safety:
                     // Created from a valid Table for this object
@@ -2910,7 +3432,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn error_as_dependency_not_found(&self) -> Option<DependencyNotFoundError<'a>> {
-                if self.error_type() == TaskMonitorError::DependencyNotFound {
+                if self.error_type() == TaskMonitorErrorUnion::DependencyNotFound {
                     let u = self.error();
                     // Safety:
                     // Created from a valid Table for this object
@@ -2924,7 +3446,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn error_as_control_error(&self) -> Option<ControlCommandError<'a>> {
-                if self.error_type() == TaskMonitorError::ControlError {
+                if self.error_type() == TaskMonitorErrorUnion::ControlError {
                     let u = self.error();
                     // Safety:
                     // Created from a valid Table for this object
@@ -2936,7 +3458,7 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::Verifiable for TaskMonitorErrorWrapper<'_> {
+        impl flatbuffers::Verifiable for TaskMonitorError<'_> {
             #[inline]
             fn run_verifier(
                 v: &mut flatbuffers::Verifier,
@@ -2944,12 +3466,12 @@ pub mod tcrm {
             ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
                 use self::flatbuffers::Verifiable;
                 v.visit_table(pos)?
-     .visit_union::<TaskMonitorError, _>("error_type", Self::VT_ERROR_TYPE, "error", Self::VT_ERROR, true, |key, v, pos| {
+     .visit_union::<TaskMonitorErrorUnion, _>("error_type", Self::VT_ERROR_TYPE, "error", Self::VT_ERROR, true, |key, v, pos| {
         match key {
-          TaskMonitorError::ConfigParse => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ConfigParseError>>("TaskMonitorError::ConfigParse", pos),
-          TaskMonitorError::CircularDependency => v.verify_union_variant::<flatbuffers::ForwardsUOffset<CircularDependencyError>>("TaskMonitorError::CircularDependency", pos),
-          TaskMonitorError::DependencyNotFound => v.verify_union_variant::<flatbuffers::ForwardsUOffset<DependencyNotFoundError>>("TaskMonitorError::DependencyNotFound", pos),
-          TaskMonitorError::ControlError => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ControlCommandError>>("TaskMonitorError::ControlError", pos),
+          TaskMonitorErrorUnion::ConfigParse => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ConfigParseError>>("TaskMonitorErrorUnion::ConfigParse", pos),
+          TaskMonitorErrorUnion::CircularDependency => v.verify_union_variant::<flatbuffers::ForwardsUOffset<CircularDependencyError>>("TaskMonitorErrorUnion::CircularDependency", pos),
+          TaskMonitorErrorUnion::DependencyNotFound => v.verify_union_variant::<flatbuffers::ForwardsUOffset<DependencyNotFoundError>>("TaskMonitorErrorUnion::DependencyNotFound", pos),
+          TaskMonitorErrorUnion::ControlError => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ControlCommandError>>("TaskMonitorErrorUnion::ControlError", pos),
           _ => Ok(()),
         }
      })?
@@ -2957,31 +3479,31 @@ pub mod tcrm {
                 Ok(())
             }
         }
-        pub struct TaskMonitorErrorWrapperArgs {
-            pub error_type: TaskMonitorError,
+        pub struct TaskMonitorErrorArgs {
+            pub error_type: TaskMonitorErrorUnion,
             pub error: Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>>,
         }
-        impl<'a> Default for TaskMonitorErrorWrapperArgs {
+        impl<'a> Default for TaskMonitorErrorArgs {
             #[inline]
             fn default() -> Self {
-                TaskMonitorErrorWrapperArgs {
-                    error_type: TaskMonitorError::NONE,
+                TaskMonitorErrorArgs {
+                    error_type: TaskMonitorErrorUnion::NONE,
                     error: None, // required field
                 }
             }
         }
 
-        pub struct TaskMonitorErrorWrapperBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+        pub struct TaskMonitorErrorBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
             fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
             start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
         }
-        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TaskMonitorErrorWrapperBuilder<'a, 'b, A> {
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TaskMonitorErrorBuilder<'a, 'b, A> {
             #[inline]
-            pub fn add_error_type(&mut self, error_type: TaskMonitorError) {
-                self.fbb_.push_slot::<TaskMonitorError>(
-                    TaskMonitorErrorWrapper::VT_ERROR_TYPE,
+            pub fn add_error_type(&mut self, error_type: TaskMonitorErrorUnion) {
+                self.fbb_.push_slot::<TaskMonitorErrorUnion>(
+                    TaskMonitorError::VT_ERROR_TYPE,
                     error_type,
-                    TaskMonitorError::NONE,
+                    TaskMonitorErrorUnion::NONE,
                 );
             }
             #[inline]
@@ -2990,35 +3512,34 @@ pub mod tcrm {
                 error: flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
             ) {
                 self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                    TaskMonitorErrorWrapper::VT_ERROR,
+                    TaskMonitorError::VT_ERROR,
                     error,
                 );
             }
             #[inline]
             pub fn new(
                 _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
-            ) -> TaskMonitorErrorWrapperBuilder<'a, 'b, A> {
+            ) -> TaskMonitorErrorBuilder<'a, 'b, A> {
                 let start = _fbb.start_table();
-                TaskMonitorErrorWrapperBuilder {
+                TaskMonitorErrorBuilder {
                     fbb_: _fbb,
                     start_: start,
                 }
             }
             #[inline]
-            pub fn finish(self) -> flatbuffers::WIPOffset<TaskMonitorErrorWrapper<'a>> {
+            pub fn finish(self) -> flatbuffers::WIPOffset<TaskMonitorError<'a>> {
                 let o = self.fbb_.end_table(self.start_);
-                self.fbb_
-                    .required(o, TaskMonitorErrorWrapper::VT_ERROR, "error");
+                self.fbb_.required(o, TaskMonitorError::VT_ERROR, "error");
                 flatbuffers::WIPOffset::new(o.value())
             }
         }
 
-        impl core::fmt::Debug for TaskMonitorErrorWrapper<'_> {
+        impl core::fmt::Debug for TaskMonitorError<'_> {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                let mut ds = f.debug_struct("TaskMonitorErrorWrapper");
+                let mut ds = f.debug_struct("TaskMonitorError");
                 ds.field("error_type", &self.error_type());
                 match self.error_type() {
-                    TaskMonitorError::ConfigParse => {
+                    TaskMonitorErrorUnion::ConfigParse => {
                         if let Some(x) = self.error_as_config_parse() {
                             ds.field("error", &x)
                         } else {
@@ -3028,7 +3549,7 @@ pub mod tcrm {
                             )
                         }
                     }
-                    TaskMonitorError::CircularDependency => {
+                    TaskMonitorErrorUnion::CircularDependency => {
                         if let Some(x) = self.error_as_circular_dependency() {
                             ds.field("error", &x)
                         } else {
@@ -3038,7 +3559,7 @@ pub mod tcrm {
                             )
                         }
                     }
-                    TaskMonitorError::DependencyNotFound => {
+                    TaskMonitorErrorUnion::DependencyNotFound => {
                         if let Some(x) = self.error_as_dependency_not_found() {
                             ds.field("error", &x)
                         } else {
@@ -3048,7 +3569,7 @@ pub mod tcrm {
                             )
                         }
                     }
-                    TaskMonitorError::ControlError => {
+                    TaskMonitorErrorUnion::ControlError => {
                         if let Some(x) = self.error_as_control_error() {
                             ds.field("error", &x)
                         } else {
@@ -3066,15 +3587,15 @@ pub mod tcrm {
                 ds.finish()
             }
         }
-        pub enum TaskMonitorEventMessageOffset {}
+        pub enum TaskMonitorEventOffset {}
         #[derive(Copy, Clone, PartialEq)]
 
-        pub struct TaskMonitorEventMessage<'a> {
+        pub struct TaskMonitorEvent<'a> {
             pub _tab: flatbuffers::Table<'a>,
         }
 
-        impl<'a> flatbuffers::Follow<'a> for TaskMonitorEventMessage<'a> {
-            type Inner = TaskMonitorEventMessage<'a>;
+        impl<'a> flatbuffers::Follow<'a> for TaskMonitorEvent<'a> {
+            type Inner = TaskMonitorEvent<'a>;
             #[inline]
             unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
                 unsafe {
@@ -3085,13 +3606,13 @@ pub mod tcrm {
             }
         }
 
-        impl<'a> TaskMonitorEventMessage<'a> {
+        impl<'a> TaskMonitorEvent<'a> {
             pub const VT_EVENT_TYPE: flatbuffers::VOffsetT = 4;
             pub const VT_EVENT: flatbuffers::VOffsetT = 6;
 
             #[inline]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
-                TaskMonitorEventMessage { _tab: table }
+                TaskMonitorEvent { _tab: table }
             }
             #[allow(unused_mut)]
             pub fn create<
@@ -3101,9 +3622,9 @@ pub mod tcrm {
                 A: flatbuffers::Allocator + 'bldr,
             >(
                 _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
-                args: &'args TaskMonitorEventMessageArgs,
-            ) -> flatbuffers::WIPOffset<TaskMonitorEventMessage<'bldr>> {
-                let mut builder = TaskMonitorEventMessageBuilder::new(_fbb);
+                args: &'args TaskMonitorEventArgs,
+            ) -> flatbuffers::WIPOffset<TaskMonitorEvent<'bldr>> {
+                let mut builder = TaskMonitorEventBuilder::new(_fbb);
                 if let Some(x) = args.event {
                     builder.add_event(x);
                 }
@@ -3112,15 +3633,15 @@ pub mod tcrm {
             }
 
             #[inline]
-            pub fn event_type(&self) -> TaskMonitorEvent {
+            pub fn event_type(&self) -> TaskMonitorEventUnion {
                 // Safety:
                 // Created from valid Table for this object
                 // which contains a valid value in this slot
                 unsafe {
                     self._tab
-                        .get::<TaskMonitorEvent>(
-                            TaskMonitorEventMessage::VT_EVENT_TYPE,
-                            Some(TaskMonitorEvent::NONE),
+                        .get::<TaskMonitorEventUnion>(
+                            TaskMonitorEvent::VT_EVENT_TYPE,
+                            Some(TaskMonitorEventUnion::NONE),
                         )
                         .unwrap()
                 }
@@ -3133,7 +3654,7 @@ pub mod tcrm {
                 unsafe {
                     self._tab
                         .get::<flatbuffers::ForwardsUOffset<flatbuffers::Table<'a>>>(
-                            TaskMonitorEventMessage::VT_EVENT,
+                            TaskMonitorEvent::VT_EVENT,
                             None,
                         )
                         .unwrap()
@@ -3142,7 +3663,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn event_as_task(&self) -> Option<TaskEvent<'a>> {
-                if self.event_type() == TaskMonitorEvent::Task {
+                if self.event_type() == TaskMonitorEventUnion::Task {
                     let u = self.event();
                     // Safety:
                     // Created from a valid Table for this object
@@ -3156,7 +3677,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn event_as_started(&self) -> Option<ExecutionStartedEvent<'a>> {
-                if self.event_type() == TaskMonitorEvent::Started {
+                if self.event_type() == TaskMonitorEventUnion::Started {
                     let u = self.event();
                     // Safety:
                     // Created from a valid Table for this object
@@ -3170,7 +3691,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn event_as_completed(&self) -> Option<ExecutionCompletedEvent<'a>> {
-                if self.event_type() == TaskMonitorEvent::Completed {
+                if self.event_type() == TaskMonitorEventUnion::Completed {
                     let u = self.event();
                     // Safety:
                     // Created from a valid Table for this object
@@ -3183,13 +3704,13 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            pub fn event_as_control(&self) -> Option<TaskMonitorControlEventWrapper<'a>> {
-                if self.event_type() == TaskMonitorEvent::Control {
+            pub fn event_as_control(&self) -> Option<TaskMonitorControlEvent<'a>> {
+                if self.event_type() == TaskMonitorEventUnion::Control {
                     let u = self.event();
                     // Safety:
                     // Created from a valid Table for this object
                     // Which contains a valid union in this slot
-                    Some(unsafe { TaskMonitorControlEventWrapper::init_from_table(u) })
+                    Some(unsafe { TaskMonitorControlEvent::init_from_table(u) })
                 } else {
                     None
                 }
@@ -3197,20 +3718,20 @@ pub mod tcrm {
 
             #[inline]
             #[allow(non_snake_case)]
-            pub fn event_as_error(&self) -> Option<TaskMonitorErrorWrapper<'a>> {
-                if self.event_type() == TaskMonitorEvent::Error {
+            pub fn event_as_error(&self) -> Option<TaskMonitorError<'a>> {
+                if self.event_type() == TaskMonitorEventUnion::Error {
                     let u = self.event();
                     // Safety:
                     // Created from a valid Table for this object
                     // Which contains a valid union in this slot
-                    Some(unsafe { TaskMonitorErrorWrapper::init_from_table(u) })
+                    Some(unsafe { TaskMonitorError::init_from_table(u) })
                 } else {
                     None
                 }
             }
         }
 
-        impl flatbuffers::Verifiable for TaskMonitorEventMessage<'_> {
+        impl flatbuffers::Verifiable for TaskMonitorEvent<'_> {
             #[inline]
             fn run_verifier(
                 v: &mut flatbuffers::Verifier,
@@ -3218,13 +3739,13 @@ pub mod tcrm {
             ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
                 use self::flatbuffers::Verifiable;
                 v.visit_table(pos)?
-     .visit_union::<TaskMonitorEvent, _>("event_type", Self::VT_EVENT_TYPE, "event", Self::VT_EVENT, true, |key, v, pos| {
+     .visit_union::<TaskMonitorEventUnion, _>("event_type", Self::VT_EVENT_TYPE, "event", Self::VT_EVENT, true, |key, v, pos| {
         match key {
-          TaskMonitorEvent::Task => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TaskEvent>>("TaskMonitorEvent::Task", pos),
-          TaskMonitorEvent::Started => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ExecutionStartedEvent>>("TaskMonitorEvent::Started", pos),
-          TaskMonitorEvent::Completed => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ExecutionCompletedEvent>>("TaskMonitorEvent::Completed", pos),
-          TaskMonitorEvent::Control => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TaskMonitorControlEventWrapper>>("TaskMonitorEvent::Control", pos),
-          TaskMonitorEvent::Error => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TaskMonitorErrorWrapper>>("TaskMonitorEvent::Error", pos),
+          TaskMonitorEventUnion::Task => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TaskEvent>>("TaskMonitorEventUnion::Task", pos),
+          TaskMonitorEventUnion::Started => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ExecutionStartedEvent>>("TaskMonitorEventUnion::Started", pos),
+          TaskMonitorEventUnion::Completed => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ExecutionCompletedEvent>>("TaskMonitorEventUnion::Completed", pos),
+          TaskMonitorEventUnion::Control => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TaskMonitorControlEvent>>("TaskMonitorEventUnion::Control", pos),
+          TaskMonitorEventUnion::Error => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TaskMonitorError>>("TaskMonitorEventUnion::Error", pos),
           _ => Ok(()),
         }
      })?
@@ -3232,31 +3753,31 @@ pub mod tcrm {
                 Ok(())
             }
         }
-        pub struct TaskMonitorEventMessageArgs {
-            pub event_type: TaskMonitorEvent,
+        pub struct TaskMonitorEventArgs {
+            pub event_type: TaskMonitorEventUnion,
             pub event: Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>>,
         }
-        impl<'a> Default for TaskMonitorEventMessageArgs {
+        impl<'a> Default for TaskMonitorEventArgs {
             #[inline]
             fn default() -> Self {
-                TaskMonitorEventMessageArgs {
-                    event_type: TaskMonitorEvent::NONE,
+                TaskMonitorEventArgs {
+                    event_type: TaskMonitorEventUnion::NONE,
                     event: None, // required field
                 }
             }
         }
 
-        pub struct TaskMonitorEventMessageBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+        pub struct TaskMonitorEventBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
             fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
             start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
         }
-        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TaskMonitorEventMessageBuilder<'a, 'b, A> {
+        impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TaskMonitorEventBuilder<'a, 'b, A> {
             #[inline]
-            pub fn add_event_type(&mut self, event_type: TaskMonitorEvent) {
-                self.fbb_.push_slot::<TaskMonitorEvent>(
-                    TaskMonitorEventMessage::VT_EVENT_TYPE,
+            pub fn add_event_type(&mut self, event_type: TaskMonitorEventUnion) {
+                self.fbb_.push_slot::<TaskMonitorEventUnion>(
+                    TaskMonitorEvent::VT_EVENT_TYPE,
                     event_type,
-                    TaskMonitorEvent::NONE,
+                    TaskMonitorEventUnion::NONE,
                 );
             }
             #[inline]
@@ -3265,35 +3786,34 @@ pub mod tcrm {
                 event: flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
             ) {
                 self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                    TaskMonitorEventMessage::VT_EVENT,
+                    TaskMonitorEvent::VT_EVENT,
                     event,
                 );
             }
             #[inline]
             pub fn new(
                 _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
-            ) -> TaskMonitorEventMessageBuilder<'a, 'b, A> {
+            ) -> TaskMonitorEventBuilder<'a, 'b, A> {
                 let start = _fbb.start_table();
-                TaskMonitorEventMessageBuilder {
+                TaskMonitorEventBuilder {
                     fbb_: _fbb,
                     start_: start,
                 }
             }
             #[inline]
-            pub fn finish(self) -> flatbuffers::WIPOffset<TaskMonitorEventMessage<'a>> {
+            pub fn finish(self) -> flatbuffers::WIPOffset<TaskMonitorEvent<'a>> {
                 let o = self.fbb_.end_table(self.start_);
-                self.fbb_
-                    .required(o, TaskMonitorEventMessage::VT_EVENT, "event");
+                self.fbb_.required(o, TaskMonitorEvent::VT_EVENT, "event");
                 flatbuffers::WIPOffset::new(o.value())
             }
         }
 
-        impl core::fmt::Debug for TaskMonitorEventMessage<'_> {
+        impl core::fmt::Debug for TaskMonitorEvent<'_> {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                let mut ds = f.debug_struct("TaskMonitorEventMessage");
+                let mut ds = f.debug_struct("TaskMonitorEvent");
                 ds.field("event_type", &self.event_type());
                 match self.event_type() {
-                    TaskMonitorEvent::Task => {
+                    TaskMonitorEventUnion::Task => {
                         if let Some(x) = self.event_as_task() {
                             ds.field("event", &x)
                         } else {
@@ -3303,7 +3823,7 @@ pub mod tcrm {
                             )
                         }
                     }
-                    TaskMonitorEvent::Started => {
+                    TaskMonitorEventUnion::Started => {
                         if let Some(x) = self.event_as_started() {
                             ds.field("event", &x)
                         } else {
@@ -3313,7 +3833,7 @@ pub mod tcrm {
                             )
                         }
                     }
-                    TaskMonitorEvent::Completed => {
+                    TaskMonitorEventUnion::Completed => {
                         if let Some(x) = self.event_as_completed() {
                             ds.field("event", &x)
                         } else {
@@ -3323,7 +3843,7 @@ pub mod tcrm {
                             )
                         }
                     }
-                    TaskMonitorEvent::Control => {
+                    TaskMonitorEventUnion::Control => {
                         if let Some(x) = self.event_as_control() {
                             ds.field("event", &x)
                         } else {
@@ -3333,7 +3853,7 @@ pub mod tcrm {
                             )
                         }
                     }
-                    TaskMonitorEvent::Error => {
+                    TaskMonitorEventUnion::Error => {
                         if let Some(x) = self.event_as_error() {
                             ds.field("event", &x)
                         } else {
