@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5 (2025/09/20)
+### Fix
+- Simplify Flatbuffers structure [[commit](https://github.com/xpcn2015/tcrm-monitor/commit/b94c1e36d3c7f2bc4599d72412bd06f12277ecdd)]
+  
 ## 0.1.4 (2025/09/19)
 ### Fix
 - update `tcrm-task` dependency to version 0.3.6, fix grandchild processes hanging problem by using Job/Process group
