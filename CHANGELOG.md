@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6 (2025/09/20)
+### Fix
+- Correctly calculate failed and completed tasks number [[commit]](https://github.com/xpcn2015/tcrm-monitor/commit/d645e0a4a6a7a5679fd8cc8e24d6c8a6dc02c76b)
+  
 ## 0.1.5 (2025/09/20)
 ### Fix
 - Simplify Flatbuffers structure [[commit](https://github.com/xpcn2015/tcrm-monitor/commit/b94c1e36d3c7f2bc4599d72412bd06f12277ecdd)]
