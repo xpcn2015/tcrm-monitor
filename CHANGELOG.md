@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7 (2025/09/20)
+### Fix
+- Flatbuffers: rename TaskMonitorControlCommand to TaskMonitorControlCommandUnion and remove unnecessary fields [[commit]](https://github.com/xpcn2015/tcrm-monitor/commit/7214401e617b21c222159360f944ac22bb749bf4)
+  
 ## 0.1.6 (2025/09/20)
 ### Fix
 - Correctly calculate failed and completed tasks number [[commit]](https://github.com/xpcn2015/tcrm-monitor/commit/d645e0a4a6a7a5679fd8cc8e24d6c8a6dc02c76b)
