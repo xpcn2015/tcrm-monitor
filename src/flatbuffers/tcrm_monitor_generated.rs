@@ -12,10 +12,9 @@
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::too_many_lines)]
 
-use tcrm_task::flatbuffers::tcrm_task_generated::*;
-
 use core::cmp::Ordering;
 use core::mem;
+use tcrm_task::flatbuffers::tcrm_task_generated::*;
 
 extern crate flatbuffers;
 use self::flatbuffers::{EndianScalar, Follow};
@@ -375,29 +374,30 @@ pub mod tcrm {
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
-        pub const ENUM_MIN_TASK_MONITOR_CONTROL_COMMAND: u8 = 0;
+        pub const ENUM_MIN_TASK_MONITOR_CONTROL_COMMAND_UNION: u8 = 0;
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
-        pub const ENUM_MAX_TASK_MONITOR_CONTROL_COMMAND: u8 = 3;
+        pub const ENUM_MAX_TASK_MONITOR_CONTROL_COMMAND_UNION: u8 = 3;
         #[deprecated(
             since = "2.0.0",
             note = "Use associated constants instead. This will no longer be generated in 2021."
         )]
         #[allow(non_camel_case_types)]
-        pub const ENUM_VALUES_TASK_MONITOR_CONTROL_COMMAND: [TaskMonitorControlCommand; 4] = [
-            TaskMonitorControlCommand::NONE,
-            TaskMonitorControlCommand::TerminateAllTasks,
-            TaskMonitorControlCommand::TerminateTask,
-            TaskMonitorControlCommand::SendStdin,
+        pub const ENUM_VALUES_TASK_MONITOR_CONTROL_COMMAND_UNION: [TaskMonitorControlCommandUnion;
+            4] = [
+            TaskMonitorControlCommandUnion::NONE,
+            TaskMonitorControlCommandUnion::TerminateAllTasks,
+            TaskMonitorControlCommandUnion::TerminateTask,
+            TaskMonitorControlCommandUnion::SendStdin,
         ];
 
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
         #[repr(transparent)]
-        pub struct TaskMonitorControlCommand(pub u8);
+        pub struct TaskMonitorControlCommandUnion(pub u8);
         #[allow(non_upper_case_globals)]
-        impl TaskMonitorControlCommand {
+        impl TaskMonitorControlCommandUnion {
             pub const NONE: Self = Self(0);
             pub const TerminateAllTasks: Self = Self(1);
             pub const TerminateTask: Self = Self(2);
@@ -422,7 +422,7 @@ pub mod tcrm {
                 }
             }
         }
-        impl core::fmt::Debug for TaskMonitorControlCommand {
+        impl core::fmt::Debug for TaskMonitorControlCommandUnion {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 if let Some(name) = self.variant_name() {
                     f.write_str(name)
@@ -431,7 +431,7 @@ pub mod tcrm {
                 }
             }
         }
-        impl<'a> flatbuffers::Follow<'a> for TaskMonitorControlCommand {
+        impl<'a> flatbuffers::Follow<'a> for TaskMonitorControlCommandUnion {
             type Inner = Self;
             #[inline]
             unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
@@ -442,8 +442,8 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::Push for TaskMonitorControlCommand {
-            type Output = TaskMonitorControlCommand;
+        impl flatbuffers::Push for TaskMonitorControlCommandUnion {
+            type Output = TaskMonitorControlCommandUnion;
             #[inline]
             unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
                 unsafe {
@@ -452,7 +452,7 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::EndianScalar for TaskMonitorControlCommand {
+        impl flatbuffers::EndianScalar for TaskMonitorControlCommandUnion {
             type Scalar = u8;
             #[inline]
             fn to_little_endian(self) -> u8 {
@@ -466,7 +466,7 @@ pub mod tcrm {
             }
         }
 
-        impl<'a> flatbuffers::Verifiable for TaskMonitorControlCommand {
+        impl<'a> flatbuffers::Verifiable for TaskMonitorControlCommandUnion {
             #[inline]
             fn run_verifier(
                 v: &mut flatbuffers::Verifier,
@@ -477,8 +477,8 @@ pub mod tcrm {
             }
         }
 
-        impl flatbuffers::SimpleToVerifyInSlice for TaskMonitorControlCommand {}
-        pub struct TaskMonitorControlCommandUnionTableOffset {}
+        impl flatbuffers::SimpleToVerifyInSlice for TaskMonitorControlCommandUnion {}
+        pub struct TaskMonitorControlCommandUnionUnionTableOffset {}
 
         #[deprecated(
             since = "2.0.0",
@@ -1966,8 +1966,6 @@ pub mod tcrm {
         }
 
         impl<'a> TerminateAllTasksCommand<'a> {
-            pub const VT_REASON: flatbuffers::VOffsetT = 4;
-
             #[inline]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
                 TerminateAllTasksCommand { _tab: table }
@@ -1980,28 +1978,10 @@ pub mod tcrm {
                 A: flatbuffers::Allocator + 'bldr,
             >(
                 _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
-                args: &'args TerminateAllTasksCommandArgs<'args>,
+                _args: &'args TerminateAllTasksCommandArgs,
             ) -> flatbuffers::WIPOffset<TerminateAllTasksCommand<'bldr>> {
                 let mut builder = TerminateAllTasksCommandBuilder::new(_fbb);
-                if let Some(x) = args.reason {
-                    builder.add_reason(x);
-                }
                 builder.finish()
-            }
-
-            #[inline]
-            pub fn reason(&self) -> &'a str {
-                // Safety:
-                // Created from valid Table for this object
-                // which contains a valid value in this slot
-                unsafe {
-                    self._tab
-                        .get::<flatbuffers::ForwardsUOffset<&str>>(
-                            TerminateAllTasksCommand::VT_REASON,
-                            None,
-                        )
-                        .unwrap()
-                }
             }
         }
 
@@ -2012,25 +1992,15 @@ pub mod tcrm {
                 pos: usize,
             ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
                 use self::flatbuffers::Verifiable;
-                v.visit_table(pos)?
-                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
-                        "reason",
-                        Self::VT_REASON,
-                        true,
-                    )?
-                    .finish();
+                v.visit_table(pos)?.finish();
                 Ok(())
             }
         }
-        pub struct TerminateAllTasksCommandArgs<'a> {
-            pub reason: Option<flatbuffers::WIPOffset<&'a str>>,
-        }
-        impl<'a> Default for TerminateAllTasksCommandArgs<'a> {
+        pub struct TerminateAllTasksCommandArgs {}
+        impl<'a> Default for TerminateAllTasksCommandArgs {
             #[inline]
             fn default() -> Self {
-                TerminateAllTasksCommandArgs {
-                    reason: None, // required field
-                }
+                TerminateAllTasksCommandArgs {}
             }
         }
 
@@ -2039,13 +2009,6 @@ pub mod tcrm {
             start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
         }
         impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TerminateAllTasksCommandBuilder<'a, 'b, A> {
-            #[inline]
-            pub fn add_reason(&mut self, reason: flatbuffers::WIPOffset<&'b str>) {
-                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                    TerminateAllTasksCommand::VT_REASON,
-                    reason,
-                );
-            }
             #[inline]
             pub fn new(
                 _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
@@ -2059,8 +2022,6 @@ pub mod tcrm {
             #[inline]
             pub fn finish(self) -> flatbuffers::WIPOffset<TerminateAllTasksCommand<'a>> {
                 let o = self.fbb_.end_table(self.start_);
-                self.fbb_
-                    .required(o, TerminateAllTasksCommand::VT_REASON, "reason");
                 flatbuffers::WIPOffset::new(o.value())
             }
         }
@@ -2068,7 +2029,6 @@ pub mod tcrm {
         impl core::fmt::Debug for TerminateAllTasksCommand<'_> {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 let mut ds = f.debug_struct("TerminateAllTasksCommand");
-                ds.field("reason", &self.reason());
                 ds.finish()
             }
         }
@@ -2093,7 +2053,6 @@ pub mod tcrm {
 
         impl<'a> TerminateTaskCommand<'a> {
             pub const VT_TASK_NAME: flatbuffers::VOffsetT = 4;
-            pub const VT_REASON: flatbuffers::VOffsetT = 6;
 
             #[inline]
             pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
@@ -2110,9 +2069,6 @@ pub mod tcrm {
                 args: &'args TerminateTaskCommandArgs<'args>,
             ) -> flatbuffers::WIPOffset<TerminateTaskCommand<'bldr>> {
                 let mut builder = TerminateTaskCommandBuilder::new(_fbb);
-                if let Some(x) = args.reason {
-                    builder.add_reason(x);
-                }
                 if let Some(x) = args.task_name {
                     builder.add_task_name(x);
                 }
@@ -2133,20 +2089,6 @@ pub mod tcrm {
                         .unwrap()
                 }
             }
-            #[inline]
-            pub fn reason(&self) -> &'a str {
-                // Safety:
-                // Created from valid Table for this object
-                // which contains a valid value in this slot
-                unsafe {
-                    self._tab
-                        .get::<flatbuffers::ForwardsUOffset<&str>>(
-                            TerminateTaskCommand::VT_REASON,
-                            None,
-                        )
-                        .unwrap()
-                }
-            }
         }
 
         impl flatbuffers::Verifiable for TerminateTaskCommand<'_> {
@@ -2162,25 +2104,18 @@ pub mod tcrm {
                         Self::VT_TASK_NAME,
                         true,
                     )?
-                    .visit_field::<flatbuffers::ForwardsUOffset<&str>>(
-                        "reason",
-                        Self::VT_REASON,
-                        true,
-                    )?
                     .finish();
                 Ok(())
             }
         }
         pub struct TerminateTaskCommandArgs<'a> {
             pub task_name: Option<flatbuffers::WIPOffset<&'a str>>,
-            pub reason: Option<flatbuffers::WIPOffset<&'a str>>,
         }
         impl<'a> Default for TerminateTaskCommandArgs<'a> {
             #[inline]
             fn default() -> Self {
                 TerminateTaskCommandArgs {
                     task_name: None, // required field
-                    reason: None,    // required field
                 }
             }
         }
@@ -2198,13 +2133,6 @@ pub mod tcrm {
                 );
             }
             #[inline]
-            pub fn add_reason(&mut self, reason: flatbuffers::WIPOffset<&'b str>) {
-                self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                    TerminateTaskCommand::VT_REASON,
-                    reason,
-                );
-            }
-            #[inline]
             pub fn new(
                 _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
             ) -> TerminateTaskCommandBuilder<'a, 'b, A> {
@@ -2219,8 +2147,6 @@ pub mod tcrm {
                 let o = self.fbb_.end_table(self.start_);
                 self.fbb_
                     .required(o, TerminateTaskCommand::VT_TASK_NAME, "task_name");
-                self.fbb_
-                    .required(o, TerminateTaskCommand::VT_REASON, "reason");
                 flatbuffers::WIPOffset::new(o.value())
             }
         }
@@ -2229,7 +2155,6 @@ pub mod tcrm {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 let mut ds = f.debug_struct("TerminateTaskCommand");
                 ds.field("task_name", &self.task_name());
-                ds.field("reason", &self.reason());
                 ds.finish()
             }
         }
@@ -2436,15 +2361,15 @@ pub mod tcrm {
             }
 
             #[inline]
-            pub fn control_type(&self) -> TaskMonitorControlCommand {
+            pub fn control_type(&self) -> TaskMonitorControlCommandUnion {
                 // Safety:
                 // Created from valid Table for this object
                 // which contains a valid value in this slot
                 unsafe {
                     self._tab
-                        .get::<TaskMonitorControlCommand>(
+                        .get::<TaskMonitorControlCommandUnion>(
                             ControlReceivedEvent::VT_CONTROL_TYPE,
-                            Some(TaskMonitorControlCommand::NONE),
+                            Some(TaskMonitorControlCommandUnion::NONE),
                         )
                         .unwrap()
                 }
@@ -2466,7 +2391,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn control_as_terminate_all_tasks(&self) -> Option<TerminateAllTasksCommand<'a>> {
-                if self.control_type() == TaskMonitorControlCommand::TerminateAllTasks {
+                if self.control_type() == TaskMonitorControlCommandUnion::TerminateAllTasks {
                     let u = self.control();
                     // Safety:
                     // Created from a valid Table for this object
@@ -2480,7 +2405,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn control_as_terminate_task(&self) -> Option<TerminateTaskCommand<'a>> {
-                if self.control_type() == TaskMonitorControlCommand::TerminateTask {
+                if self.control_type() == TaskMonitorControlCommandUnion::TerminateTask {
                     let u = self.control();
                     // Safety:
                     // Created from a valid Table for this object
@@ -2494,7 +2419,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn control_as_send_stdin(&self) -> Option<SendStdinCommand<'a>> {
-                if self.control_type() == TaskMonitorControlCommand::SendStdin {
+                if self.control_type() == TaskMonitorControlCommandUnion::SendStdin {
                     let u = self.control();
                     // Safety:
                     // Created from a valid Table for this object
@@ -2514,11 +2439,11 @@ pub mod tcrm {
             ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
                 use self::flatbuffers::Verifiable;
                 v.visit_table(pos)?
-     .visit_union::<TaskMonitorControlCommand, _>("control_type", Self::VT_CONTROL_TYPE, "control", Self::VT_CONTROL, true, |key, v, pos| {
+     .visit_union::<TaskMonitorControlCommandUnion, _>("control_type", Self::VT_CONTROL_TYPE, "control", Self::VT_CONTROL, true, |key, v, pos| {
         match key {
-          TaskMonitorControlCommand::TerminateAllTasks => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TerminateAllTasksCommand>>("TaskMonitorControlCommand::TerminateAllTasks", pos),
-          TaskMonitorControlCommand::TerminateTask => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TerminateTaskCommand>>("TaskMonitorControlCommand::TerminateTask", pos),
-          TaskMonitorControlCommand::SendStdin => v.verify_union_variant::<flatbuffers::ForwardsUOffset<SendStdinCommand>>("TaskMonitorControlCommand::SendStdin", pos),
+          TaskMonitorControlCommandUnion::TerminateAllTasks => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TerminateAllTasksCommand>>("TaskMonitorControlCommandUnion::TerminateAllTasks", pos),
+          TaskMonitorControlCommandUnion::TerminateTask => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TerminateTaskCommand>>("TaskMonitorControlCommandUnion::TerminateTask", pos),
+          TaskMonitorControlCommandUnion::SendStdin => v.verify_union_variant::<flatbuffers::ForwardsUOffset<SendStdinCommand>>("TaskMonitorControlCommandUnion::SendStdin", pos),
           _ => Ok(()),
         }
      })?
@@ -2527,14 +2452,14 @@ pub mod tcrm {
             }
         }
         pub struct ControlReceivedEventArgs {
-            pub control_type: TaskMonitorControlCommand,
+            pub control_type: TaskMonitorControlCommandUnion,
             pub control: Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>>,
         }
         impl<'a> Default for ControlReceivedEventArgs {
             #[inline]
             fn default() -> Self {
                 ControlReceivedEventArgs {
-                    control_type: TaskMonitorControlCommand::NONE,
+                    control_type: TaskMonitorControlCommandUnion::NONE,
                     control: None, // required field
                 }
             }
@@ -2546,11 +2471,11 @@ pub mod tcrm {
         }
         impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> ControlReceivedEventBuilder<'a, 'b, A> {
             #[inline]
-            pub fn add_control_type(&mut self, control_type: TaskMonitorControlCommand) {
-                self.fbb_.push_slot::<TaskMonitorControlCommand>(
+            pub fn add_control_type(&mut self, control_type: TaskMonitorControlCommandUnion) {
+                self.fbb_.push_slot::<TaskMonitorControlCommandUnion>(
                     ControlReceivedEvent::VT_CONTROL_TYPE,
                     control_type,
-                    TaskMonitorControlCommand::NONE,
+                    TaskMonitorControlCommandUnion::NONE,
                 );
             }
             #[inline]
@@ -2587,7 +2512,7 @@ pub mod tcrm {
                 let mut ds = f.debug_struct("ControlReceivedEvent");
                 ds.field("control_type", &self.control_type());
                 match self.control_type() {
-                    TaskMonitorControlCommand::TerminateAllTasks => {
+                    TaskMonitorControlCommandUnion::TerminateAllTasks => {
                         if let Some(x) = self.control_as_terminate_all_tasks() {
                             ds.field("control", &x)
                         } else {
@@ -2597,7 +2522,7 @@ pub mod tcrm {
                             )
                         }
                     }
-                    TaskMonitorControlCommand::TerminateTask => {
+                    TaskMonitorControlCommandUnion::TerminateTask => {
                         if let Some(x) = self.control_as_terminate_task() {
                             ds.field("control", &x)
                         } else {
@@ -2607,7 +2532,7 @@ pub mod tcrm {
                             )
                         }
                     }
-                    TaskMonitorControlCommand::SendStdin => {
+                    TaskMonitorControlCommandUnion::SendStdin => {
                         if let Some(x) = self.control_as_send_stdin() {
                             ds.field("control", &x)
                         } else {
@@ -2671,15 +2596,15 @@ pub mod tcrm {
             }
 
             #[inline]
-            pub fn control_type(&self) -> TaskMonitorControlCommand {
+            pub fn control_type(&self) -> TaskMonitorControlCommandUnion {
                 // Safety:
                 // Created from valid Table for this object
                 // which contains a valid value in this slot
                 unsafe {
                     self._tab
-                        .get::<TaskMonitorControlCommand>(
+                        .get::<TaskMonitorControlCommandUnion>(
                             ControlProcessedEvent::VT_CONTROL_TYPE,
-                            Some(TaskMonitorControlCommand::NONE),
+                            Some(TaskMonitorControlCommandUnion::NONE),
                         )
                         .unwrap()
                 }
@@ -2701,7 +2626,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn control_as_terminate_all_tasks(&self) -> Option<TerminateAllTasksCommand<'a>> {
-                if self.control_type() == TaskMonitorControlCommand::TerminateAllTasks {
+                if self.control_type() == TaskMonitorControlCommandUnion::TerminateAllTasks {
                     let u = self.control();
                     // Safety:
                     // Created from a valid Table for this object
@@ -2715,7 +2640,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn control_as_terminate_task(&self) -> Option<TerminateTaskCommand<'a>> {
-                if self.control_type() == TaskMonitorControlCommand::TerminateTask {
+                if self.control_type() == TaskMonitorControlCommandUnion::TerminateTask {
                     let u = self.control();
                     // Safety:
                     // Created from a valid Table for this object
@@ -2729,7 +2654,7 @@ pub mod tcrm {
             #[inline]
             #[allow(non_snake_case)]
             pub fn control_as_send_stdin(&self) -> Option<SendStdinCommand<'a>> {
-                if self.control_type() == TaskMonitorControlCommand::SendStdin {
+                if self.control_type() == TaskMonitorControlCommandUnion::SendStdin {
                     let u = self.control();
                     // Safety:
                     // Created from a valid Table for this object
@@ -2749,11 +2674,11 @@ pub mod tcrm {
             ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
                 use self::flatbuffers::Verifiable;
                 v.visit_table(pos)?
-     .visit_union::<TaskMonitorControlCommand, _>("control_type", Self::VT_CONTROL_TYPE, "control", Self::VT_CONTROL, true, |key, v, pos| {
+     .visit_union::<TaskMonitorControlCommandUnion, _>("control_type", Self::VT_CONTROL_TYPE, "control", Self::VT_CONTROL, true, |key, v, pos| {
         match key {
-          TaskMonitorControlCommand::TerminateAllTasks => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TerminateAllTasksCommand>>("TaskMonitorControlCommand::TerminateAllTasks", pos),
-          TaskMonitorControlCommand::TerminateTask => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TerminateTaskCommand>>("TaskMonitorControlCommand::TerminateTask", pos),
-          TaskMonitorControlCommand::SendStdin => v.verify_union_variant::<flatbuffers::ForwardsUOffset<SendStdinCommand>>("TaskMonitorControlCommand::SendStdin", pos),
+          TaskMonitorControlCommandUnion::TerminateAllTasks => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TerminateAllTasksCommand>>("TaskMonitorControlCommandUnion::TerminateAllTasks", pos),
+          TaskMonitorControlCommandUnion::TerminateTask => v.verify_union_variant::<flatbuffers::ForwardsUOffset<TerminateTaskCommand>>("TaskMonitorControlCommandUnion::TerminateTask", pos),
+          TaskMonitorControlCommandUnion::SendStdin => v.verify_union_variant::<flatbuffers::ForwardsUOffset<SendStdinCommand>>("TaskMonitorControlCommandUnion::SendStdin", pos),
           _ => Ok(()),
         }
      })?
@@ -2762,14 +2687,14 @@ pub mod tcrm {
             }
         }
         pub struct ControlProcessedEventArgs {
-            pub control_type: TaskMonitorControlCommand,
+            pub control_type: TaskMonitorControlCommandUnion,
             pub control: Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>>,
         }
         impl<'a> Default for ControlProcessedEventArgs {
             #[inline]
             fn default() -> Self {
                 ControlProcessedEventArgs {
-                    control_type: TaskMonitorControlCommand::NONE,
+                    control_type: TaskMonitorControlCommandUnion::NONE,
                     control: None, // required field
                 }
             }
@@ -2781,11 +2706,11 @@ pub mod tcrm {
         }
         impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> ControlProcessedEventBuilder<'a, 'b, A> {
             #[inline]
-            pub fn add_control_type(&mut self, control_type: TaskMonitorControlCommand) {
-                self.fbb_.push_slot::<TaskMonitorControlCommand>(
+            pub fn add_control_type(&mut self, control_type: TaskMonitorControlCommandUnion) {
+                self.fbb_.push_slot::<TaskMonitorControlCommandUnion>(
                     ControlProcessedEvent::VT_CONTROL_TYPE,
                     control_type,
-                    TaskMonitorControlCommand::NONE,
+                    TaskMonitorControlCommandUnion::NONE,
                 );
             }
             #[inline]
@@ -2822,7 +2747,7 @@ pub mod tcrm {
                 let mut ds = f.debug_struct("ControlProcessedEvent");
                 ds.field("control_type", &self.control_type());
                 match self.control_type() {
-                    TaskMonitorControlCommand::TerminateAllTasks => {
+                    TaskMonitorControlCommandUnion::TerminateAllTasks => {
                         if let Some(x) = self.control_as_terminate_all_tasks() {
                             ds.field("control", &x)
                         } else {
@@ -2832,7 +2757,7 @@ pub mod tcrm {
                             )
                         }
                     }
-                    TaskMonitorControlCommand::TerminateTask => {
+                    TaskMonitorControlCommandUnion::TerminateTask => {
                         if let Some(x) = self.control_as_terminate_task() {
                             ds.field("control", &x)
                         } else {
@@ -2842,7 +2767,7 @@ pub mod tcrm {
                             )
                         }
                     }
-                    TaskMonitorControlCommand::SendStdin => {
+                    TaskMonitorControlCommandUnion::SendStdin => {
                         if let Some(x) = self.control_as_send_stdin() {
                             ds.field("control", &x)
                         } else {

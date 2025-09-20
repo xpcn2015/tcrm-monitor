@@ -130,40 +130,33 @@ impl FromFlatbuffers<fb::TaskMonitorEvent<'_>> for TaskMonitorEvent {
     }
 }
 
-impl<'a> ToFlatbuffersUnion<'a, fb::TaskMonitorControlCommand> for TaskMonitorControlCommand {
+impl<'a> ToFlatbuffersUnion<'a, fb::TaskMonitorControlCommandUnion> for TaskMonitorControlCommand {
     fn to_flatbuffers_union(
         &self,
         fbb: &mut FlatBufferBuilder<'a>,
     ) -> (
-        fb::TaskMonitorControlCommand,
+        fb::TaskMonitorControlCommandUnion,
         WIPOffset<flatbuffers::UnionWIPOffset>,
     ) {
         match self {
             TaskMonitorControlCommand::TerminateAllTasks => {
-                let reason_offset = fbb.create_string("User requested termination");
-                let terminate_all_command = fb::TerminateAllTasksCommand::create(
-                    fbb,
-                    &fb::TerminateAllTasksCommandArgs {
-                        reason: Some(reason_offset),
-                    },
-                );
+                let terminate_all_command =
+                    fb::TerminateAllTasksCommand::create(fbb, &fb::TerminateAllTasksCommandArgs {});
                 (
-                    fb::TaskMonitorControlCommand::TerminateAllTasks,
+                    fb::TaskMonitorControlCommandUnion::TerminateAllTasks,
                     terminate_all_command.as_union_value(),
                 )
             }
             TaskMonitorControlCommand::TerminateTask { task_name } => {
                 let task_name_offset = fbb.create_string(task_name);
-                let reason_offset = fbb.create_string("User requested termination");
                 let terminate_task_command = fb::TerminateTaskCommand::create(
                     fbb,
                     &fb::TerminateTaskCommandArgs {
                         task_name: Some(task_name_offset),
-                        reason: Some(reason_offset),
                     },
                 );
                 (
-                    fb::TaskMonitorControlCommand::TerminateTask,
+                    fb::TaskMonitorControlCommandUnion::TerminateTask,
                     terminate_task_command.as_union_value(),
                 )
             }
@@ -178,7 +171,7 @@ impl<'a> ToFlatbuffersUnion<'a, fb::TaskMonitorControlCommand> for TaskMonitorCo
                     },
                 );
                 (
-                    fb::TaskMonitorControlCommand::SendStdin,
+                    fb::TaskMonitorControlCommandUnion::SendStdin,
                     send_stdin_command.as_union_value(),
                 )
             }
@@ -254,10 +247,10 @@ impl<'a> ToFlatbuffers<'a> for TaskMonitorControlEvent {
 impl FromFlatbuffers<fb::ControlReceivedEvent<'_>> for TaskMonitorControlEvent {
     fn from_flatbuffers(event: fb::ControlReceivedEvent) -> Result<Self, ConversionError> {
         let control = match event.control_type() {
-            fb::TaskMonitorControlCommand::TerminateAllTasks => {
+            fb::TaskMonitorControlCommandUnion::TerminateAllTasks => {
                 TaskMonitorControlCommand::TerminateAllTasks
             }
-            fb::TaskMonitorControlCommand::TerminateTask => {
+            fb::TaskMonitorControlCommandUnion::TerminateTask => {
                 if let Some(cmd) = event.control_as_terminate_task() {
                     TaskMonitorControlCommand::TerminateTask {
                         task_name: cmd.task_name().to_string(),
@@ -268,7 +261,7 @@ impl FromFlatbuffers<fb::ControlReceivedEvent<'_>> for TaskMonitorControlEvent {
                     ));
                 }
             }
-            fb::TaskMonitorControlCommand::SendStdin => {
+            fb::TaskMonitorControlCommandUnion::SendStdin => {
                 if let Some(cmd) = event.control_as_send_stdin() {
                     TaskMonitorControlCommand::SendStdin {
                         task_name: cmd.task_name().to_string(),
@@ -292,10 +285,10 @@ impl FromFlatbuffers<fb::ControlReceivedEvent<'_>> for TaskMonitorControlEvent {
 impl FromFlatbuffers<fb::ControlProcessedEvent<'_>> for TaskMonitorControlEvent {
     fn from_flatbuffers(event: fb::ControlProcessedEvent) -> Result<Self, ConversionError> {
         let control = match event.control_type() {
-            fb::TaskMonitorControlCommand::TerminateAllTasks => {
+            fb::TaskMonitorControlCommandUnion::TerminateAllTasks => {
                 TaskMonitorControlCommand::TerminateAllTasks
             }
-            fb::TaskMonitorControlCommand::TerminateTask => {
+            fb::TaskMonitorControlCommandUnion::TerminateTask => {
                 if let Some(cmd) = event.control_as_terminate_task() {
                     TaskMonitorControlCommand::TerminateTask {
                         task_name: cmd.task_name().to_string(),
@@ -306,7 +299,7 @@ impl FromFlatbuffers<fb::ControlProcessedEvent<'_>> for TaskMonitorControlEvent 
                     ));
                 }
             }
-            fb::TaskMonitorControlCommand::SendStdin => {
+            fb::TaskMonitorControlCommandUnion::SendStdin => {
                 if let Some(cmd) = event.control_as_send_stdin() {
                     TaskMonitorControlCommand::SendStdin {
                         task_name: cmd.task_name().to_string(),

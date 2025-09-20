@@ -61,12 +61,10 @@ union TaskMonitorErrorUnion {
 // Control Command Types
 
 table TerminateAllTasksCommand {
-  reason: string (required);
 }
 
 table TerminateTaskCommand {
   task_name: string (required);
-  reason: string (required);
 }
 
 table SendStdinCommand {
@@ -74,7 +72,7 @@ table SendStdinCommand {
   input: string (required);
 }
 
-union TaskMonitorControlCommand {
+union TaskMonitorControlCommandUnion {
   TerminateAllTasks: TerminateAllTasksCommand,
   TerminateTask: TerminateTaskCommand,
   SendStdin: SendStdinCommand
@@ -83,11 +81,11 @@ union TaskMonitorControlCommand {
 // Control Event Types
 
 table ControlReceivedEvent {
-  control: TaskMonitorControlCommand (required);
+  control: TaskMonitorControlCommandUnion (required);
 }
 
 table ControlProcessedEvent {
-  control: TaskMonitorControlCommand (required);
+  control: TaskMonitorControlCommandUnion (required);
 }
 
 union TaskMonitorControlEventUnion {
