@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8 (2025/09/24)
+### Fix
+- update dependencies and fix incorrectly Ready event
+- 
 ## 0.1.7 (2025/09/20)
 ### Fix
 - Flatbuffers: rename TaskMonitorControlCommand to TaskMonitorControlCommandUnion and remove unnecessary fields [[commit]](https://github.com/xpcn2015/tcrm-monitor/commit/7214401e617b21c222159360f944ac22bb749bf4)
