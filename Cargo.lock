@@ -979,11 +979,12 @@ dependencies = [
 
 [[package]]
 name = "tcrm-task"
-version = "0.3.6"
+version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30b131ee98f846ad0d82b58ba5620b1b2252c37aa7afa144ea8ac0a7cab2e513"
+checksum = "c23370ab805afa4229e19dc02eef683cd29ecf68f2fe05d5117994d542ccec5d"
 dependencies = [
  "flatbuffers",
+ "libc",
  "nix",
  "serde",
  "thiserror",
